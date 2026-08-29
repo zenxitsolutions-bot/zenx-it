@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: zenx-admin-server
+    runtime: node
+    rootDir: admin-server
+    plan: free
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MYSQL_URL
+        sync: false
+      - key: ADMIN_JWT_ACCESS_SECRET
+        generateValue: true
+      - key: ADMIN_JWT_REFRESH_SECRET
+        generateValue: true
+      - key: ADMIN_JWT_ACCESS_TTL
+        value: 15m
+      - key: ADMIN_JWT_REFRESH_TTL
+        value: 30d
+      - key: CUSTOMER_JWT_ACCESS_SECRET
+        generateValue: true
+      - key: CUSTOMER_JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CUSTOMER_JWT_ACCESS_TTL
+        value: 15m
+      - key: CUSTOMER_JWT_REFRESH_TTL
+        value: 30d
+      # Comma-separated, no spaces — the deployed admin portal origin + the deployed public site
+      # origin (its contact form posts here too). e.g.
+      # https://zenx-admin.netlify.app,https://zenxitsolutions.com
+      - key: CLIENT_ORIGINS
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: "ZenX Admin <onboarding@resend.dev>"
+      # The deployed wellness-app client URL (its /:companySlug/handoff route), e.g.
+      # https://nevo-diet-planner.netlify.app
+      - key: ZENX_DIETITIAN_URL
+        sync: false
+      # MUST equal wellness-app's own ZENX_HANDOFF_SECRET exactly (see wellness-app/render.yaml).
+      # Generate one value (e.g. `openssl rand -hex 32`) and set it identically in both services —
+      # do NOT use generateValue here, the two services would get different values and every
+      # handoff would fail signature verification.
+      - key: ZENX_DIETITIAN_HANDOFF_SECRET
+        sync: false

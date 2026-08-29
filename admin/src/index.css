@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #0a0a09;
+  color: #f4f1e9;
+  font-family: "DM Sans", sans-serif;
+}
+
+::selection {
+  background: #d7ff42;
+  color: #0a0a09;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #ffffff1a;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ffffff33;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1) brightness(1.6);
+  cursor: pointer;
+}
+
+/* Strips react-phone-number-input's own border/background so its country-select + number field
+   sit inside our .zenx-phone-field wrapper's border as one visual control, and recolors the
+   dropdown arrow for the dark theme (PhoneField.tsx). */
+.zenx-phone-field .PhoneInputCountry {
+  margin-right: 0;
+}
+.zenx-phone-field .PhoneInputCountrySelect {
+  cursor: pointer;
+}
+.zenx-phone-field .PhoneInputCountryIcon {
+  box-shadow: none;
+}
+.zenx-phone-field .PhoneInputCountrySelectArrow {
+  color: #f4f1e9;
+  opacity: 0.6;
+}
