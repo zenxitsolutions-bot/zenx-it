@@ -1,0 +1,9 @@
+node_modules
+.env
+.env.*
+!.env.example
+uploads/*
+!uploads/.gitkeep
+dev-verify-mongo.mjs
+.mongo-uri.tmp
+*.log

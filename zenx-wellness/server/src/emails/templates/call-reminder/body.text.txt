@@ -1,0 +1,5 @@
+Hi {{client_name}}
+
+This is a reminder — your call with {{dietitian_name}} is coming up at: {{meeting_time}}
+
+{{join_label}}: {{join_url}}
