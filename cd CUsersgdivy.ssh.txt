@@ -1,0 +1,58 @@
+cd C:\Users\gdivy\.ssh
+ssh -i .\zenx-admin.pem ubuntu@18.227.240.12
+cd /var/www/zenx-it/ 
+cd /var/www/ls -ltr( this command is for listing the content)
+./deploy.sh
+
+
+For Creating a file use command - vim (File Name)
+For Creating a Floder(directory) use command - mkdir (Folder Name)
+
+
+For Insert i
+For Saving the use command esc and then :wq!
+rm -rf (file or folder name)this is for removing
+
+
+
+
+
+For Sai (File Name Deploy.sh) need to push in git
+
+#!/bin/bash
+set -e
+
+cd /var/www/zenx-it
+git pull origin main
+
+# ── static apps (served in place from their dist/ folders) ──
+npm ci
+VITE_ADMIN_API_URL=https://api.zenxitsolutions.com \
+VITE_ADMIN_URL=https://admin.zenxitsolutions.com/admin/login \
+npm run build
+
+cd /var/www/zenx-it/admin
+npm ci
+VITE_ADMIN_API_URL=https://api.zenxitsolutions.com npm run build
+
+cd /var/www/zenx-it/zenx-wellness/client
+npm ci
+VITE_API_URL=https://api-dietitian.zenxitsolutions.com/api npm run build
+
+# ── APIs (migrate before restart) ──
+cd /var/www/zenx-it/admin-server
+npm ci --omit=dev
+npm run db:migrate
+pm2 restart zenx-admin-server
+
+cd /var/www/zenx-it/zenx-wellness/server
+npm ci --omit=dev
+npm run db:migrate
+pm2 restart zenx-wellness-server
+
+pm2 save
+
+# ── verify ──
+curl -fsS http://localhost:4001/api/health && echo " ← admin API ok"
+curl -fsS http://localhost:4000/api/health && echo " ← wellness API ok"
+echo "Deployed $(git -C /var/www/zenx-it rev-parse --short HEAD)"
