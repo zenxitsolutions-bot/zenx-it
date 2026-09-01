@@ -4,10 +4,21 @@ import { getStaffAccessToken, setStaffAccessToken, getCustomerAccessToken, setCu
 // Replaces lib/supabase.ts's live-mode role. isDemoMode keeps the exact same name/shape every
 // service file already checks, so those `if (isDemoMode)` branches need zero changes — only what
 // happens in the live-mode branch (this file) changed, from supabase-js calls to axios calls.
-const baseURL = import.meta.env.VITE_ADMIN_API_URL as string | undefined;
-export const isDemoMode = !baseURL;
+const configuredURL = import.meta.env.VITE_ADMIN_API_URL as string | undefined;
+export const isDemoMode = !configuredURL;
 
-export const apiClient = axios.create({ baseURL: baseURL || "http://localhost:4001/api", withCredentials: true });
+// Every server route is mounted under /api (admin-server/src/app.js), so the base URL must end
+// there. Deploys that set VITE_ADMIN_API_URL to the bare host (https://api.example.com) would
+// otherwise 404 on every call, and Vite bakes the value in at build time so the mistake only
+// shows up in the browser. Tolerate both forms, and a trailing slash, instead.
+const normalizeBaseURL = (url: string) => {
+  const trimmed = url.replace(/\/+$/, "");
+  return /\/api$/.test(trimmed) ? trimmed : `${trimmed}/api`;
+};
+
+const baseURL = configuredURL ? normalizeBaseURL(configuredURL) : "http://localhost:4001/api";
+
+export const apiClient = axios.create({ baseURL, withCredentials: true });
 
 const isCustomerRequest = (url?: string) => Boolean(url?.includes("/customer-auth"));
 
