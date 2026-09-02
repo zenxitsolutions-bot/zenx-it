@@ -161,6 +161,19 @@ export async function syncWellnessCompanyStatus({ zenxCompanyId, slug, status })
   return localId;
 }
 
+// Mirrors a logo change onto wellness-app, which otherwise only ever receives one at
+// provisionWellnessUser time — i.e. never, since a company has no logo the moment it is created.
+// `logoUrl` must already be absolute: ZenX serves /uploads off its own origin, but wellness-app
+// renders the value in an <img> from a different host, where a bare path would resolve against
+// that host and 404. Null clears it, restoring the default Nourishly wordmark.
+export async function syncWellnessCompanyLogo({ zenxCompanyId, slug, logoUrl }) {
+  if (!pool) return null;
+  const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
+  if (!localId) return null;
+  await pool.query('UPDATE companies SET logo_url = ? WHERE id = ?', [logoUrl ?? null, localId]);
+  return localId;
+}
+
 export async function listWellnessClients(zenxCompanyId, slug) {
   if (!pool) return { clients: [], dietitians: [] };
   const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });

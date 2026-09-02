@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS companies (
   -- to backfill from — a company only gets one once someone explicitly sets it.
   timezone VARCHAR(64) NULL,
   status ENUM('ACTIVE', 'INACTIVE') NOT NULL DEFAULT 'ACTIVE',
+  subscription_plan ENUM('starter', 'growth', 'enterprise') NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   UNIQUE KEY uq_companies_slug (company_slug),

@@ -23,9 +23,18 @@ export const provisionCustomerSchema = z.object({
   jobTitle: z.string().optional().nullable(),
   applicationSlugs: z.array(z.string()).min(1),
   password: z.string().min(8),
+  addressLine1: z.string().max(255).optional().nullable(),
+  addressLine2: z.string().max(255).optional().nullable(),
+  city: z.string().max(120).optional().nullable(),
+  state: z.string().max(120).optional().nullable(),
+  zip: z.string().max(20).optional().nullable(),
+  country: z.string().max(120).optional().nullable(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+  subscriptionPlan: z.enum(['starter', 'growth', 'enterprise']).optional().nullable(),
 });
 
 export const issueHandoffTokenSchema = z.object({
   applicationSlug: z.string().min(1),
-  companyId: z.string().min(1),
+  // Optional leftover from older clients. Ignored — tenant comes from the customer JWT.
+  companyId: z.string().min(1).optional(),
 });

@@ -6,7 +6,7 @@ import { env } from '../config/env.js';
 import { comparePassword, hashPassword } from '../utils/password.js';
 import { signCustomerAccessToken, signCustomerRefreshToken, verifyCustomerRefreshToken } from '../utils/jwt.js';
 import { findUserByEmail, findUserById, updateUserPassword, touchUserLastLogin } from '../models/ZenxUser.js';
-import { findCompanyById } from '../models/Company.js';
+import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
 import { findApplicationAccess, listActiveGrantsForUser } from '../models/ApplicationAccess.js';
 import { updateWellnessPassword } from '../models/WellnessDb.js';
 import { findApplicationBySlug, listApplications } from '../models/Application.js';
@@ -21,9 +21,9 @@ const cookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
-function issueTokens(res, user) {
-  const accessToken = signCustomerAccessToken(user);
-  const refreshToken = signCustomerRefreshToken(user);
+function issueTokens(res, user, companyId) {
+  const accessToken = signCustomerAccessToken(user, companyId);
+  const refreshToken = signCustomerRefreshToken(user, companyId);
   res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
   return accessToken;
 }
@@ -34,16 +34,35 @@ function toClientShape(user) {
 }
 
 export const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, companySlug } = req.body;
   const user = await findUserByEmail(email);
   if (!user || !(await comparePassword(password, user.password_hash))) {
     throw ApiError.unauthorized('Invalid email or password');
   }
   if (user.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
 
+  const grants = await listActiveGrantsForUser(user.id);
+  const ownCompanyId = grants[0]?.company_id ?? null;
+  const ownCompany = ownCompanyId ? await findCompanyById(ownCompanyId) : null;
+
+  if (!companySlug) {
+    throw ApiError.forbidden('Sign in from your company\'s login page.', {
+      companyLoginPath: ownCompany?.company_slug ? `/${ownCompany.company_slug}/login` : null,
+    });
+  }
+
+  const company = await findCompanyBySlug(companySlug);
+  if (!company || company.status !== 'ACTIVE') {
+    throw ApiError.forbidden('This login page belongs to a different company — check the URL your admin gave you.');
+  }
+  const grant = grants.find((g) => g.company_id === company.id);
+  if (!grant) {
+    throw ApiError.forbidden('This login page belongs to a different company — check the URL your admin gave you.');
+  }
+
   await touchUserLastLogin(user.id);
-  const accessToken = issueTokens(res, user);
-  res.json({ user: toClientShape(user), accessToken });
+  const accessToken = issueTokens(res, user, company.id);
+  res.json({ user: toClientShape(user), accessToken, companyId: company.id });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
@@ -60,7 +79,13 @@ export const refresh = asyncHandler(async (req, res) => {
   const user = await findUserById(payload.sub);
   if (!user || user.status !== 'ACTIVE') throw ApiError.unauthorized('Account no longer available');
 
-  const accessToken = signCustomerAccessToken(user);
+  const companyId = payload.companyId || null;
+  if (companyId) {
+    const company = await findCompanyById(companyId);
+    if (!company || company.status !== 'ACTIVE') throw ApiError.unauthorized('Account no longer available');
+  }
+
+  const accessToken = signCustomerAccessToken(user, companyId);
   res.json({ accessToken });
 });
 
@@ -94,8 +119,24 @@ export const setNewPassword = asyncHandler(async (req, res) => {
 
 // Powers the Launcher screen (pick among multiple ACTIVE application grants) — replaces the
 // frontend joining application_access_public + applications_public + companies itself.
+export const getPublicCompany = asyncHandler(async (req, res) => {
+  const company = await findCompanyBySlug(req.params.slug);
+  if (!company || company.status !== 'ACTIVE') {
+    res.json(null);
+    return;
+  }
+  res.json({
+    name: company.company_name,
+    slug: company.company_slug,
+    logo_url: company.logo_url,
+  });
+});
+
 export const getActiveGrants = asyncHandler(async (req, res) => {
-  const grants = await listActiveGrantsForUser(req.customer.id);
+  let grants = await listActiveGrantsForUser(req.customer.id);
+  if (req.customerCompanyId) {
+    grants = grants.filter((g) => g.company_id === req.customerCompanyId);
+  }
   const applications = await listApplications();
   const companiesById = new Map();
   for (const grant of grants) {
@@ -122,7 +163,11 @@ export const getActiveGrants = asyncHandler(async (req, res) => {
 // claim existed simply leaves the mirrored value untouched), so the two sides can deploy in
 // either order.
 export const issueHandoffToken = asyncHandler(async (req, res) => {
-  const { applicationSlug, companyId } = req.body;
+  const { applicationSlug } = req.body;
+  const companyId = req.customerCompanyId;
+  if (!companyId) {
+    throw ApiError.forbidden('Sign in from your company\'s login page.');
+  }
 
   const company = await findCompanyById(companyId);
   if (!company || company.status !== 'ACTIVE') throw ApiError.forbidden("You don't have access to this company.");

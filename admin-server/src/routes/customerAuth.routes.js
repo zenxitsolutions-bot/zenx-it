@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { login, refresh, logout, me, setNewPassword, getActiveGrants, issueHandoffToken } from '../controllers/customerAuth.controller.js';
+import { login, refresh, logout, me, setNewPassword, getActiveGrants, issueHandoffToken, getPublicCompany } from '../controllers/customerAuth.controller.js';
 import { validate } from '../middleware/validate.js';
-import { loginSchema, setNewPasswordSchema } from '../schemas/auth.schema.js';
+import { customerLoginSchema, setNewPasswordSchema } from '../schemas/auth.schema.js';
 import { issueHandoffTokenSchema } from '../schemas/provisioning.schema.js';
 import { authenticateCustomer } from '../middleware/authenticate.js';
 
@@ -18,7 +18,8 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts. Please try again in a while.' },
 });
 
-customerAuthRouter.post('/login', loginLimiter, validate(loginSchema), login);
+customerAuthRouter.post('/login', loginLimiter, validate(customerLoginSchema), login);
+customerAuthRouter.get('/company/:slug', getPublicCompany);
 customerAuthRouter.post('/refresh', refresh);
 customerAuthRouter.post('/logout', authenticateCustomer, logout);
 customerAuthRouter.get('/me', authenticateCustomer, me);

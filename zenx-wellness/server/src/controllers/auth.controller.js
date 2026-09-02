@@ -51,7 +51,7 @@ function issueTokens(res, user) {
 
 export const login = asyncHandler(async (req, res) => {
   const { email, password, companySlug } = req.body;
-  const user = await findUserByEmail(email);
+  let user = await findUserByEmail(email);
   if (!user || !(await comparePassword(password, user.passwordHash))) {
     console.warn('[login] rejected', { email, found: Boolean(user) });
     throw ApiError.unauthorized('Invalid email or password');
@@ -68,24 +68,20 @@ export const login = asyncHandler(async (req, res) => {
   // has already proved they own the account, so a distinct error here reveals nothing to an
   // attacker probing for valid emails or live company slugs — and it is why naming the caller's
   // own company URL below is safe.
-  // Resolve the tenant. A slug-scoped URL (/:companySlug/login) must match this user's company.
-  // The bare /login is allowed after a successful password check — welcome emails and the
-  // marketing site have always pointed here, and refusing it left users staring at a form that
-  // appeared to do nothing useful. Tenant isolation still holds when a slug IS present.
-  let company = null;
-  if (companySlug) {
-    company = await findCompanyBySlug(companySlug);
-    // Unknown slug is 403, not 404: this is reachable only with valid credentials, and a
-    // distinguishable 404 would turn the login form into a slug-enumeration oracle.
-    if (!company) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
-    if (company.id !== user.companyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
-  } else {
-    company = user.companyId ? await findCompanyById(user.companyId) : null;
+  //
+  // Bare /login is refused. The company URL is the only entry point; telling the caller their
+  // own path is safe only because they already passed the password check.
+  const ownCompany = user.companyId ? await findCompanyById(user.companyId) : null;
+  if (!companySlug) {
+    throw ApiError.forbidden('Sign in from your company\'s login page.', {
+      companyLoginPath: ownCompany?.slug ? `/${ownCompany.slug}/login` : null,
+    });
   }
 
-  if (!company) {
-    throw ApiError.forbidden("This account is not linked to a company. Contact your administrator.");
-  }
+  const company = await findCompanyBySlug(companySlug);
+  // Unknown slug is 403, not 404: this is reachable only with valid credentials, and a
+  // distinguishable 404 would turn the login form into a slug-enumeration oracle.
+  if (!company || company.id !== user.companyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
   if (company.status !== 'ACTIVE') {
     throw ApiError.forbidden('This company account is not active. Contact your administrator.');
   }
@@ -113,7 +109,7 @@ export const login = asyncHandler(async (req, res) => {
 // logo_url/jti — this reads exactly those, byte-for-byte). Public endpoint: the token itself, not
 // a session, proves the caller came from a real ZenX login.
 export const handoff = asyncHandler(async (req, res) => {
-  const { token } = req.body;
+  const { token, companySlug } = req.body;
   if (!env.zenxHandoffSecret) throw new Error('ZENX_HANDOFF_SECRET is not configured');
 
   let payload;
@@ -121,6 +117,14 @@ export const handoff = asyncHandler(async (req, res) => {
     payload = jwt.verify(token, env.zenxHandoffSecret);
   } catch {
     throw ApiError.unauthorized('This login link is invalid or has expired.');
+  }
+
+  if (
+    companySlug &&
+    payload.company_slug &&
+    String(companySlug).toLowerCase() !== String(payload.company_slug).toLowerCase()
+  ) {
+    throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
   }
 
   // users.company_id has a FK into this app's own companies table — mirror the ZenX company here
@@ -195,6 +199,18 @@ export const refresh = asyncHandler(async (req, res) => {
   const user = await findUserById(payload.sub);
   if (!user || user.refreshTokenVersion !== payload.tokenVersion) {
     throw ApiError.unauthorized('Refresh token no longer valid');
+  }
+  if (user.accountStatus === 'suspended') {
+    throw ApiError.unauthorized('Refresh token no longer valid');
+  }
+  if (user.role === 'client' && user.accountStatus === 'inactive') {
+    throw ApiError.unauthorized('Refresh token no longer valid');
+  }
+  if (user.companyId) {
+    const company = await findCompanyById(user.companyId);
+    if (!company || company.status !== 'ACTIVE') {
+      throw ApiError.unauthorized('Refresh token no longer valid');
+    }
   }
 
   res.json({ accessToken: signAccessToken(user) });

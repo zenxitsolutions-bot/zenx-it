@@ -28,8 +28,8 @@ export function AuthProvider({ children }) {
     return user;
   }, []);
 
-  const completeHandoff = useCallback(async (token) => {
-    const { user, accessToken } = await handoffRequest(token);
+  const completeHandoff = useCallback(async (token, companySlug) => {
+    const { user, accessToken } = await handoffRequest(token, companySlug);
     setAccessToken(accessToken);
     setUser(user);
     return user;

@@ -165,12 +165,12 @@ export default function CustomerDetailPage() {
         )}
         <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
           <span className="text-xs uppercase tracking-wider text-dim">Company URL</span>
-          <code className="text-sm text-offwhite">/{company.company_slug}</code>
+          <code className="text-sm text-offwhite">/{company.company_slug}/login</code>
           <Button
             size="sm"
             variant="secondary"
             onClick={() => {
-              navigator.clipboard.writeText(`/${company.company_slug}`);
+              navigator.clipboard.writeText(`${window.location.origin}/${company.company_slug}/login`);
               setUrlCopied(true);
               setTimeout(() => setUrlCopied(false), 1500);
             }}

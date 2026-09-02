@@ -93,6 +93,15 @@ export type ApplicationAccessStatus = (typeof APPLICATION_ACCESS_STATUSES)[numbe
 export const COMPANY_STATUSES = ["ACTIVE", "INACTIVE"] as const;
 export type CompanyStatus = (typeof COMPANY_STATUSES)[number];
 
+export const SUBSCRIPTION_PLANS = ["starter", "growth", "enterprise"] as const;
+export type SubscriptionPlan = (typeof SUBSCRIPTION_PLANS)[number];
+
+export const SUBSCRIPTION_PLAN_LABELS: Record<SubscriptionPlan, string> = {
+  starter: "Starter",
+  growth: "Growth",
+  enterprise: "Enterprise",
+};
+
 /**
  * Roles are application-specific, not a single fixed enum — a person's role in
  * one application says nothing about their role (or even access) in another.
@@ -202,6 +211,7 @@ export interface Company {
   // Optional: demo-mode fixtures predate the timezone rollout — see Profile's own comment.
   timezone?: string | null;
   status: CompanyStatus;
+  subscription_plan?: SubscriptionPlan | null;
   created_at: string;
   updated_at: string;
 }

@@ -22,6 +22,14 @@ export interface ProvisionCustomerInput {
   adminId: string;
   /** A temporary password set by the admin — the customer must change it on first login. */
   password: string;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  status?: Company["status"];
+  subscriptionPlan?: Company["subscription_plan"];
 }
 
 /**
@@ -86,13 +94,14 @@ export const provisioningService = {
         company_phone: input.phone,
         website: normalizeWebsite(input.website),
         logo_url: null,
-        address_line1: null,
-        address_line2: null,
-        city: null,
-        state: null,
-        zip: null,
-        country: null,
-        status: "ACTIVE",
+        address_line1: input.addressLine1 ?? null,
+        address_line2: input.addressLine2 ?? null,
+        city: input.city ?? null,
+        state: input.state ?? null,
+        zip: input.zip ?? null,
+        country: input.country ?? null,
+        status: input.status ?? "ACTIVE",
+        subscription_plan: input.subscriptionPlan ?? null,
         created_at: now,
         updated_at: now,
       };
@@ -174,6 +183,14 @@ export const provisioningService = {
         jobTitle: input.jobTitle,
         applicationSlugs: input.applicationSlugs,
         password: input.password,
+        addressLine1: input.addressLine1 ?? null,
+        addressLine2: input.addressLine2 ?? null,
+        city: input.city ?? null,
+        state: input.state ?? null,
+        zip: input.zip ?? null,
+        country: input.country ?? null,
+        status: input.status ?? "ACTIVE",
+        subscriptionPlan: input.subscriptionPlan ?? null,
       });
       return data;
     } catch (err) {

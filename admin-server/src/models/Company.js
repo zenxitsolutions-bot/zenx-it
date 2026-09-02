@@ -10,8 +10,8 @@ export async function createCompany(input, conn = pool) {
   await conn.query(
     `INSERT INTO companies
       (id, enquiry_id, company_name, company_slug, company_email, company_phone, website,
-       address_line1, address_line2, city, state, zip, country)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       address_line1, address_line2, city, state, zip, country, status, subscription_plan)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.enquiryId ?? null,
@@ -26,6 +26,8 @@ export async function createCompany(input, conn = pool) {
       input.state ?? null,
       input.zip ?? null,
       input.country ?? null,
+      input.status ?? 'ACTIVE',
+      input.subscriptionPlan ?? null,
     ]
   );
   return findCompanyById(id, conn);

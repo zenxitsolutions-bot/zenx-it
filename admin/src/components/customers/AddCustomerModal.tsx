@@ -5,7 +5,8 @@ import { Button } from "../ui/Button";
 import { FieldWrap, Input } from "../ui/Field";
 import { PhoneField } from "../ui/PhoneField";
 import { CredentialRevealModal } from "./CredentialRevealModal";
-import type { ApplicationSlug } from "../../types/domain";
+import type { ApplicationSlug, CompanyStatus, SubscriptionPlan } from "../../types/domain";
+import { SUBSCRIPTION_PLANS, SUBSCRIPTION_PLAN_LABELS } from "../../types/domain";
 import { provisioningService, generateUniqueCompanySlug } from "../../services/provisioning";
 import { generateTempPassword } from "../../utils/password";
 import { useAuth } from "../../context/AuthContext";
@@ -38,12 +39,19 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
   const [companySlug, setCompanySlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [website, setWebsite] = useState("");
-  const [access, setAccess] = useState<AccessOption>("none");
+  const [access, setAccess] = useState<AccessOption>("zenx-dietitian");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zip, setZip] = useState("");
+  const [country, setCountry] = useState("");
+  const [accountStatus, setAccountStatus] = useState<CompanyStatus>("ACTIVE");
+  const [subscriptionPlan, setSubscriptionPlan] = useState<SubscriptionPlan>("starter");
   const [password, setPassword] = useState(() => generateTempPassword());
   const [saving, setSaving] = useState(false);
   const [reveal, setReveal] = useState(false);
@@ -55,12 +63,19 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
       setCompanySlug("");
       setSlugTouched(false);
       setWebsite("");
-      setAccess("none");
+      setAccess("zenx-dietitian");
       setFirstName("");
       setLastName("");
       setPhone("");
       setEmail("");
       setJobTitle("");
+      setAddressLine1("");
+      setCity("");
+      setState("");
+      setZip("");
+      setCountry("");
+      setAccountStatus("ACTIVE");
+      setSubscriptionPlan("starter");
       setPassword(generateTempPassword());
       setReveal(false);
       setError(null);
@@ -97,6 +112,13 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         applicationSlugs: slugsFor(access),
         adminId: profile.id,
         password,
+        addressLine1: addressLine1 || null,
+        city: city || null,
+        state: state || null,
+        zip: zip || null,
+        country: country || null,
+        status: accountStatus,
+        subscriptionPlan,
       });
       setReveal(true);
     } catch (err) {
@@ -159,7 +181,6 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
           <div className="grid grid-cols-2 gap-2">
             {(
               [
-                { value: "none", label: "None" },
                 { value: "zenx-dietitian", label: "ZenX Dietitian" },
                 { value: "zenx-pos", label: "ZenX Small Business POS" },
                 { value: "both", label: "Both" },
@@ -194,8 +215,56 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
           <FieldWrap label="Phone" htmlFor="ac-phone">
             <PhoneField id="ac-phone" value={phone} onChange={setPhone} />
           </FieldWrap>
-          <FieldWrap label="Email" htmlFor="ac-email">
+          <FieldWrap label="Customer admin email" htmlFor="ac-email">
             <Input id="ac-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          </FieldWrap>
+        </div>
+
+        <FieldWrap label="Business address" htmlFor="ac-address">
+          <Input id="ac-address" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} placeholder="Street address" />
+        </FieldWrap>
+        <div className="grid grid-cols-2 gap-4">
+          <FieldWrap label="City" htmlFor="ac-city">
+            <Input id="ac-city" value={city} onChange={(e) => setCity(e.target.value)} />
+          </FieldWrap>
+          <FieldWrap label="State" htmlFor="ac-state">
+            <Input id="ac-state" value={state} onChange={(e) => setState(e.target.value)} />
+          </FieldWrap>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <FieldWrap label="ZIP / Postal code" htmlFor="ac-zip">
+            <Input id="ac-zip" value={zip} onChange={(e) => setZip(e.target.value)} />
+          </FieldWrap>
+          <FieldWrap label="Country" htmlFor="ac-country">
+            <Input id="ac-country" value={country} onChange={(e) => setCountry(e.target.value)} />
+          </FieldWrap>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <FieldWrap label="Account status" htmlFor="ac-status">
+            <select
+              id="ac-status"
+              value={accountStatus}
+              onChange={(e) => setAccountStatus(e.target.value as CompanyStatus)}
+              className="w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-offwhite"
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </FieldWrap>
+          <FieldWrap label="Subscription plan" htmlFor="ac-plan">
+            <select
+              id="ac-plan"
+              value={subscriptionPlan}
+              onChange={(e) => setSubscriptionPlan(e.target.value as SubscriptionPlan)}
+              className="w-full rounded-md border border-border bg-ink px-3 py-2 text-sm text-offwhite"
+            >
+              {SUBSCRIPTION_PLANS.map((plan) => (
+                <option key={plan} value={plan}>
+                  {SUBSCRIPTION_PLAN_LABELS[plan]}
+                </option>
+              ))}
+            </select>
           </FieldWrap>
         </div>
 

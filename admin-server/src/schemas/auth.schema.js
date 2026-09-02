@@ -5,6 +5,11 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+export const customerLoginSchema = loginSchema.extend({
+  // Slug from /:companySlug/login. Resolved server-side to company_id; never trusted as a tenant id.
+  companySlug: z.string().min(1).max(255).optional().nullable(),
+});
+
 export const forgotPasswordSchema = z.object({
   email: z.string().email(),
 });

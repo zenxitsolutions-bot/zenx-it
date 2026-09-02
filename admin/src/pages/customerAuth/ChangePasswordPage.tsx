@@ -51,7 +51,7 @@ export default function ChangePasswordPage() {
       await customerAuthService.setNewPassword(user.id, password);
       const grants = await customerAuthService.getActiveGrants(user.id);
       if (grants.length === 1) {
-        const url = await customerAuthService.openApplication(grants[0].application.slug, grants[0].company.id);
+        const url = await customerAuthService.openApplication(grants[0].application.slug);
         window.location.href = url;
         return;
       }

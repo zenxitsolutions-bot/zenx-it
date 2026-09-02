@@ -2,7 +2,11 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 
 export function signAccessToken(user) {
-  return jwt.sign({ sub: user.id, role: user.role }, env.jwtAccessSecret, { expiresIn: env.jwtAccessTtl });
+  return jwt.sign(
+    { sub: user.id, role: user.role, companyId: user.companyId ?? null },
+    env.jwtAccessSecret,
+    { expiresIn: env.jwtAccessTtl },
+  );
 }
 
 export function signRefreshToken(user) {

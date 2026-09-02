@@ -23,12 +23,20 @@ export function verifyStaffRefreshToken(token) {
   return jwt.verify(token, env.adminJwtRefreshSecret);
 }
 
-export function signCustomerAccessToken(user) {
-  return jwt.sign({ sub: user.id, kind: 'customer' }, env.customerJwtAccessSecret, { expiresIn: env.customerJwtAccessTtl });
+export function signCustomerAccessToken(user, companyId) {
+  return jwt.sign(
+    { sub: user.id, kind: 'customer', companyId: companyId ?? null },
+    env.customerJwtAccessSecret,
+    { expiresIn: env.customerJwtAccessTtl },
+  );
 }
 
-export function signCustomerRefreshToken(user) {
-  return jwt.sign({ sub: user.id, kind: 'customer' }, env.customerJwtRefreshSecret, { expiresIn: env.customerJwtRefreshTtl });
+export function signCustomerRefreshToken(user, companyId) {
+  return jwt.sign(
+    { sub: user.id, kind: 'customer', companyId: companyId ?? null },
+    env.customerJwtRefreshSecret,
+    { expiresIn: env.customerJwtRefreshTtl },
+  );
 }
 
 export function verifyCustomerAccessToken(token) {

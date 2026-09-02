@@ -81,6 +81,12 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
         applicationSlugs: selectedSlugs,
         adminId: profile.id,
         password,
+        addressLine1: enquiry.address_line1,
+        addressLine2: enquiry.address_line2,
+        city: enquiry.city,
+        state: enquiry.state,
+        zip: enquiry.zip,
+        country: enquiry.country,
       });
       setCreatedAppCount(result.grants.length);
       setStep("success");

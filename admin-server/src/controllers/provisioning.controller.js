@@ -36,14 +36,49 @@ export const checkCompanySlugAvailable = asyncHandler(async (req, res) => {
 // second application_access insert) rolls back the company and user too, instead of leaving an
 // orphaned company with no usable account.
 export const provisionCustomerAccount = asyncHandler(async (req, res) => {
-  const { enquiryId, companyName, companySlug, website, firstName, lastName, phone, email, jobTitle, applicationSlugs, password } = req.body;
+  const {
+    enquiryId,
+    companyName,
+    companySlug,
+    website,
+    firstName,
+    lastName,
+    phone,
+    email,
+    jobTitle,
+    applicationSlugs,
+    password,
+    addressLine1,
+    addressLine2,
+    city,
+    state,
+    zip,
+    country,
+    status,
+    subscriptionPlan,
+  } = req.body;
   const normalizedWebsite = normalizeWebsite(website);
 
   if (await findCompanyBySlug(companySlug)) throw ApiError.conflict('That company URL is already taken');
   if (await findUserByEmail(email)) throw ApiError.conflict('A customer account with this email already exists');
 
   const { company, user, grants } = await withTransaction(async (conn) => {
-    const company = await createCompany({ enquiryId, companyName, companySlug, website: normalizedWebsite }, conn);
+    const company = await createCompany({
+      enquiryId,
+      companyName,
+      companySlug,
+      website: normalizedWebsite,
+      companyEmail: email,
+      companyPhone: phone,
+      addressLine1,
+      addressLine2,
+      city,
+      state,
+      zip,
+      country,
+      status: status ?? 'ACTIVE',
+      subscriptionPlan: subscriptionPlan ?? null,
+    }, conn);
     const user = await createUser(
       { email, passwordHash: await hashPassword(password), firstName, lastName, phone, jobTitle, mustChangePassword: true },
       conn

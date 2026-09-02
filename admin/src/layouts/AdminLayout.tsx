@@ -13,6 +13,7 @@ const TITLES: [string, string][] = [
   ["/admin/applications", "Applications"],
   ["/admin/analytics", "Analytics"],
   ["/admin/users", "Admin Users"],
+  ["/admin/audit-logs", "Audit Logs"],
   ["/admin/settings", "Settings"],
 ];
 

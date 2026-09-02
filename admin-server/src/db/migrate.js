@@ -39,6 +39,7 @@ const ALTERS = [
   "ALTER TABLE users ADD COLUMN time_format ENUM('12h', '24h') NOT NULL DEFAULT '12h' AFTER date_format",
 
   'ALTER TABLE companies ADD COLUMN timezone VARCHAR(64) NULL AFTER country',
+  "ALTER TABLE companies ADD COLUMN subscription_plan ENUM('starter', 'growth', 'enterprise') NULL AFTER status",
 ];
 
 // wellness-app's own migrate.js can assume its database already exists (it always has). This one

@@ -8,6 +8,7 @@ import {
   BarChart3,
   ShieldCheck,
   Settings,
+  ScrollText,
   X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -29,6 +30,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/admin/applications", label: "Applications", icon: LayoutGrid, roles: null },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3, roles: null },
   { to: "/admin/users", label: "Admin Users", icon: ShieldCheck, roles: ["Super Admin", "Admin"] },
+  { to: "/admin/audit-logs", label: "Audit Logs", icon: ScrollText, roles: ["Super Admin", "Admin"] },
   { to: "/admin/settings", label: "Settings", icon: Settings, roles: null },
 ];
 

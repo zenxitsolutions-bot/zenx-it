@@ -7,10 +7,17 @@ import { createAuditLog } from '../models/AuditLog.js';
 import { hashPassword } from '../utils/password.js';
 import {
   syncWellnessCompanyStatus,
+  syncWellnessCompanyLogo,
   listWellnessClients,
   updateWellnessAssignedDietitian,
   updateWellnessPassword,
 } from '../models/WellnessDb.js';
+
+// Logos are stored as a path relative to this server's own origin, which the admin portal renders
+// same-origin. wellness-app is a separate origin, so anything mirrored there has to be absolute.
+function absoluteLogoUrl(req, logoPath) {
+  return logoPath ? `${req.protocol}://${req.get('host')}${logoPath}` : null;
+}
 
 export const getCompanies = asyncHandler(async (req, res) => {
   res.json(await listCompanies());
@@ -141,9 +148,28 @@ export const uploadLogo = asyncHandler(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('No file uploaded');
   const logoUrl = `/uploads/company-logos/${req.file.filename}`;
   const company = await updateCompanyLogo(req.params.id, logoUrl);
+  try {
+    await syncWellnessCompanyLogo({
+      zenxCompanyId: company.id,
+      slug: company.company_slug,
+      logoUrl: absoluteLogoUrl(req, logoUrl),
+    });
+  } catch (err) {
+    console.error('[uploadLogo] wellness-app logo sync failed', err);
+  }
   res.json(company);
 });
 
 export const removeLogo = asyncHandler(async (req, res) => {
-  res.json(await updateCompanyLogo(req.params.id, null));
+  const company = await updateCompanyLogo(req.params.id, null);
+  try {
+    await syncWellnessCompanyLogo({
+      zenxCompanyId: company.id,
+      slug: company.company_slug,
+      logoUrl: null,
+    });
+  } catch (err) {
+    console.error('[removeLogo] wellness-app logo sync failed', err);
+  }
+  res.json(company);
 });

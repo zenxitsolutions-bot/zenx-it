@@ -2,6 +2,8 @@ import { verifyStaffAccessToken, verifyCustomerAccessToken } from '../utils/jwt.
 import { ApiError } from '../utils/ApiError.js';
 import { findProfileById } from '../models/Profile.js';
 import { findUserById } from '../models/ZenxUser.js';
+import { findCompanyById } from '../models/Company.js';
+import { listActiveGrantsForUser } from '../models/ApplicationAccess.js';
 import { asyncHandler } from './asyncHandler.js';
 
 function readBearer(req) {
@@ -43,6 +45,20 @@ export const authenticateCustomer = asyncHandler(async (req, res, next) => {
   if (!user) throw ApiError.unauthorized('User no longer exists');
   if (user.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
 
+  // Tenant on the session comes from the token minted at /:companySlug/login — never from a
+  // companyId the browser posts later. Re-check the grant so a revoked company cannot keep using
+  // an old access token.
   req.customer = user;
+  req.customerCompanyId = payload.companyId || null;
+  if (req.customerCompanyId) {
+    const company = await findCompanyById(req.customerCompanyId);
+    if (!company || company.status !== 'ACTIVE') {
+      throw ApiError.forbidden('This company account is not active. Contact your administrator.');
+    }
+    const grants = await listActiveGrantsForUser(user.id);
+    if (!grants.some((g) => g.company_id === req.customerCompanyId)) {
+      throw ApiError.forbidden('This session is no longer valid for that company.');
+    }
+  }
   next();
 });

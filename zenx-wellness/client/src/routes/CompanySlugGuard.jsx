@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
@@ -10,17 +11,29 @@ import { useAuth } from '../hooks/useAuth';
 // URL, a query param, or the request body, so typing another company's slug cannot return that
 // company's data no matter what this component does.
 //
-// What this does is make the refusal visible. Editing the address bar from /abc-nutrition to
-// /xyz-wellness used to silently rewrite the URL back and carry on rendering, which looked like
-// the app had honoured the switch and quietly showed "XYZ" data that was really the user's own.
-// Sending it to /unauthorized instead states plainly that the tenant was refused, matching the
-// 403 the API returns for the same attempt.
+// On a slug mismatch we clear the session (product spec: deny access and terminate the session)
+// then send the visitor to that URL's login page — they cannot keep a live session for tenant A
+// while looking at tenant B's address bar.
 export function CompanySlugGuard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { companySlug } = useParams();
+  const [cleared, setCleared] = useState(false);
+  const mismatch = companySlug?.toLowerCase() !== user.companySlug?.toLowerCase();
 
-  if (companySlug?.toLowerCase() !== user.companySlug?.toLowerCase()) {
-    return <Navigate to="/unauthorized" replace />;
+  useEffect(() => {
+    if (!mismatch) return undefined;
+    let cancelled = false;
+    logout().finally(() => {
+      if (!cancelled) setCleared(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mismatch, logout]);
+
+  if (mismatch) {
+    if (!cleared) return null;
+    return <Navigate to={companySlug ? `/${companySlug}/login` : '/login'} replace />;
   }
 
   return <Outlet />;

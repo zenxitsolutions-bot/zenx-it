@@ -39,7 +39,7 @@ export default function LauncherPage() {
     setError(null);
     setOpeningGrantId(grant.grant.id);
     try {
-      const url = await customerAuthService.openApplication(grant.application.slug, grant.company.id);
+      const url = await customerAuthService.openApplication(grant.application.slug);
       window.location.href = url;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not open that application.");

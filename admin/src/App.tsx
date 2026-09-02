@@ -18,7 +18,9 @@ import ApplicationsPage from "./pages/applications/ApplicationsPage";
 import AnalyticsPage from "./pages/analytics/AnalyticsPage";
 import AdminUsersPage from "./pages/adminUsers/AdminUsersPage";
 import SettingsPage from "./pages/SettingsPage";
+import AuditLogsPage from "./pages/audit/AuditLogsPage";
 import NotFoundPage from "./pages/NotFoundPage";
+
 
 export default function App() {
   return (
@@ -34,6 +36,7 @@ export default function App() {
 
               {/* Central customer sign-in — separate identity/role from ZenX staff above. */}
               <Route path="/login" element={<CustomerLoginPage />} />
+              <Route path="/:companySlug/login" element={<CustomerLoginPage />} />
               <Route path="/change-password" element={<ChangePasswordPage />} />
               <Route path="/launcher" element={<LauncherPage />} />
 
@@ -47,6 +50,7 @@ export default function App() {
                 <Route path="/admin/applications" element={<ApplicationsPage />} />
                 <Route path="/admin/analytics" element={<AnalyticsPage />} />
                 <Route path="/admin/users" element={<AdminUsersPage />} />
+                <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
                 <Route path="/admin/settings" element={<SettingsPage />} />
               </Route>
 
