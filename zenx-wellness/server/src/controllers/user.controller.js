@@ -10,6 +10,7 @@ import { ApiError } from '../utils/ApiError.js';
 import { hashPassword } from '../utils/password.js';
 import { toClientShape } from '../utils/serialize.js';
 import { notifyClientAccountCreated } from '../services/accountNotifications.js';
+import { upsertDeviceToken, deleteToken } from '../models/DeviceToken.js';
 
 // A blank controlled-form field arrives as '' (see the optionalPhone/optionalAddress union in
 // user.schema.js) — treated as "clear this field," not "set it to the literal empty string."
@@ -168,4 +169,18 @@ export const createUser = asyncHandler(async (req, res) => {
   if (role === 'client') await notifyClientAccountCreated(user, { plainPassword: password });
 
   res.status(201).json(toClientShape(user, ['passwordHash']));
+});
+
+export const registerDeviceToken = asyncHandler(async (req, res) => {
+  const row = await upsertDeviceToken({
+    userId: req.user.id,
+    token: req.body.token,
+    platform: req.body.platform ?? 'web',
+  });
+  res.status(201).json({ id: row?.id, platform: row?.platform });
+});
+
+export const unregisterDeviceToken = asyncHandler(async (req, res) => {
+  await deleteToken(req.body.token);
+  res.status(204).send();
 });

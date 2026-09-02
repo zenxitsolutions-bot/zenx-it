@@ -7,7 +7,8 @@ import {
   deleteEnquiryById,
 } from '../models/Enquiry.js';
 import { listByEnquiryId, createHistoryEntry } from '../models/EnquiryHistory.js';
-import { findUserByEmail, createUser as createUserRecord } from '../models/User.js';
+import { findUserByEmail, findUserById, createUser as createUserRecord, updateUser as updateUserRecord } from '../models/User.js';
+import { findCompanyById } from '../models/Company.js';
 import { reassignEnquiryCallsToClient } from '../models/Call.js';
 import { createClientNote } from '../models/ClientNote.js';
 import { hashPassword } from '../utils/password.js';
@@ -37,13 +38,25 @@ const STATUS_NOTE_LABEL = {
 // user.controller.js#createUser already uses (hash the temp password, force a change on first
 // login). Must run inside the caller's transaction (conn) so account creation and everything that
 // gets carried over onto it either all commit together or none do.
-async function createConvertedAccount(enquiry, { planId, planDuration, password }, conn) {
+async function createConvertedAccount(enquiry, { planId, planDuration, password, assignedDietitian }, conn) {
   if (!password || !planId || !planDuration) {
     throw ApiError.badRequest('password, planId, and planDuration are required to create the client account');
   }
   if (await findUserByEmail(enquiry.email)) {
     throw ApiError.conflict('A user with this email is already registered');
   }
+
+  if (assignedDietitian) {
+    const dietitian = await findUserById(assignedDietitian, conn);
+    if (!dietitian || dietitian.role !== 'dietitian' || dietitian.companyId !== enquiry.companyId) {
+      throw ApiError.badRequest('Invalid dietitian');
+    }
+    if (dietitian.accountStatus && dietitian.accountStatus !== 'active') {
+      throw ApiError.badRequest('That dietitian is not active');
+    }
+  }
+
+  const company = await findCompanyById(enquiry.companyId, conn);
 
   return createUserRecord(
     {
@@ -54,8 +67,10 @@ async function createConvertedAccount(enquiry, { planId, planDuration, password 
       role: 'client',
       programPlan: planId,
       planDuration,
+      assignedDietitian: assignedDietitian || null,
       mustChangePassword: true,
       companyId: enquiry.companyId,
+      companySlug: company?.slug ?? null,
     },
     conn
   );
@@ -133,7 +148,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   }
 
   if (status === 'converted') {
-    const { planId, planDuration, password } = req.body;
+    const { planId, planDuration, password, assignedDietitian } = req.body;
     const alreadyConverted = Boolean(existing.convertedUserId);
     // Captured from inside the transaction, but only ever notified about after it commits (below)
     // — never from inside the transaction body itself, so a conversion that ends up rolling back
@@ -149,7 +164,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
       let convertedUserId = existing.convertedUserId;
 
       if (!alreadyConverted) {
-        const user = await createConvertedAccount(existing, { planId, planDuration, password }, conn);
+        const user = await createConvertedAccount(existing, { planId, planDuration, password, assignedDietitian }, conn);
         convertedUserId = user.id;
         newUser = user;
 
@@ -163,6 +178,9 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
             conn
           );
         }
+      } else {
+        // Re-selecting Converted after a later Unsuccessful: restore the client that conversion created.
+        await updateUserRecord(existing.convertedUserId, { accountStatus: 'active' }, conn);
       }
 
       await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null }, conn);
@@ -178,6 +196,17 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
     await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null });
   }
   const enquiry = await updateEnquiryById(req.params.id, { status, note });
+
+  // Converted → Unsuccessful (closed): deactivate the client that conversion created so they
+  // don't stay Active after the lead was marked lost.
+  if (status === 'closed' && existing.convertedUserId) {
+    try {
+      await updateUserRecord(existing.convertedUserId, { accountStatus: 'inactive' });
+    } catch (err) {
+      console.error(`[updateEnquiry] failed to deactivate converted client ${existing.convertedUserId}:`, err);
+    }
+  }
+
   res.json(toClientShape(enquiry));
 });
 

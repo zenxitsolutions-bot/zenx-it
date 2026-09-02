@@ -45,10 +45,16 @@ export function useCallReminders(enabled) {
       const windowMs = call.reminderMinutesBefore * 60_000;
       if (msUntilCall > 0 && msUntilCall <= windowMs) {
         const who = call.dietitian?.name ?? call.client?.name ?? 'your call';
-        toast(`Upcoming call with ${who}`, {
-          description: `Starts at ${formatTime(call.scheduledAt)}`,
-          duration: 15_000,
-        });
+        const title = `Upcoming call with ${who}`;
+        const description = `Starts at ${formatTime(call.scheduledAt)}`;
+        toast(title, { description, duration: 15_000 });
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          try {
+            new Notification(title, { body: description });
+          } catch {
+            // Some browsers only allow service-worker notifications — toast is enough.
+          }
+        }
         shownRef.current.add(call._id);
         saveShown(shownRef.current);
       }

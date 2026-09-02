@@ -7,6 +7,7 @@ import {
   linkZenxUser,
   setPassword,
   bumpRefreshTokenVersion,
+  setCompanySlug,
 } from '../models/User.js';
 import { upsertCompanyFromHandoff, findCompanyBySlug, findCompanyById } from '../models/Company.js';
 import {
@@ -52,6 +53,7 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password, companySlug } = req.body;
   const user = await findUserByEmail(email);
   if (!user || !(await comparePassword(password, user.passwordHash))) {
+    console.warn('[login] rejected', { email, found: Boolean(user) });
     throw ApiError.unauthorized('Invalid email or password');
   }
 
@@ -66,40 +68,42 @@ export const login = asyncHandler(async (req, res) => {
   // has already proved they own the account, so a distinct error here reveals nothing to an
   // attacker probing for valid emails or live company slugs — and it is why naming the caller's
   // own company URL below is safe.
-  if (!companySlug) {
-    // The bare /login is NOT a company-agnostic way in. Every user belongs to exactly one company
-    // (users.company_id is NOT NULL and createUser requires it), so "log in without naming a
-    // company" would be a door around the whole tenant rule — sign in here and the slug check
-    // never runs at all. Refused, and the caller is told where their own door is.
-    const slug = user.companySlug ?? (await findCompanyById(user.companyId))?.slug ?? null;
-    // The slug is handed back in `details` as well as the sentence, so the login page can offer it
-    // as a link rather than making the user retype a URL. Safe to disclose: this line is only ever
-    // reached by someone who has already supplied the correct password for this account.
-    throw ApiError.forbidden(
-      slug
-        ? `Sign in from your company's address instead: /${slug}/login`
-        : "Sign in from your company's own login page.",
-      slug ? { companyLoginPath: `/${slug}/login` } : undefined
-    );
+  // Resolve the tenant. A slug-scoped URL (/:companySlug/login) must match this user's company.
+  // The bare /login is allowed after a successful password check — welcome emails and the
+  // marketing site have always pointed here, and refusing it left users staring at a form that
+  // appeared to do nothing useful. Tenant isolation still holds when a slug IS present.
+  let company = null;
+  if (companySlug) {
+    company = await findCompanyBySlug(companySlug);
+    // Unknown slug is 403, not 404: this is reachable only with valid credentials, and a
+    // distinguishable 404 would turn the login form into a slug-enumeration oracle.
+    if (!company) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
+    if (company.id !== user.companyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
+  } else {
+    company = user.companyId ? await findCompanyById(user.companyId) : null;
   }
 
-  const company = await findCompanyBySlug(companySlug);
-  // Unknown slug is 403, not 404: this is reachable only with valid credentials, and a
-  // distinguishable 404 would turn the login form into a slug-enumeration oracle.
-  if (!company) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
+  if (!company) {
+    throw ApiError.forbidden("This account is not linked to a company. Contact your administrator.");
+  }
   if (company.status !== 'ACTIVE') {
     throw ApiError.forbidden('This company account is not active. Contact your administrator.');
   }
-  // The one comparison that matters, and it is id-to-id: the company the URL resolved to, against
-  // the company stored on the authenticated user. Neither side comes from the request body.
-  if (company.id !== user.companyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
-  // 'suspended' blocks login outright; 'inactive' does not (see the account_status comment in
-  // schema.sql — a dietitian temporarily not taking new work can still manage existing clients).
-  // Checked here (not just in authenticate.js) so a suspended account can't even get a first
-  // token, not only lose access on their next request.
+  // Suspended always blocks. Inactive blocks clients (a converted-then-lost / deactivated
+  // customer) but not dietitians — see the account_status comment in schema.sql.
   if (user.accountStatus === 'suspended') {
     throw ApiError.forbidden('This account has been suspended. Contact an administrator.');
   }
+  if (user.role === 'client' && user.accountStatus === 'inactive') {
+    throw ApiError.forbidden('This account is no longer active. Contact your administrator.');
+  }
+
+  // Conversion used to omit company_slug, which then sent the client to /undefined/app/... after
+  // a successful login. Stamp it from the resolved company so existing rows start working.
+  if (!user.companySlug && company.slug) {
+    user = await setCompanySlug(user.id, company.slug);
+  }
+
   const accessToken = issueTokens(res, user);
   res.json({ user: toClientShape(user, ['passwordHash']), accessToken });
 });
@@ -164,6 +168,14 @@ export const handoff = asyncHandler(async (req, res) => {
   if (user.accountStatus === 'suspended') {
     throw ApiError.forbidden('This account has been suspended. Contact an administrator.');
   }
+  if (user.role === 'client' && user.accountStatus === 'inactive') {
+    throw ApiError.forbidden('This account is no longer active. Contact your administrator.');
+  }
+
+  const mirrored = await findCompanyById(localCompanyId);
+  if (mirrored?.status && mirrored.status !== 'ACTIVE') {
+    throw ApiError.forbidden('This company account is not active. Contact your administrator.');
+  }
 
   const accessToken = issueTokens(res, user);
   res.json({ user: toClientShape(user, ['passwordHash']), accessToken });
@@ -214,7 +226,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await findUserByEmail(email);
 
-  if (user) {
+  if (user && !(user.role === 'client' && user.accountStatus === 'inactive') && user.accountStatus !== 'suspended') {
     const rawToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + env.passwordResetTokenTtlMinutes * 60 * 1000);
     await createPasswordResetToken({ userId: user.id, tokenHash: hashResetToken(rawToken), expiresAt });

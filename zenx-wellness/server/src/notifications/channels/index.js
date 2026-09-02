@@ -31,8 +31,13 @@ export const channels = {
     },
   },
   push: {
-    async send() {
-      throw new Error('Push channel not implemented — interface reserved for future work');
+    // No FCM/VAPID provider is wired yet — callers (pushNotifications.js) treat this as a
+    // successful no-op so a missing provider never breaks a booking. When a real provider is
+    // added, swap the body and return { delivered: true } or { invalidToken: true }.
+    async send({ to, title }) {
+      if (!to) return { delivered: false, reason: 'no token' };
+      console.log(`[push:console] token=${String(to).slice(0, 12)}… title="${title ?? ''}"`);
+      return { delivered: false, reason: 'push provider not configured' };
     },
   },
 };

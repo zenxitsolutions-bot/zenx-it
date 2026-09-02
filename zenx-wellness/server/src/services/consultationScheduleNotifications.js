@@ -1,6 +1,7 @@
 import { formatInTimeZone } from 'date-fns-tz';
 import { sendEmail } from '../emails/sendEmail.js';
-import { env } from '../config/env.js';
+import { canNotifyUser } from './notifyGuard.js';
+import { portalPathUrl } from '../utils/urls.js';
 
 function formatDate(date, timezone) {
   return formatInTimeZone(date, timezone, 'd MMM yyyy');
@@ -17,13 +18,13 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
   const timezone = dietitian.timezone || 'UTC';
   const sortedDates = createdCalls.map((c) => new Date(c.scheduledAt)).sort((a, b) => a - b);
   const dateRange = `${formatDate(sortedDates[0], timezone)} – ${formatDate(sortedDates[sortedDates.length - 1], timezone)}`;
-  const loginUrl = `${env.clientOrigin}/app/calls`;
+  const loginUrl = portalPathUrl(client, '/app/calls');
   // A stable key per distinct batch (not per attempt) — a literal retry that recomputes the exact
   // same new instants naturally lands on the same key and is deduplicated by sendEmail's own
   // idempotency, consistent with "generation is idempotent" applying to notifications too.
   const batchKey = `${schedule.id}:${createdCalls.length}:${sortedDates[0].getTime()}:${sortedDates[sortedDates.length - 1].getTime()}`;
 
-  try {
+  if (canNotifyUser(client)) try {
     await sendEmail(
       client.email,
       'consultation-schedule-generated',
@@ -35,7 +36,7 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
   }
 
   const gapNotice = newGaps.length > 0 ? `Note: ${newGaps.length} occurrence(s) couldn't be scheduled and need your attention.` : '';
-  try {
+  if (canNotifyUser(dietitian)) try {
     await sendEmail(
       dietitian.email,
       'consultation-schedule-generated-dietitian',

@@ -2,6 +2,9 @@ import { findUserById } from '../models/User.js';
 import { sendEmail } from '../emails/sendEmail.js';
 import { env } from '../config/env.js';
 import { formatInZone, effectiveTimezone } from './timezoneService.js';
+import { canNotifyUser } from './notifyGuard.js';
+import { portalPathUrl } from '../utils/urls.js';
+import { notifyUserPush } from './pushNotifications.js';
 
 // Every user (client or dietitian) can now have their own timezone (see users.timezone's comment
 // in schema.sql), so each recipient's email renders the meeting time in THEIR OWN zone, not the
@@ -53,7 +56,9 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
       ? { name: call.enquiry.name, email: call.enquiry.email }
       : null;
 
-  const meetingLink = `${env.clientOrigin}/app/calls`;
+  const meetingLink = attendee?.companySlug || dietitian.companySlug
+    ? portalPathUrl(attendee?.companySlug ? attendee : dietitian, '/app/calls')
+    : `${env.clientOrigin}/app/calls`;
   // The real Google Meet room when the dietitian has connected Google (services/callMeeting.js),
   // otherwise the portal page — always a usable destination, so the templates need no conditional
   // (renderTemplate.js is plain {{token}} substitution and throws on a missing key).
@@ -83,7 +88,7 @@ Join: ${call.meetingUrl}`
     organizer: { name: dietitian.name, email: dietitian.email },
   };
 
-  if (attendee) {
+  if (canNotifyUser(attendee)) {
     await trySend(
       attendee.email,
       templates.client,
@@ -102,7 +107,7 @@ Join: ${call.meetingUrl}`
     );
   }
 
-  await trySend(
+  if (canNotifyUser(dietitian)) await trySend(
     dietitian.email,
     templates.dietitian,
     {
@@ -121,4 +126,13 @@ Join: ${call.meetingUrl}`
     `${templates.dietitian}:${call.id}:${call.icsSequence}:dietitian`,
     call.id
   );
+
+  const pushTitle = event === 'reminder' ? 'Upcoming call' : event === 'cancelled' ? 'Call cancelled' : 'Call update';
+  const pushBody = `With ${dietitian.name} — ${attendeeMeetingTime}`;
+  if (attendee?.id && canNotifyUser(attendee)) {
+    await notifyUserPush(attendee.id, { title: pushTitle, body: pushBody, url: meetingLink });
+  }
+  if (dietitian.id && canNotifyUser(dietitian)) {
+    await notifyUserPush(dietitian.id, { title: pushTitle, body: `With ${attendee?.name ?? 'a client'} — ${dietitianMeetingTime}`, url: meetingLink });
+  }
 }

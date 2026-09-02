@@ -41,6 +41,11 @@ export async function findCompanyBySlug(slug, conn = pool) {
   return rows[0] || null;
 }
 
+export async function findCompanyByEnquiryId(enquiryId, conn = pool) {
+  const [rows] = await conn.query('SELECT * FROM companies WHERE enquiry_id = ? LIMIT 1', [enquiryId]);
+  return rows[0] || null;
+}
+
 export async function listCompanies() {
   const [rows] = await pool.query('SELECT * FROM companies ORDER BY created_at DESC');
   return rows;

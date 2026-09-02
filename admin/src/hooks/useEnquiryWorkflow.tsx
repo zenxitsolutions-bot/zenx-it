@@ -26,9 +26,12 @@ export function useEnquiryWorkflow(onChanged: () => void) {
     }
 
     if (status === "LOST") {
+      const wasConverted = enquiry.status === "CONVERTED";
       const ok = await confirm({
         title: "Mark this enquiry as lost?",
-        description: `${enquiry.company_name} will be moved to Lost. You can find it later with the Lost filter.`,
+        description: wasConverted
+          ? `${enquiry.company_name} will be moved to Lost, and any customer account created from this enquiry will be deactivated in ZenX and Nourishly.`
+          : `${enquiry.company_name} will be moved to Lost. You can find it later with the Lost filter.`,
         confirmLabel: "Mark Lost",
         danger: true,
       });

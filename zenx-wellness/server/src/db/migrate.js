@@ -157,6 +157,17 @@ const MIRRORED_TABLES = [
      updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
      UNIQUE KEY uq_companies_slug (slug)
    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS device_tokens (
+     id VARCHAR(36) PRIMARY KEY,
+     user_id VARCHAR(36) NOT NULL,
+     token VARCHAR(512) NOT NULL,
+     platform ENUM('web', 'ios', 'android') NOT NULL DEFAULT 'web',
+     created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+     last_seen_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+     UNIQUE KEY uq_device_tokens_token (token),
+     KEY idx_device_tokens_user (user_id),
+     CONSTRAINT fk_device_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 // Run after ALTERS so the columns above are guaranteed to exist first. Each is a no-op once every

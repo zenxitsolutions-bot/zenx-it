@@ -11,3 +11,7 @@ export const setApplicationAccessSchema = z.object({
 export const setCustomerPasswordSchema = z.object({
   password: z.string().min(8),
 });
+
+export const setWellnessDietitianSchema = z.object({
+  dietitianId: z.string().min(1).nullable(),
+});

@@ -13,9 +13,16 @@ import {
   setCustomerPassword,
   uploadLogo,
   removeLogo,
+  getWellnessClients,
+  patchWellnessDietitian,
 } from '../controllers/company.controller.js';
 import { checkCompanySlugAvailable, provisionCustomerAccount } from '../controllers/provisioning.controller.js';
-import { setCompanyStatusSchema, setApplicationAccessSchema, setCustomerPasswordSchema } from '../schemas/company.schema.js';
+import {
+  setCompanyStatusSchema,
+  setApplicationAccessSchema,
+  setCustomerPasswordSchema,
+  setWellnessDietitianSchema,
+} from '../schemas/company.schema.js';
 import { provisionCustomerSchema } from '../schemas/provisioning.schema.js';
 
 export const companyRouter = Router();
@@ -30,6 +37,13 @@ companyRouter.post('/provision', authorize('Super Admin', 'Admin'), validate(pro
 companyRouter.get('/:id', getCompany);
 companyRouter.get('/:id/application-access', getCompanyApplicationAccess);
 companyRouter.get('/:id/users', getCompanyUsers);
+companyRouter.get('/:id/wellness-clients', getWellnessClients);
+companyRouter.patch(
+  '/:id/wellness-clients/:userId/dietitian',
+  authorize('Super Admin', 'Admin'),
+  validate(setWellnessDietitianSchema),
+  patchWellnessDietitian
+);
 companyRouter.patch('/:id/status', authorize('Super Admin', 'Admin'), validate(setCompanyStatusSchema), patchCompanyStatus);
 // Flat, not nested under /:id — the caller (services/companies.ts#setApplicationAccess) only
 // ever has the grant id in scope, matching the original Supabase call's own

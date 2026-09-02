@@ -9,6 +9,10 @@ import {
 } from '../models/Enquiry.js';
 import { createAuditLog } from '../models/AuditLog.js';
 import { createNotification } from '../models/Notification.js';
+import { findCompanyByEnquiryId, updateCompanyStatus } from '../models/Company.js';
+import { listApplicationAccessForCompany, updateApplicationAccessStatus } from '../models/ApplicationAccess.js';
+import { syncWellnessCompanyStatus } from '../models/WellnessDb.js';
+import { sendNewEnquiryEmail } from '../emails/sendNewEnquiryEmail.js';
 
 // Public route (no auth) — the marketing site's contact form. Mirrors the RLS policy this
 // replaces: "anon insert allowed only with status='NEW'" — enforced in the model, never trusts a
@@ -21,6 +25,11 @@ export const createEnquiry = asyncHandler(async (req, res) => {
     body: `${enquiry.contact_name} from ${enquiry.company_name}`,
     entityId: enquiry.id,
   });
+  try {
+    await sendNewEnquiryEmail(enquiry);
+  } catch (err) {
+    console.error('[createEnquiry] staff notification email failed', err);
+  }
   res.status(201).json(enquiry);
 });
 
@@ -52,5 +61,42 @@ export const updateEnquiryStatusHandler = asyncHandler(async (req, res) => {
     entityId: enquiry.id,
     description: `${existing.status} → ${req.body.status}`,
   });
+
+  // An accidental Converted that is later marked Lost must not leave the provisioned customer
+  // Active in ZenX or Nourishly. Only runs when a company was actually created for this enquiry.
+  if (existing.status === 'CONVERTED' && req.body.status === 'LOST') {
+    try {
+      await deactivateConvertedCustomer(enquiry.id);
+    } catch (err) {
+      console.error('[updateEnquiryStatus] failed to deactivate converted customer', err);
+    }
+  }
+
   res.json(enquiry);
 });
+
+async function deactivateConvertedCustomer(enquiryId) {
+  const company = await findCompanyByEnquiryId(enquiryId);
+  if (!company) return;
+
+  if (company.status !== 'INACTIVE') {
+    await updateCompanyStatus(company.id, 'INACTIVE');
+  }
+
+  const grants = await listApplicationAccessForCompany(company.id);
+  for (const grant of grants) {
+    if (grant.status === 'ACTIVE') {
+      await updateApplicationAccessStatus(grant.id, 'DISABLED');
+    }
+  }
+
+  try {
+    await syncWellnessCompanyStatus({
+      zenxCompanyId: company.id,
+      slug: company.company_slug,
+      status: 'INACTIVE',
+    });
+  } catch (err) {
+    console.error('[deactivateConvertedCustomer] wellness-app status sync failed', err);
+  }
+}

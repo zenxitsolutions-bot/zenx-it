@@ -78,12 +78,32 @@ export async function provisionWellnessUser({ zenxUserId, name, email, zenxRole,
   const localCompanyId = await upsertCompany({ id: companyId, name: companyName, slug: companySlug, website, logoUrl });
 
   const [byZenxId] = await pool.query('SELECT id FROM users WHERE zenx_user_id = ? LIMIT 1', [zenxUserId]);
-  if (byZenxId[0]) return byZenxId[0].id;
+  if (byZenxId[0]) {
+    // SSO handoff creates the row first with a random unusable hash. Without this update the
+    // customer can never log in on wellness-app's own /login with the password they were given.
+    if (temporaryPassword) {
+      const passwordHash = await hashPassword(temporaryPassword);
+      await pool.query(
+        'UPDATE users SET password_hash = ?, must_change_password = TRUE WHERE id = ?',
+        [passwordHash, byZenxId[0].id]
+      );
+    }
+    return byZenxId[0].id;
+  }
 
-  const [byEmail] = await pool.query('SELECT id, zenx_user_id FROM users WHERE email = ? LIMIT 1', [email]);
+  const [byEmail] = await pool.query('SELECT id, zenx_user_id FROM users WHERE LOWER(email) = ? LIMIT 1', [
+    String(email).trim().toLowerCase(),
+  ]);
   if (byEmail[0]) {
     if (!byEmail[0].zenx_user_id) {
       await pool.query('UPDATE users SET zenx_user_id = ? WHERE id = ?', [zenxUserId, byEmail[0].id]);
+    }
+    if (temporaryPassword) {
+      const passwordHash = await hashPassword(temporaryPassword);
+      await pool.query(
+        'UPDATE users SET password_hash = ?, must_change_password = TRUE WHERE id = ?',
+        [passwordHash, byEmail[0].id]
+      );
     }
     return byEmail[0].id;
   }
@@ -100,4 +120,117 @@ export async function provisionWellnessUser({ zenxUserId, name, email, zenxRole,
     [id, name, email, passwordHash, toWellnessRole(zenxRole), zenxUserId, localCompanyId, companySlug]
   );
   return id;
+}
+
+async function resolveLocalCompanyId({ zenxCompanyId, slug }) {
+  if (!pool) return null;
+  if (zenxCompanyId) {
+    const [byId] = await pool.query('SELECT id FROM companies WHERE id = ? LIMIT 1', [zenxCompanyId]);
+    if (byId[0]) return byId[0].id;
+  }
+  if (slug) {
+    const [bySlug] = await pool.query('SELECT id FROM companies WHERE slug = ? LIMIT 1', [slug]);
+    if (bySlug[0]) return bySlug[0].id;
+  }
+  return null;
+}
+
+// Mirrors ZenX company ACTIVE/INACTIVE onto wellness-app's companies.status and, for a deactivation,
+// marks every still-active user in that org inactive so they cannot log in or receive mail. A
+// reactivation restores only `inactive` users (never `suspended` — that is a local wellness-app
+// decision). No-op when WELLNESS_MYSQL_URL is unset or the company has never been mirrored.
+export async function syncWellnessCompanyStatus({ zenxCompanyId, slug, status }) {
+  if (!pool) return null;
+  const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
+  if (!localId) return null;
+
+  const wellnessStatus = status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE';
+  await pool.query('UPDATE companies SET status = ? WHERE id = ?', [wellnessStatus, localId]);
+
+  if (wellnessStatus === 'INACTIVE') {
+    await pool.query(
+      "UPDATE users SET account_status = 'inactive' WHERE company_id = ? AND account_status = 'active'",
+      [localId]
+    );
+  } else {
+    await pool.query(
+      "UPDATE users SET account_status = 'active' WHERE company_id = ? AND account_status = 'inactive'",
+      [localId]
+    );
+  }
+  return localId;
+}
+
+export async function listWellnessClients(zenxCompanyId, slug) {
+  if (!pool) return { clients: [], dietitians: [] };
+  const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
+  if (!localId) return { clients: [], dietitians: [] };
+
+  const [clients] = await pool.query(
+    `SELECT id, name, email, account_status, assigned_dietitian_id, role
+       FROM users WHERE company_id = ? AND role = 'client' ORDER BY name`,
+    [localId]
+  );
+  const [dietitians] = await pool.query(
+    `SELECT id, name, email, account_status
+       FROM users WHERE company_id = ? AND role = 'dietitian' ORDER BY name`,
+    [localId]
+  );
+  return { clients, dietitians };
+}
+
+export async function updateWellnessPassword({ zenxUserId, email, passwordHash, mustChangePassword }) {
+  if (!pool || !passwordHash) return null;
+  if (zenxUserId) {
+    const [rows] = await pool.query('SELECT id FROM users WHERE zenx_user_id = ? LIMIT 1', [zenxUserId]);
+    if (rows[0]) {
+      await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
+        passwordHash,
+        Boolean(mustChangePassword),
+        rows[0].id,
+      ]);
+      return rows[0].id;
+    }
+  }
+  if (email) {
+    const [rows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1', [
+      String(email).trim().toLowerCase(),
+    ]);
+    if (rows[0]) {
+      await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
+        passwordHash,
+        Boolean(mustChangePassword),
+        rows[0].id,
+      ]);
+      return rows[0].id;
+    }
+  }
+  return null;
+}
+
+export async function updateWellnessAssignedDietitian({ zenxCompanyId, slug, userId, dietitianId }) {
+  if (!pool) return null;
+  const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
+  if (!localId) return null;
+
+  const [clients] = await pool.query(
+    "SELECT id FROM users WHERE id = ? AND company_id = ? AND role = 'client' LIMIT 1",
+    [userId, localId]
+  );
+  if (!clients[0]) return null;
+
+  if (dietitianId) {
+    const [dietitians] = await pool.query(
+      "SELECT id FROM users WHERE id = ? AND company_id = ? AND role = 'dietitian' LIMIT 1",
+      [dietitianId, localId]
+    );
+    if (!dietitians[0]) return null;
+  }
+
+  await pool.query('UPDATE users SET assigned_dietitian_id = ? WHERE id = ?', [dietitianId || null, userId]);
+  const [rows] = await pool.query(
+    'SELECT id, name, email, account_status, assigned_dietitian_id, role FROM users WHERE id = ? LIMIT 1',
+    [userId]
+  );
+  return rows[0] || null;
 }

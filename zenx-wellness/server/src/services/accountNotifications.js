@@ -1,7 +1,8 @@
 import { addMonths, format } from 'date-fns';
 import { findUserById } from '../models/User.js';
 import { sendEmail } from '../emails/sendEmail.js';
-import { env } from '../config/env.js';
+import { canNotifyUser } from './notifyGuard.js';
+import { companyLoginUrl } from '../utils/urls.js';
 
 // Matches the fixed choices in constants/planDurations.js. No explicit start/end date exists
 // anywhere in the schema for a client's plan — "validity dates" is computed here from the
@@ -24,6 +25,7 @@ function formatPlanDuration(durationLabel, startDate) {
 // unrecoverable — the plaintext only ever exists transiently in the request that created it.
 export async function notifyClientAccountCreated(user, { plainPassword }) {
   try {
+    if (!canNotifyUser(user)) return;
     const dietitianName = user.assignedDietitian
       ? (await findUserById(user.assignedDietitian).catch(() => null))?.name ?? 'your Nourishly dietitian'
       : 'your Nourishly team';
@@ -37,7 +39,7 @@ export async function notifyClientAccountCreated(user, { plainPassword }) {
         plan_name: user.programPlan?.name ?? 'Not yet assigned',
         plan_duration: user.planDuration ? formatPlanDuration(user.planDuration, user.createdAt) : 'Your dietitian will confirm this soon',
         temp_password: plainPassword,
-        login_url: `${env.clientOrigin}/login`,
+        login_url: companyLoginUrl(user),
       },
       { idempotencyKey: `client-welcome:${user.id}`, relatedEntity: { type: 'client', id: user.id } }
     );

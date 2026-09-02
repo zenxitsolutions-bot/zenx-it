@@ -30,6 +30,9 @@ export const env = {
 
   resendApiKey: process.env.RESEND_API_KEY || '',
   emailFrom: process.env.EMAIL_FROM || 'ZenX Admin <onboarding@resend.dev>',
+  // Inbox that receives a copy of every public contact-form enquiry. Optional: unset skips the
+  // staff email (the enquiry is still saved and the in-app notification is still created).
+  enquiryNotifyEmail: process.env.ENQUIRY_NOTIFY_EMAIL || '',
 
   // Where + how to sign the SSO handoff token for the one downstream application this deployment
   // knows about. A real multi-application setup would look this up per-row from the `applications`

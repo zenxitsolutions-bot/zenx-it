@@ -71,31 +71,36 @@ export default function ContactForm() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    setSubmitError("");
-
-    if (isAdminApiConfigured) {
-      setSubmitting(true);
-      try {
-        await submitEnquiry({
-          companyName: form.companyName,
-          contactName: form.name,
-          phone: form.phone || "",
-          email: form.email,
-          website: form.website || null,
-          service: form.lookingFor,
-          source: form.source,
-        });
-      } catch (err) {
-        setSubmitError(
-          "We couldn't submit your enquiry right now. Please email us directly at hello@zenxitsolutions.com."
-        );
-        setSubmitting(false);
-        return;
-      }
-      setSubmitting(false);
+    if (!isAdminApiConfigured) {
+      setSubmitError(
+        "We couldn't submit your enquiry right now. Please email us directly at hello@zenxitsolutions.com."
+      );
+      return;
     }
 
-    setSubmitted(true);
+    setSubmitError("");
+    setSubmitting(true);
+    try {
+      await submitEnquiry({
+        companyName: form.companyName,
+        contactName: form.name,
+        phone: form.phone || "",
+        email: form.email,
+        website: form.website || null,
+        service: form.lookingFor,
+        source: form.source,
+        notes: form.message,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      setSubmitError(
+        err?.message && !/failed to submit enquiry/i.test(err.message)
+          ? err.message
+          : "We couldn't submit your enquiry right now. Please email us directly at hello@zenxitsolutions.com."
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReset = () => {

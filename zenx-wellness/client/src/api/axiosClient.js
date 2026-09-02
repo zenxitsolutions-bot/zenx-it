@@ -1,12 +1,38 @@
 import axios from 'axios';
 import { getAccessToken, setAccessToken } from './tokenStore';
 
+// Every server route is mounted under /api. Tolerate a bare host, a trailing slash, or an
+// already-correct /api suffix so a mis-set VITE_API_URL (common across staging/prod) doesn't
+// silently 404 every call. In production an unset value is a real config error — do not fall
+// back to localhost (that is what made deployed logins appear to "do nothing").
+function resolveBaseURL() {
+  const raw = import.meta.env.VITE_API_URL;
+  if (!raw) {
+    if (import.meta.env.PROD) {
+      console.error('[api] VITE_API_URL is not set. Login and every other API call will fail.');
+      return '/api';
+    }
+    return 'http://localhost:4000/api';
+  }
+  const trimmed = String(raw).replace(/\/+$/, '');
+  return /\/api$/.test(trimmed) ? trimmed : `${trimmed}/api`;
+}
+
 export const axiosClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api',
+  baseURL: resolveBaseURL(),
   withCredentials: true,
 });
 
+// Public auth calls must never carry a leftover access token. A stale/expired Bearer on
+// /auth/login is ignored by Express, but an nginx/API-gateway JWT check in front of the app
+// would 401 the login itself and look like "wrong password".
+const PUBLIC_AUTH = ['/auth/login', '/auth/refresh', '/auth/handoff', '/auth/forgot-password', '/auth/reset-password'];
+
 axiosClient.interceptors.request.use((config) => {
+  if (PUBLIC_AUTH.some((path) => config?.url?.includes(path))) {
+    if (config.headers) delete config.headers.Authorization;
+    return config;
+  }
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;

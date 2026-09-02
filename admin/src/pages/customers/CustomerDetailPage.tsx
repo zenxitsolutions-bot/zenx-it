@@ -60,6 +60,10 @@ export default function CustomerDetailPage() {
     [company?.enquiry_id]
   );
   const { data: admins } = useLiveQuery(() => adminUsersService.list(), []);
+  const { data: wellness, refresh: refreshWellness } = useLiveQuery(
+    async () => (id ? companiesService.listWellnessClients(id) : { clients: [], dietitians: [] }),
+    [id]
+  );
 
   if (loading || !company) return <SkeletonRows rows={5} />;
 
@@ -83,6 +87,7 @@ export default function CustomerDetailPage() {
     await companiesService.setStatus(company.id, disabling ? "INACTIVE" : "ACTIVE", profile.id);
     toast(disabling ? "Company deactivated" : "Company activated");
     refresh();
+    refreshWellness();
   };
 
   const handleResetPassword = async (userId: string, email: string) => {
@@ -109,6 +114,18 @@ export default function CustomerDetailPage() {
     await companiesService.setApplicationAccess(accessId, activating ? "ACTIVE" : "DISABLED", profile.id);
     toast(activating ? "Application access activated" : "Application access disabled");
     refreshAccess();
+    refreshWellness();
+  };
+
+  const handleChangeDietitian = async (userId: string, dietitianId: string) => {
+    if (!id) return;
+    try {
+      await companiesService.setWellnessDietitian(id, userId, dietitianId || null);
+      toast("Dietitian updated");
+      refreshWellness();
+    } catch {
+      toast("Could not update the dietitian");
+    }
   };
 
   return (
@@ -192,6 +209,42 @@ export default function CustomerDetailPage() {
               })}
             </div>
           </Card>
+
+          {(wellness?.clients?.length ?? 0) > 0 && (
+            <Card className="p-6">
+              <h3 className="mb-4 font-display text-base text-offwhite">Nourishly clients</h3>
+              <div className="flex flex-col gap-3">
+                {wellness!.clients.map((client) => (
+                  <div key={client.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-border p-3.5">
+                    <div>
+                      <p className="text-sm font-semibold text-offwhite">{client.name}</p>
+                      <p className="text-xs text-dim">
+                        {client.email}
+                        {client.account_status !== "active" ? ` · ${client.account_status}` : ""}
+                      </p>
+                    </div>
+                    <label className="flex flex-col gap-1 text-xs text-dim">
+                      Assigned dietitian
+                      <select
+                        className="rounded-md border border-border bg-ink px-2 py-1.5 text-sm text-offwhite"
+                        value={client.assigned_dietitian_id ?? ""}
+                        onChange={(e) => handleChangeDietitian(client.id, e.target.value)}
+                      >
+                        <option value="">Unassigned</option>
+                        {(wellness?.dietitians ?? [])
+                          .filter((d) => d.account_status === "active")
+                          .map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
 
           <Card className="p-6">
             <h3 className="mb-4 font-display text-base text-offwhite">Users</h3>

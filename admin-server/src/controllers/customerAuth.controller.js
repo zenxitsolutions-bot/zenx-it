@@ -8,6 +8,7 @@ import { signCustomerAccessToken, signCustomerRefreshToken, verifyCustomerRefres
 import { findUserByEmail, findUserById, updateUserPassword, touchUserLastLogin } from '../models/ZenxUser.js';
 import { findCompanyById } from '../models/Company.js';
 import { findApplicationAccess, listActiveGrantsForUser } from '../models/ApplicationAccess.js';
+import { updateWellnessPassword } from '../models/WellnessDb.js';
 import { findApplicationBySlug, listApplications } from '../models/Application.js';
 
 const REFRESH_COOKIE = 'zenxcustomer_refresh';
@@ -76,7 +77,18 @@ export const me = asyncHandler(async (req, res) => {
 // provisioning/set-password below). Requires the current session, not a reset-token flow.
 export const setNewPassword = asyncHandler(async (req, res) => {
   const { password } = req.body;
-  const updated = await updateUserPassword(req.customer.id, await hashPassword(password), false);
+  const passwordHash = await hashPassword(password);
+  const updated = await updateUserPassword(req.customer.id, passwordHash, false);
+  try {
+    await updateWellnessPassword({
+      zenxUserId: updated.id,
+      email: updated.email,
+      passwordHash,
+      mustChangePassword: false,
+    });
+  } catch (err) {
+    console.error('[setNewPassword] wellness-app password sync failed', err);
+  }
   res.json({ user: toClientShape(updated) });
 });
 

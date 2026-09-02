@@ -5,6 +5,12 @@ import { listApplicationAccessForCompany, updateApplicationAccessStatus } from '
 import { listUsersByIds, updateUserPassword } from '../models/ZenxUser.js';
 import { createAuditLog } from '../models/AuditLog.js';
 import { hashPassword } from '../utils/password.js';
+import {
+  syncWellnessCompanyStatus,
+  listWellnessClients,
+  updateWellnessAssignedDietitian,
+  updateWellnessPassword,
+} from '../models/WellnessDb.js';
 
 export const getCompanies = asyncHandler(async (req, res) => {
   res.json(await listCompanies());
@@ -35,6 +41,15 @@ export const patchCompanyStatus = asyncHandler(async (req, res) => {
     entityId: company.id,
     description: `status → ${req.body.status}`,
   });
+  try {
+    await syncWellnessCompanyStatus({
+      zenxCompanyId: company.id,
+      slug: company.company_slug,
+      status: company.status,
+    });
+  } catch (err) {
+    console.error('[patchCompanyStatus] wellness-app status sync failed', err);
+  }
   res.json(company);
 });
 
@@ -48,11 +63,60 @@ export const patchApplicationAccessStatus = asyncHandler(async (req, res) => {
     entityId: grant.id,
     description: `status → ${req.body.status}`,
   });
+
+  // Disabling zenx-dietitian access must also lock the mirrored Nourishly company; restoring it
+  // only reactivates Nourishly when the ZenX company itself is still ACTIVE.
+  if (grant.application === 'zenx-dietitian') {
+    try {
+      const company = await findCompanyById(grant.company_id);
+      const nextStatus = grant.status === 'ACTIVE' && company?.status === 'ACTIVE' ? 'ACTIVE' : 'INACTIVE';
+      await syncWellnessCompanyStatus({
+        zenxCompanyId: grant.company_id,
+        slug: company?.company_slug,
+        status: nextStatus,
+      });
+    } catch (err) {
+      console.error('[patchApplicationAccessStatus] wellness-app status sync failed', err);
+    }
+  }
+
   res.json(grant);
 });
 
+export const getWellnessClients = asyncHandler(async (req, res) => {
+  const company = await findCompanyById(req.params.id);
+  if (!company) throw ApiError.notFound('Company not found');
+  try {
+    res.json(await listWellnessClients(company.id, company.company_slug));
+  } catch (err) {
+    console.error('[getWellnessClients] wellness-app lookup failed', err);
+    res.json({ clients: [], dietitians: [] });
+  }
+});
+
+export const patchWellnessDietitian = asyncHandler(async (req, res) => {
+  const company = await findCompanyById(req.params.id);
+  if (!company) throw ApiError.notFound('Company not found');
+  const client = await updateWellnessAssignedDietitian({
+    zenxCompanyId: company.id,
+    slug: company.company_slug,
+    userId: req.params.userId,
+    dietitianId: req.body.dietitianId ?? null,
+  });
+  if (!client) throw ApiError.notFound('Nourishly client not found');
+  await createAuditLog({
+    adminId: req.staff.id,
+    action: 'SET_NOURISHLY_DIETITIAN',
+    entityType: 'company',
+    entityId: company.id,
+    description: `Assigned dietitian ${req.body.dietitianId || 'none'} to ${client.email}`,
+  });
+  res.json(client);
+});
+
 export const setCustomerPassword = asyncHandler(async (req, res) => {
-  const user = await updateUserPassword(req.params.userId, await hashPassword(req.body.password), true);
+  const passwordHash = await hashPassword(req.body.password);
+  const user = await updateUserPassword(req.params.userId, passwordHash, true);
   await createAuditLog({
     adminId: req.staff.id,
     action: 'SET_CUSTOMER_PASSWORD',
@@ -60,6 +124,16 @@ export const setCustomerPassword = asyncHandler(async (req, res) => {
     entityId: user.id,
     description: 'Password reset by admin',
   });
+  try {
+    await updateWellnessPassword({
+      zenxUserId: user.id,
+      email: user.email,
+      passwordHash,
+      mustChangePassword: true,
+    });
+  } catch (err) {
+    console.error('[setCustomerPassword] wellness-app password sync failed', err);
+  }
   res.json({ ok: true });
 });
 

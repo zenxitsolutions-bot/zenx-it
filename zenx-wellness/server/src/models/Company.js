@@ -54,8 +54,11 @@ export async function upsertCompanyFromHandoff({ id, name, slug, website, logoUr
   return id;
 }
 
-export async function findCompanyById(id) {
-  const [rows] = await pool.query('SELECT id, name, slug, website, logo_url FROM companies WHERE id = ? LIMIT 1', [id]);
+export async function findCompanyById(id, conn = pool) {
+  const [rows] = await conn.query(
+    'SELECT id, name, slug, website, logo_url, status FROM companies WHERE id = ? LIMIT 1',
+    [id]
+  );
   return rows[0] ?? null;
 }
 

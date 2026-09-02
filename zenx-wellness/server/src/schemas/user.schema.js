@@ -51,6 +51,11 @@ const country = z
 const dateFormat = z.string().trim().min(1).max(20).optional();
 const timeFormat = z.enum(['12h', '24h']).optional();
 
+export const registerDeviceTokenSchema = z.object({
+  token: z.string().min(8).max(512),
+  platform: z.enum(['web', 'ios', 'android']).optional(),
+});
+
 export const updateMeSchema = z.object({
   name: z.string().min(1).optional(),
   phone: optionalPhone,

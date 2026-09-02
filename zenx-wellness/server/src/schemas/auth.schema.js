@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
   // The company slug from the URL the login form was served on (/:companySlug/login). Absent on
   // the bare /login, which stays company-agnostic. This is a *slug*, never a company id — the

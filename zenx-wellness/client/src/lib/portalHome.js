@@ -9,5 +9,6 @@ const PORTAL_HOME_BY_ROLE = {
 
 export function getPortalHome(role, companySlug) {
   const page = PORTAL_HOME_BY_ROLE[role] ?? 'overview';
+  if (!companySlug) return '/login';
   return `/${companySlug}/app/${page}`;
 }

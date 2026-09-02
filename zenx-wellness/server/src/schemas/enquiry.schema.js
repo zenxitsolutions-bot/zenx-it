@@ -40,6 +40,7 @@ export const updateEnquirySchema = z.discriminatedUnion('status', [
     planId: z.string().min(1).optional(),
     planDuration: z.enum(PLAN_DURATIONS).optional(),
     password: z.string().min(8).optional(),
+    assignedDietitian: z.string().min(1).nullable().optional(),
   }),
 ]);
 

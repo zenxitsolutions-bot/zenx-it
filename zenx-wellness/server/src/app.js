@@ -29,7 +29,16 @@ import { integrationsRouter } from './routes/integrations.routes.js';
 export const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: env.clientOrigin, credentials: true }));
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Same-origin / server-to-server / curl have no Origin header.
+      if (!origin || env.clientOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+  })
+);
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(cookieParser());

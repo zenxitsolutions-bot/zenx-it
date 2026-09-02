@@ -1,6 +1,7 @@
 import { createContext, useCallback, useEffect, useState } from 'react';
 import { setAccessToken } from '../api/tokenStore';
 import { loginRequest, handoffRequest, changePasswordRequest, logoutRequest, meRequest, refreshRequest } from '../api/auth.api';
+import { useDeviceNotifications } from '../hooks/useDeviceNotifications';
 
 export const AuthContext = createContext(null);
 
@@ -20,6 +21,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = useCallback(async (credentials) => {
+    setAccessToken(null);
     const { user, accessToken } = await loginRequest(credentials);
     setAccessToken(accessToken);
     setUser(user);
@@ -49,6 +51,16 @@ export function AuthProvider({ children }) {
   // Lets a mutation that returns the updated user (e.g. PATCH /users/me) keep this context in
   // sync without a full page reload.
   const updateUser = useCallback((updated) => setUser(updated), []);
+
+  return (
+    <AuthProviderInner user={user} isLoading={isLoading} login={login} completeHandoff={completeHandoff} changePassword={changePassword} logout={logout} updateUser={updateUser}>
+      {children}
+    </AuthProviderInner>
+  );
+}
+
+function AuthProviderInner({ user, isLoading, login, completeHandoff, changePassword, logout, updateUser, children }) {
+  useDeviceNotifications(Boolean(user));
 
   return (
     <AuthContext.Provider value={{ user, isLoading, login, completeHandoff, changePassword, logout, updateUser }}>

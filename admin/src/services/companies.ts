@@ -140,6 +140,30 @@ export const companiesService = {
     return `${apiClient.defaults.baseURL?.replace(/\/api$/, "")}${data.logo_url}`;
   },
 
+  async listWellnessClients(companyId: string): Promise<{
+    clients: Array<{
+      id: string;
+      name: string;
+      email: string;
+      account_status: string;
+      assigned_dietitian_id: string | null;
+      role: string;
+    }>;
+    dietitians: Array<{ id: string; name: string; email: string; account_status: string }>;
+  }> {
+    if (isDemoMode) return { clients: [], dietitians: [] };
+    const { data } = await apiClient.get(`/companies/${companyId}/wellness-clients`);
+    return data ?? { clients: [], dietitians: [] };
+  },
+
+  async setWellnessDietitian(companyId: string, userId: string, dietitianId: string | null) {
+    if (isDemoMode) return null;
+    const { data } = await apiClient.patch(`/companies/${companyId}/wellness-clients/${userId}/dietitian`, {
+      dietitianId,
+    });
+    return data;
+  },
+
   async removeLogo(companyId: string): Promise<void> {
     if (isDemoMode) {
       const { list } = patchIn(demoStore.getState().companies, companyId, { logo_url: null });

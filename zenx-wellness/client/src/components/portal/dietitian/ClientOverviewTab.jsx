@@ -1,6 +1,11 @@
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCurrentPlan } from '@/hooks/usePlans';
+import { useDietitians } from '@/hooks/useClients';
+import { useUpdateUser } from '@/hooks/useUsers';
+import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/lib/format';
 import { ClientContactEditDialog } from './ClientContactEditDialog';
 
@@ -12,6 +17,22 @@ import { ClientContactEditDialog } from './ClientContactEditDialog';
 export function ClientOverviewTab({ client }) {
   const planQuery = useCurrentPlan(client._id);
   const [editingContact, setEditingContact] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const { data: dietitians } = useDietitians(isAdmin);
+  const updateUser = useUpdateUser();
+  const activeDietitians = (dietitians ?? []).filter((d) => !d.accountStatus || d.accountStatus === 'active');
+  const currentDietitian = (dietitians ?? []).find((d) => d._id === client.assignedDietitian);
+
+  function handleDietitianChange(value) {
+    updateUser.mutate(
+      { userId: client._id, assignedDietitian: value === 'none' ? null : value },
+      {
+        onSuccess: () => toast.success('Dietitian updated.'),
+        onError: () => toast.error("We couldn't update the dietitian — please try again."),
+      }
+    );
+  }
 
   return (
     <div className="grid gap-5 min-[700px]:grid-cols-2">
@@ -34,6 +55,32 @@ export function ClientOverviewTab({ client }) {
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Client since</dt>
             <dd className="text-forest">{formatDate(client.createdAt)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="text-muted-foreground">Dietitian</dt>
+            <dd className="text-forest">
+              {isAdmin ? (
+                <Select
+                  value={client.assignedDietitian ?? 'none'}
+                  onValueChange={handleDietitianChange}
+                  disabled={updateUser.isPending}
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Unassigned" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {activeDietitians.map((d) => (
+                      <SelectItem key={d._id} value={d._id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                currentDietitian?.name || user?.name || '—'
+              )}
+            </dd>
           </div>
         </dl>
       </section>

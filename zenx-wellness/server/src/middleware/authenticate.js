@@ -20,6 +20,9 @@ export const authenticate = asyncHandler(async (req, res, next) => {
   // in schema.sql) takes effect immediately for an already-signed-in session — not just on their
   // next login attempt.
   if (user.accountStatus === 'suspended') throw ApiError.forbidden('This account has been suspended. Contact an administrator.');
+  if (user.role === 'client' && user.accountStatus === 'inactive') {
+    throw ApiError.forbidden('This account is no longer active. Contact your administrator.');
+  }
 
   req.user = user;
   next();

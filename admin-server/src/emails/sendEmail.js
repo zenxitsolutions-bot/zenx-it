@@ -18,5 +18,8 @@ export async function sendEmail({ to, subject, html, text }) {
     return;
   }
   const { error } = await getClient().emails.send({ from: env.emailFrom, to, subject, html, text });
-  if (error) throw new Error(error.message || 'Resend send failed');
+  if (error) {
+    console.error(`[email] Resend send failed to=${to} subject="${subject}":`, error);
+    throw new Error(error.message || 'Resend send failed');
+  }
 }

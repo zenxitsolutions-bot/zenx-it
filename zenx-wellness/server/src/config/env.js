@@ -15,6 +15,17 @@ export const env = {
   jwtAccessTtl: process.env.JWT_ACCESS_TTL || '15m',
   jwtRefreshTtl: process.env.JWT_REFRESH_TTL || '30d',
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  // Comma-separated extra origins (deploy previews, staging) allowed by CORS in addition to
+  // CLIENT_ORIGIN. CLIENT_ORIGIN stays the canonical URL used in email links.
+  clientOrigins: [
+    ...new Set([
+      process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+      ...(process.env.CLIENT_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean),
+    ]),
+  ],
   // Shared with admin-server's ZENX_DIETITIAN_HANDOFF_SECRET (see that repo's customerAuth
   // .controller.js#issueHandoffToken) — verifies the SSO token in auth.controller.js#handoff. Not
   // `required(...)`: unset must not crash the whole server on boot, same reasoning as

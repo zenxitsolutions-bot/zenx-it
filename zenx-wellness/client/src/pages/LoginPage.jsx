@@ -13,7 +13,7 @@ import { getPortalHome } from '@/lib/portalHome';
 import { getAuthErrorMessage } from '@/lib/authError';
 
 const loginSchema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().trim().toLowerCase().email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -107,6 +107,16 @@ export function LoginPage() {
                   Go to your company's login page
                 </Link>
               )}
+              <p className="text-muted-foreground">
+                If you were invited through ZenX, use{' '}
+                <Link
+                  to={companySlug ? `/${companySlug}/forgot-password` : '/forgot-password'}
+                  className="font-semibold text-forest underline"
+                >
+                  Forgot your password
+                </Link>{' '}
+                or open Nourishly from your ZenX account.
+              </p>
             </div>
           )}
 

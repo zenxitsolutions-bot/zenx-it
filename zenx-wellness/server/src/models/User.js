@@ -40,7 +40,10 @@ const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, pp.name AS program_plan_name FROM 
    LEFT JOIN program_plans pp ON pp.id = u.program_plan_id`;
 
 export async function findUserByEmail(email) {
-  const [rows] = await pool.query('SELECT * FROM users WHERE email = ? LIMIT 1', [email]);
+  const normalized = String(email || '').trim().toLowerCase();
+  if (!normalized) return null;
+  // LOWER() so a stored mixed-case address still matches what loginSchema normalizes to.
+  const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1', [normalized]);
   return mapUser(rows[0]);
 }
 
@@ -126,7 +129,7 @@ export async function listUsers(filter = {}) {
 
 // patch may include: name, email, phone, address, qualifications, accountStatus, role,
 // assignedDietitian, programPlan, planDuration, timezone
-export async function updateUser(id, patch) {
+export async function updateUser(id, patch, conn = pool) {
   const columns = {
     name: 'name',
     email: 'email',
@@ -153,9 +156,9 @@ export async function updateUser(id, patch) {
   }
   if (sets.length) {
     params.push(id);
-    await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
+    await conn.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, params);
   }
-  return findUserById(id);
+  return findUserById(id, conn);
 }
 
 // Kept separate from updateUser: that function's patch is driven by a client-facing allowlist
@@ -173,6 +176,13 @@ export async function setPassword(id, { passwordHash, mustChangePassword }) {
 // auth.controller.js#refresh, which reject a token whose tokenVersion doesn't match this column).
 export async function bumpRefreshTokenVersion(id) {
   await pool.query('UPDATE users SET refresh_token_version = refresh_token_version + 1 WHERE id = ?', [id]);
+}
+
+// Login-time backfill when a user row predates company_slug (or conversion forgot to stamp it).
+// Not on the client-facing updateUser allowlist — callers must never be able to move themselves.
+export async function setCompanySlug(id, companySlug) {
+  await pool.query('UPDATE users SET company_slug = ? WHERE id = ?', [companySlug, id]);
+  return findUserById(id);
 }
 
 export async function countUsers(filter = {}) {

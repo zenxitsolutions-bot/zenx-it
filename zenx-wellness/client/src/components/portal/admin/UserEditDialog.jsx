@@ -49,6 +49,10 @@ function toFormValues(user) {
 export function UserEditDialog({ open, onOpenChange, user }) {
   const updateUser = useUpdateUser();
   const { data: dietitians } = useDietitians();
+  const activeDietitians = (dietitians ?? []).filter((d) => {
+    if (d._id === user.assignedDietitian) return true;
+    return !d.accountStatus || d.accountStatus === 'active';
+  });
   // Unlike the create dialog, this fetches every plan (not just active ones) — otherwise a client
   // already on a plan that's since been deactivated would show a blank Select instead of their
   // actual current plan.
@@ -182,7 +186,7 @@ export function UserEditDialog({ open, onOpenChange, user }) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">Unassigned</SelectItem>
-                          {(dietitians ?? []).map((d) => (
+                          {activeDietitians.map((d) => (
                             <SelectItem key={d._id} value={d._id}>
                               {d.name}
                             </SelectItem>
