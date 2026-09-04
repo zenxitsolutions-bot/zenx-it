@@ -1,9 +1,0 @@
-Hi {{client_name}}
-
-Your call with {{dietitian_name}}, previously at {{previous_meeting_time}}, has been moved to:
-{{meeting_time}}
-
-The attached calendar invite updates the event already on your calendar — you don't need to add a
-second one.
-
-{{join_label}}: {{join_url}}

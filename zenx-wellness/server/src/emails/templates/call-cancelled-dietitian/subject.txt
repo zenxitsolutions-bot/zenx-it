@@ -1,1 +1,0 @@
-Call on {{meeting_time}} has been cancelled

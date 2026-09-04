@@ -1,8 +1,0 @@
-Hi {{client_name}}
-
-Based on your consultation schedule with {{dietitian_name}}, {{count}} upcoming calls have been
-booked, from {{date_range}}.
-
-Each one has its own calendar invite and reminder — view them anytime from your calls list.
-
-View my calls: {{login_url}}

@@ -1,1 +1,0 @@
-Welcome to Nourishly, {{client_name}}

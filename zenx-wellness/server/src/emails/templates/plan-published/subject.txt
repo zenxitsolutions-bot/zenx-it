@@ -1,1 +1,0 @@
-Your new plan is ready: {{plan_name}}
