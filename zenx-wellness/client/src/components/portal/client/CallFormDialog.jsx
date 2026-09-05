@@ -32,7 +32,7 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
   const updateCall = useUpdateCall();
   const isPending = isReschedule ? updateCall.isPending : createCall.isPending;
   const [date, setDate] = useState(() => todayDateValue(timezone));
-  const dietitianId = isReschedule ? (call?.dietitian?._id ?? call?.dietitian) : user.assignedDietitian;
+  const dietitianId = isReschedule ? (call?.dietitian?._id ?? call?.dietitian) : user?.assignedDietitian;
   const dietitiansQuery = useDietitians();
   const dietitian = (dietitiansQuery.data ?? []).find((d) => d._id === dietitianId);
 

@@ -23,18 +23,16 @@ export { todayDateValue };
 export function SlotPicker({ dietitianId, excludeCallId, date, onDateChange, value, onChange, otherPartyTimezone, otherPartyLabel }) {
   const { timezone } = useViewerTimezone();
   const { data, isLoading, isError } = useAvailableSlots({ dietitianId, date, excludeCallId, timezone });
+  // Query is disabled when dietitianId or date is missing (TanStack: isLoading stays false,
+  // data stays undefined). A 401/empty payload can also leave data unset. Never read
+  // data.slots without a guard — that crash is what took down the schedule dialog.
+  const slots = Array.isArray(data?.slots) ? data.slots : null;
 
   return (
     <div className="grid gap-3">
-      <Input type="date" min={todayDateValue(timezone)} value={date} onChange={(e) => onDateChange(e.target.value)} />
+      <Input type="date" min={todayDateValue(timezone)} value={date || ''} onChange={(e) => onDateChange(e.target.value)} />
 
-      {isLoading ? (
-        <div className="flex flex-wrap gap-2">
-          <Skeleton className="h-7 w-16" />
-          <Skeleton className="h-7 w-16" />
-          <Skeleton className="h-7 w-16" />
-        </div>
-      ) : isError ? (
+      {isError ? (
         <p className="text-sm text-destructive">Couldn't load available times — please try again.</p>
       ) : !dietitianId ? (
         // useAvailableSlots' query is disabled (enabled: Boolean(dietitianId && date)) whenever
@@ -43,12 +41,18 @@ export function SlotPicker({ dietitianId, excludeCallId, date, onDateChange, val
         // whose dietitian somehow can't be resolved) — surface it instead of crashing the dialog
         // silently, which is exactly the "dead button" failure mode this was auditing for.
         <p className="text-sm text-destructive">Couldn't determine who this call is with — please try again.</p>
-      ) : data.slots.length === 0 ? (
+      ) : !date || isLoading || slots === null ? (
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-7 w-16" />
+          <Skeleton className="h-7 w-16" />
+        </div>
+      ) : slots.length === 0 ? (
         <EmptyState title="No available times" description="Try a different date." />
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
-            {data.slots.map((slot) => (
+            {slots.map((slot) => (
               <Button
                 key={slot}
                 type="button"

@@ -110,7 +110,7 @@ export function DietitianCallFormDialog({ open, onOpenChange, mode, call }) {
                   <FormLabel>Date &amp; time</FormLabel>
                   <FormControl>
                     <SlotPicker
-                      dietitianId={user._id}
+                      dietitianId={user?._id}
                       excludeCallId={isReschedule ? call?._id : undefined}
                       date={date}
                       onDateChange={setDate}
