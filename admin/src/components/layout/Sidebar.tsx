@@ -47,7 +47,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
   return (
     <>
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={onCloseMobile} />
+        <div className="fixed inset-0 z-40 bg-slate-900/40 lg:hidden" onClick={onCloseMobile} />
       )}
       <aside
         className={cn(
@@ -78,7 +78,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                   "mb-1 flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition",
                   isActive
                     ? "bg-lime/10 text-lime"
-                    : "text-muted hover:bg-white/5 hover:text-offwhite"
+                    : "text-muted hover:bg-ink hover:text-offwhite"
                 )
               }
             >

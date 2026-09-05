@@ -68,11 +68,11 @@ export function NotificationBell() {
                   <button
                     key={n.id}
                     onClick={() => notificationsService.markRead(n.id).then(refresh)}
-                    className={`flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left transition hover:bg-white/5 ${
+                    className={`flex w-full items-start gap-3 border-b border-border/60 px-4 py-3 text-left transition hover:bg-ink ${
                       n.read ? "opacity-60" : ""
                     }`}
                   >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/5 text-lime">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-lime/10 text-lime">
                       <Icon size={14} />
                     </span>
                     <span className="flex-1">

@@ -50,7 +50,7 @@ export function TimezoneMismatchBanner() {
         <Button type="button" onClick={update} disabled={saving} className="h-8 px-3 text-xs">
           {saving ? "Updating…" : "Update"}
         </Button>
-        <button type="button" onClick={dismiss} aria-label="Dismiss" className="rounded-full p-1 text-muted hover:bg-white/10">
+        <button type="button" onClick={dismiss} aria-label="Dismiss" className="rounded-full p-1 text-muted hover:bg-ink">
           <X className="size-4" />
         </button>
       </div>

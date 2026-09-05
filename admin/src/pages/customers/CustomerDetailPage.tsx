@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, KeyRound, ShieldOff, ShieldCheck, Copy, Check } from "lucide-react";
+import { ArrowLeft, KeyRound, ShieldOff, ShieldCheck, Copy, Check, Pencil } from "lucide-react";
 import { useLiveQuery } from "../../hooks/useLiveQuery";
 import { companiesService } from "../../services/companies";
 import { applicationsService } from "../../services/applications";
@@ -19,17 +19,21 @@ import { ConversationTimeline } from "../../components/enquiries/ConversationTim
 import { ProgressTimeline } from "../../components/customers/ProgressTimeline";
 import { LogoUpload } from "../../components/companies/LogoUpload";
 import { CredentialRevealModal } from "../../components/customers/CredentialRevealModal";
+import { EditCustomerModal } from "../../components/customers/EditCustomerModal";
 import { generateTempPassword } from "../../utils/password";
 import { formatDate, formatDateTime } from "../../utils/date";
+import { useViewerTimezone } from "../../hooks/useViewerTimezone";
 
 export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { profile } = useAuth();
+  const { timezone } = useViewerTimezone();
   const { confirm } = useConfirm();
   const { toast } = useToast();
   const [urlCopied, setUrlCopied] = useState(false);
   const [reveal, setReveal] = useState<{ email: string } | null>(null);
   const [revealPassword, setRevealPassword] = useState("");
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: company, loading, refresh } = useLiveQuery(
     async () => (id ? companiesService.get(id) : null),
@@ -41,7 +45,7 @@ export default function CustomerDetailPage() {
     [id],
     { tables: ["application_access"] }
   );
-  const { data: companyUsers } = useLiveQuery(
+  const { data: companyUsers, refresh: refreshUsers } = useLiveQuery(
     async () => (id ? companiesService.listUsersForCompany(id) : []),
     [id],
     { tables: ["application_access", "users"] }
@@ -69,6 +73,10 @@ export default function CustomerDetailPage() {
 
   const appBySlug = new Map((applications ?? []).map((a) => [a.slug, a]));
   const primaryContact = companyUsers?.[0]?.user ?? null;
+  const lastLogin = (companyUsers ?? [])
+    .map(({ user }) => user?.last_login)
+    .filter((value): value is string => Boolean(value))
+    .sort((a, b) => +new Date(b) - +new Date(a))[0];
   const firstActivated = (access ?? [])
     .filter((a) => a.activated_at)
     .sort((a, b) => +new Date(a.activated_at!) - +new Date(b.activated_at!))[0];
@@ -149,7 +157,12 @@ export default function CustomerDetailPage() {
               </p>
             </div>
           </div>
-          <AccountStatusBadge status={company.status} />
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setEditOpen(true)}>
+              <Pencil size={13} /> Edit
+            </Button>
+            <AccountStatusBadge status={company.status} />
+          </div>
         </div>
         <div className="mt-5 flex flex-wrap gap-x-8 gap-y-2 border-t border-border pt-5 text-sm text-muted">
           {company.company_phone && <span>{company.company_phone}</span>}
@@ -285,7 +298,7 @@ export default function CustomerDetailPage() {
               <div className="flex justify-between">
                 <dt className="text-xs uppercase tracking-wider text-dim">Last login</dt>
                 <dd className="text-offwhite">
-                  {primaryContact?.last_login ? formatDateTime(primaryContact.last_login) : "Never"}
+                  {lastLogin ? formatDateTime(lastLogin, timezone) : "Never"}
                 </dd>
               </div>
             </dl>
@@ -352,6 +365,19 @@ export default function CustomerDetailPage() {
           </Card>
         </div>
       </div>
+
+      <EditCustomerModal
+        open={editOpen}
+        company={company}
+        contact={primaryContact}
+        onClose={(saved) => {
+          setEditOpen(false);
+          if (saved) {
+            refresh();
+            refreshUsers();
+          }
+        }}
+      />
 
       <CredentialRevealModal
         open={!!reveal}

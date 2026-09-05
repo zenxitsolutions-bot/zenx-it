@@ -15,6 +15,7 @@ import {
   removeLogo,
   getWellnessClients,
   patchWellnessDietitian,
+  patchCompany,
 } from '../controllers/company.controller.js';
 import { checkCompanySlugAvailable, provisionCustomerAccount } from '../controllers/provisioning.controller.js';
 import {
@@ -22,6 +23,7 @@ import {
   setApplicationAccessSchema,
   setCustomerPasswordSchema,
   setWellnessDietitianSchema,
+  updateCompanySchema,
 } from '../schemas/company.schema.js';
 import { provisionCustomerSchema } from '../schemas/provisioning.schema.js';
 
@@ -35,6 +37,7 @@ companyRouter.get('/', getCompanies);
 companyRouter.get('/check-slug/:slug', checkCompanySlugAvailable);
 companyRouter.post('/provision', authorize('Super Admin', 'Admin'), validate(provisionCustomerSchema), provisionCustomerAccount);
 companyRouter.get('/:id', getCompany);
+companyRouter.patch('/:id', authorize('Super Admin', 'Admin'), validate(updateCompanySchema), patchCompany);
 companyRouter.get('/:id/application-access', getCompanyApplicationAccess);
 companyRouter.get('/:id/users', getCompanyUsers);
 companyRouter.get('/:id/wellness-clients', getWellnessClients);

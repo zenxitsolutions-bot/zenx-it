@@ -20,7 +20,7 @@ export function LeadCard({ enquiry, admin, nextFollowup, onDragStart }: LeadCard
         e.dataTransfer.setData("text/plain", enquiry.id);
         onDragStart(enquiry.id);
       }}
-      className="block cursor-grab rounded-md border border-border bg-surface/70 p-3.5 transition hover:border-lime/40 hover:bg-white/5 active:cursor-grabbing"
+      className="block cursor-grab rounded-md border border-border bg-surface/70 p-3.5 transition hover:border-lime/40 hover:bg-ink active:cursor-grabbing"
     >
       <div className="mb-2 flex items-start justify-between gap-2">
         <p className="text-sm font-semibold leading-tight text-offwhite">{enquiry.company_name}</p>
@@ -43,7 +43,7 @@ export function LeadCard({ enquiry, admin, nextFollowup, onDragStart }: LeadCard
       </div>
 
       <div className="mt-3 flex items-center justify-between border-t border-border pt-2.5 text-[10px] text-dim">
-        <span className="rounded-full bg-white/5 px-2 py-1">{enquiry.service}</span>
+        <span className="rounded-full bg-ink px-2 py-1">{enquiry.service}</span>
         <span>{formatDateShort(enquiry.created_at)}</span>
       </div>
 

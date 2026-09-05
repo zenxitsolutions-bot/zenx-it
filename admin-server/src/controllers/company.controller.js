@@ -1,14 +1,17 @@
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { listCompanies, findCompanyById, updateCompanyStatus, updateCompanyLogo } from '../models/Company.js';
+import { listCompanies, findCompanyById, updateCompanyStatus, updateCompanyLogo, updateCompany } from '../models/Company.js';
 import { listApplicationAccessForCompany, updateApplicationAccessStatus } from '../models/ApplicationAccess.js';
-import { listUsersByIds, updateUserPassword } from '../models/ZenxUser.js';
+import { listUsersByIds, updateUserPassword, findUserByEmail, updateUserProfile } from '../models/ZenxUser.js';
 import { createAuditLog } from '../models/AuditLog.js';
 import { hashPassword } from '../utils/password.js';
 import {
   syncWellnessCompanyStatus,
   syncWellnessCompanyLogo,
+  syncWellnessCompanyProfile,
+  syncWellnessContact,
   listWellnessClients,
+  listWellnessLastLoginsByZenxIds,
   updateWellnessAssignedDietitian,
   updateWellnessPassword,
 } from '../models/WellnessDb.js';
@@ -33,10 +36,120 @@ export const getCompanyApplicationAccess = asyncHandler(async (req, res) => {
   res.json(await listApplicationAccessForCompany(req.params.id));
 });
 
+function laterIso(a, b) {
+  if (!a) return b ?? null;
+  if (!b) return a;
+  return new Date(a) >= new Date(b) ? a : b;
+}
+
+function withoutPassword(user) {
+  if (!user) return user;
+  const { password_hash, ...rest } = user;
+  return rest;
+}
+
 export const getCompanyUsers = asyncHandler(async (req, res) => {
   const grants = await listApplicationAccessForCompany(req.params.id);
   const userIds = [...new Set(grants.map((g) => g.user_id))];
-  res.json(await listUsersByIds(userIds));
+  const users = (await listUsersByIds(userIds)).map(withoutPassword);
+  try {
+    const wellnessLogins = await listWellnessLastLoginsByZenxIds(userIds);
+    for (const user of users) {
+      user.last_login = laterIso(user.last_login, wellnessLogins.get(user.id) ?? null);
+    }
+  } catch (err) {
+    console.error('[getCompanyUsers] wellness last-login lookup failed', err);
+  }
+  res.json(users);
+});
+
+function blankToNull(value) {
+  if (value === undefined) return undefined;
+  if (value === '') return null;
+  return value;
+}
+
+export const patchCompany = asyncHandler(async (req, res) => {
+  const company = await findCompanyById(req.params.id);
+  if (!company) throw ApiError.notFound('Company not found');
+
+  const { contact, ...companyPatch } = req.body;
+  const nextCompany = await updateCompany(company.id, {
+    companyName: companyPatch.companyName,
+    companyEmail: blankToNull(companyPatch.companyEmail),
+    companyPhone: blankToNull(companyPatch.companyPhone),
+    website: blankToNull(companyPatch.website),
+    addressLine1: blankToNull(companyPatch.addressLine1),
+    addressLine2: blankToNull(companyPatch.addressLine2),
+    city: blankToNull(companyPatch.city),
+    state: blankToNull(companyPatch.state),
+    zip: blankToNull(companyPatch.zip),
+    country: blankToNull(companyPatch.country),
+    status: companyPatch.status,
+    subscriptionPlan: companyPatch.subscriptionPlan,
+  });
+
+  if (companyPatch.status && companyPatch.status !== company.status) {
+    try {
+      await syncWellnessCompanyStatus({
+        zenxCompanyId: nextCompany.id,
+        slug: nextCompany.company_slug,
+        status: nextCompany.status,
+      });
+    } catch (err) {
+      console.error('[patchCompany] wellness-app status sync failed', err);
+    }
+  }
+
+  try {
+    await syncWellnessCompanyProfile({
+      zenxCompanyId: nextCompany.id,
+      slug: nextCompany.company_slug,
+      name: nextCompany.company_name,
+      website: nextCompany.website,
+    });
+  } catch (err) {
+    console.error('[patchCompany] wellness-app profile sync failed', err);
+  }
+
+  if (contact?.userId) {
+    const grants = await listApplicationAccessForCompany(company.id);
+    if (!grants.some((g) => g.user_id === contact.userId)) {
+      throw ApiError.forbidden('That person does not belong to this company.');
+    }
+    if (contact.email) {
+      const existing = await findUserByEmail(contact.email);
+      if (existing && existing.id !== contact.userId) {
+        throw ApiError.conflict('Another account already uses that email.');
+      }
+    }
+    const updatedUser = await updateUserProfile(contact.userId, {
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      email: contact.email,
+      phone: blankToNull(contact.phone),
+      jobTitle: blankToNull(contact.jobTitle),
+    });
+    try {
+      await syncWellnessContact({
+        zenxUserId: updatedUser.id,
+        name: `${updatedUser.first_name} ${updatedUser.last_name}`.trim(),
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+      });
+    } catch (err) {
+      console.error('[patchCompany] wellness-app contact sync failed', err);
+    }
+  }
+
+  await createAuditLog({
+    adminId: req.staff.id,
+    action: 'UPDATE_COMPANY',
+    entityType: 'company',
+    entityId: nextCompany.id,
+    description: `Updated ${nextCompany.company_name}`,
+  });
+  res.json(nextCompany);
 });
 
 export const patchCompanyStatus = asyncHandler(async (req, res) => {

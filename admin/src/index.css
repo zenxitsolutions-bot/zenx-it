@@ -9,14 +9,14 @@ body,
 }
 
 body {
-  background-color: #0a0a09;
-  color: #f4f1e9;
+  background-color: #f4f7fc;
+  color: #0f172a;
   font-family: "DM Sans", sans-serif;
 }
 
 ::selection {
-  background: #d7ff42;
-  color: #0a0a09;
+  background: #dbeafe;
+  color: #0f172a;
 }
 
 ::-webkit-scrollbar {
@@ -27,22 +27,23 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ffffff1a;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffffff33;
+  background: #94a3b8;
 }
 
+/* The picker icon ships dark, which is what we want on light inputs — the theme used to invert it
+   to stay visible on the near-black fields, so inverting now would hide it again. */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.6);
   cursor: pointer;
 }
 
 /* Strips react-phone-number-input's own border/background so its country-select + number field
    sit inside our .zenx-phone-field wrapper's border as one visual control, and recolors the
-   dropdown arrow for the dark theme (PhoneField.tsx). */
+   dropdown arrow to match our text color (PhoneField.tsx). */
 .zenx-phone-field .PhoneInputCountry {
   margin-right: 0;
 }
@@ -53,6 +54,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   box-shadow: none;
 }
 .zenx-phone-field .PhoneInputCountrySelectArrow {
-  color: #f4f1e9;
+  color: #0f172a;
   opacity: 0.6;
 }

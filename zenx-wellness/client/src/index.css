@@ -1,0 +1,197 @@
+/* Fonts load via <link rel="preconnect"/stylesheet"> in index.html, not @import here — @import
+   is a render-blocking waterfall (fetch this file, parse it, then discover and fetch the font
+   CSS); a <link> in <head> lets the browser discover and fetch it in parallel from the start. */
+@import 'tailwindcss';
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: 'DM Sans', Arial, sans-serif;
+  --font-display: 'Playfair Display', serif;
+
+  /* Blue-and-white palette, sampled from the ZenX dashboard design (2026-09-04): brand blue
+     #2563eb, its #dbeafe tint, white cards on a #f4f7fc page, navy #0f172a text.
+     The token *names* below are the original green-palette ones (forest/sage/cream/coral). They're
+     deliberately kept: ~300 utility classes across ~40 component files reference them
+     (`text-forest`, `bg-sage/40`, `bg-cream`, `bg-coral`), so re-pointing the values re-skins the
+     whole app from this one file. Prefer the semantic aliases below them in new code. */
+  --color-forest: #0f172a; /* navy — primary text/heading color */
+  --color-forest-2: #1e293b; /* deeper navy — raised surfaces on a dark ground */
+  --color-sage: #dbeafe; /* light blue tint — avatars, hover states, muted surfaces */
+  --color-sage-deep: #1d4ed8; /* deep blue — hint text and secondary accents on white */
+  --color-cream: #f4f7fc; /* page + list-row surface */
+  --color-peach: #e0edff; /* soft blue — extra chart series */
+  --color-coral: #2563eb; /* brand blue — primary buttons, badges, avatar circles */
+  --color-yellow: #f59e0b; /* amber — retained for warning/attention accents */
+  --color-ink: #0f172a;
+  --color-line: #e2e8f0;
+
+  /* Honest names for the same values — use these going forward. */
+  --color-navy: #0f172a;
+  --color-brand: #2563eb;
+  --color-brand-strong: #1d4ed8;
+  --color-sky: #dbeafe;
+  --color-mist: #f4f7fc;
+  /* Trend direction on stat cards: a rising figure reads green and a falling one red regardless of
+     the brand hue, so these are their own tokens rather than aliases of it. */
+  --color-positive: #16a34a;
+  --color-negative: #dc2626;
+
+  /* Tighter and cooler than the old green-tinted glow — the design's cards sit almost flat on the
+     page, lifted by a hairline border plus a short shadow rather than a large soft one. */
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+
+  --radius-card: 16px;
+  --radius-pill: 999px;
+}
+
+@theme inline {
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/* shadcn/ui semantic tokens, mapped onto the palette above (CLAUDE.md §4) */
+:root {
+  --background: var(--color-mist);
+  --foreground: var(--color-ink);
+  --card: #ffffff;
+  --card-foreground: var(--color-ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-brand);
+  --primary-foreground: #ffffff;
+  --secondary: var(--color-navy);
+  --secondary-foreground: #ffffff;
+  --muted: var(--color-sky);
+  /* Direct hex, not var(--color-muted) — that name is owned by the @theme inline block above
+     (it maps to --muted, the light blue *surface* color), so routing through it here collapsed
+     "muted surface" and "text on a muted surface" onto the identical color: a real, sitewide
+     contrast bug (text nearly invisible against the page) that Lighthouse's accessibility audit
+     caught directly, not something visible from reading the code alone. */
+  --muted-foreground: #64748b;
+  --accent: var(--color-sky);
+  --accent-foreground: var(--color-brand-strong);
+  --destructive: var(--color-negative);
+  --border: var(--color-line);
+  --input: var(--color-line);
+  --ring: var(--color-brand);
+  /* Ordered light→dark within the blue family, with green/amber last for series that are
+     categorical rather than sequential. */
+  --chart-1: var(--color-brand);
+  --chart-2: #60a5fa;
+  --chart-3: #1e3a8a;
+  --chart-4: var(--color-positive);
+  --chart-5: var(--color-yellow);
+  --radius: 1rem;
+  /* White sidebar with a light-blue active pill, per the design — not the dark rail this used to
+     be. Sidebar.jsx sets its own text colors to match. */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #334155;
+  --sidebar-primary: var(--color-brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--color-sky);
+  --sidebar-accent-foreground: var(--color-brand-strong);
+  --sidebar-border: var(--color-line);
+  --sidebar-ring: var(--color-brand);
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --card: #111c31;
+  --card-foreground: #e2e8f0;
+  --popover: #111c31;
+  --popover-foreground: #e2e8f0;
+  /* Lighter than the light theme's brand blue: #2563eb on a near-black ground is too low-contrast
+     for button text, so the dark theme steps up the lightness instead of reusing the token. */
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #e2e8f0;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #3b82f6;
+  --sidebar: #111c31;
+  --sidebar-foreground: #cbd5e1;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1e293b;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1e293b;
+  --sidebar-ring: #3b82f6;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Sans, not the Playfair display serif this used to be: the design's headings are the same
+     geometric sans as its body text, differing only in weight. --font-display is still defined
+     and still available via `font-display` for anything that wants the serif deliberately. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-top: 0;
+  }
+}
+
+/* Strips react-phone-number-input's own border/background so its country-select + number field
+   sit inside our .nourishly-phone-input wrapper's border as one visual control. */
+.nourishly-phone-input .PhoneInputCountry {
+  margin-right: 0;
+}
+.nourishly-phone-input .PhoneInputCountrySelect {
+  cursor: pointer;
+}
+.nourishly-phone-input .PhoneInputCountryIcon {
+  box-shadow: none;
+}

@@ -20,7 +20,7 @@ export function ConversionFunnel({ stages }: { stages: FunnelStage[] }) {
                 )}
               </span>
             </div>
-            <div className="h-9 rounded-md bg-white/5">
+            <div className="h-9 rounded-md bg-ink">
               <div
                 className="flex h-full items-center justify-end rounded-md bg-gradient-to-r from-lime/40 to-lime px-3 text-xs font-semibold text-ink transition-all"
                 style={{ width: `${width}%` }}

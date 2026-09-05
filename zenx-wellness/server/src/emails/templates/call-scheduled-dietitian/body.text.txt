@@ -1,0 +1,7 @@
+Hi {{dietitian_name}}
+
+A call with {{client_name}} has been booked for: {{meeting_time}}
+
+A calendar invite is attached — add it to your calendar so it's easy to find later.
+
+{{join_label}}: {{join_url}}

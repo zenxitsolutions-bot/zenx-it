@@ -34,7 +34,7 @@ export function PipelineColumn({ status, count, children, onDropLead }: Pipeline
         <span className="text-xs font-semibold uppercase tracking-wider text-muted">
           {STATUS_LABELS[status]}
         </span>
-        <span className="rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-dim">{count}</span>
+        <span className="rounded-full bg-ink px-2 py-0.5 text-[11px] text-dim">{count}</span>
       </div>
       <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3">{children}</div>
     </div>

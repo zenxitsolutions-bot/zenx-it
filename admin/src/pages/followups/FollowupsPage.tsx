@@ -160,7 +160,7 @@ function Section({
     <div>
       <div className="mb-3 flex items-center gap-2">
         <h3 className={`font-display text-lg ${TONE_TEXT[tone]}`}>{title}</h3>
-        <span className="rounded-full bg-white/5 px-2 py-0.5 text-xs text-dim">{items.length}</span>
+        <span className="rounded-full bg-ink px-2 py-0.5 text-xs text-dim">{items.length}</span>
       </div>
 
       {items.length === 0 ? (

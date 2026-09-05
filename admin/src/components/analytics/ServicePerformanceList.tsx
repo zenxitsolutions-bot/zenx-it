@@ -12,7 +12,7 @@ export function ServicePerformanceList({ data }: { data: ServicePerformance[] })
               {s.share.toFixed(0)}% · {s.conversionRate.toFixed(0)}% converted
             </span>
           </div>
-          <div className="h-2 rounded-full bg-white/5">
+          <div className="h-2 rounded-full bg-border">
             <div className="h-2 rounded-full bg-lime" style={{ width: `${s.share}%` }} />
           </div>
         </div>

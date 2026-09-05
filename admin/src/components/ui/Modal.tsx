@@ -15,7 +15,7 @@ const WIDTHS = { sm: "max-w-sm", md: "max-w-lg", lg: "max-w-2xl" };
 export function Modal({ open, onClose, title, subtitle, children, width = "md" }: ModalProps) {
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-black/70 backdrop-blur-sm px-4 py-10">
+    <div className="fixed inset-0 z-[90] flex items-start justify-center overflow-y-auto bg-slate-900/40 backdrop-blur-sm px-4 py-10">
       <div className={`w-full ${WIDTHS[width]} animate-fadeIn rounded-xl2 border border-border bg-panel shadow-panel`}>
         <div className="flex items-start justify-between border-b border-border px-6 py-5">
           <div>

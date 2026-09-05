@@ -164,6 +164,72 @@ export const companiesService = {
     return data;
   },
 
+  async update(
+    companyId: string,
+    patch: {
+      companyName?: string;
+      companyEmail?: string | null;
+      companyPhone?: string | null;
+      website?: string | null;
+      addressLine1?: string | null;
+      addressLine2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      zip?: string | null;
+      country?: string | null;
+      status?: Company["status"];
+      subscriptionPlan?: Company["subscription_plan"];
+      contact?: {
+        userId: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        phone?: string | null;
+        jobTitle?: string | null;
+      };
+    }
+  ): Promise<Company> {
+    if (isDemoMode) {
+      const companyPatch: Partial<Company> = {
+        ...(patch.companyName !== undefined ? { company_name: patch.companyName } : {}),
+        ...(patch.companyEmail !== undefined ? { company_email: patch.companyEmail } : {}),
+        ...(patch.companyPhone !== undefined ? { company_phone: patch.companyPhone } : {}),
+        ...(patch.website !== undefined ? { website: patch.website } : {}),
+        ...(patch.addressLine1 !== undefined ? { address_line1: patch.addressLine1 } : {}),
+        ...(patch.addressLine2 !== undefined ? { address_line2: patch.addressLine2 } : {}),
+        ...(patch.city !== undefined ? { city: patch.city } : {}),
+        ...(patch.state !== undefined ? { state: patch.state } : {}),
+        ...(patch.zip !== undefined ? { zip: patch.zip } : {}),
+        ...(patch.country !== undefined ? { country: patch.country } : {}),
+        ...(patch.status !== undefined ? { status: patch.status } : {}),
+        ...(patch.subscriptionPlan !== undefined ? { subscription_plan: patch.subscriptionPlan } : {}),
+      };
+      const { list, item } = patchIn(demoStore.getState().companies, companyId, companyPatch);
+      if (!item) throw new Error("Company not found");
+      let users = demoStore.getState().zenxUsers;
+      if (patch.contact) {
+        const { list: nextUsers, item: user } = patchIn(users, patch.contact.userId, {
+          ...(patch.contact.firstName !== undefined ? { first_name: patch.contact.firstName } : {}),
+          ...(patch.contact.lastName !== undefined ? { last_name: patch.contact.lastName } : {}),
+          ...(patch.contact.email !== undefined ? { email: patch.contact.email } : {}),
+          ...(patch.contact.phone !== undefined ? { phone: patch.contact.phone } : {}),
+          ...(patch.contact.jobTitle !== undefined ? { job_title: patch.contact.jobTitle } : {}),
+        });
+        if (!user) throw new Error("Contact not found");
+        users = nextUsers;
+      }
+      demoStore.update((s) => ({ ...s, companies: list, zenxUsers: users }));
+      return item;
+    }
+    try {
+      const { data } = await apiClient.patch<Company>(`/companies/${companyId}`, patch);
+      return data;
+    } catch (err) {
+      const message = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      throw new Error(message || "Could not update the customer.");
+    }
+  },
+
   async removeLogo(companyId: string): Promise<void> {
     if (isDemoMode) {
       const { list } = patchIn(demoStore.getState().companies, companyId, { logo_url: null });

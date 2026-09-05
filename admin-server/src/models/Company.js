@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
+import { buildSetClause } from '../db/helpers.js';
 
 // input.id lets a caller pin a specific id instead of a fresh random one — only used by
 // seed.js#seedLegacyCompany, so the grandfathered company's id matches the value already
@@ -60,5 +61,28 @@ export async function updateCompanyStatus(id, status) {
 
 export async function updateCompanyLogo(id, logoUrl) {
   await pool.query('UPDATE companies SET logo_url = ? WHERE id = ?', [logoUrl, id]);
+  return findCompanyById(id);
+}
+
+export async function updateCompany(id, patch) {
+  const { sets, params } = buildSetClause(
+    {
+      companyName: 'company_name',
+      companyEmail: 'company_email',
+      companyPhone: 'company_phone',
+      website: 'website',
+      addressLine1: 'address_line1',
+      addressLine2: 'address_line2',
+      city: 'city',
+      state: 'state',
+      zip: 'zip',
+      country: 'country',
+      status: 'status',
+      subscriptionPlan: 'subscription_plan',
+    },
+    patch
+  );
+  if (!sets.length) return findCompanyById(id);
+  await pool.query(`UPDATE companies SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
   return findCompanyById(id);
 }

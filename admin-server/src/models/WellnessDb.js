@@ -174,6 +174,49 @@ export async function syncWellnessCompanyLogo({ zenxCompanyId, slug, logoUrl }) 
   return localId;
 }
 
+export async function syncWellnessCompanyProfile({ zenxCompanyId, slug, name, website }) {
+  if (!pool) return null;
+  const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
+  if (!localId) return null;
+  await pool.query('UPDATE companies SET name = ?, website = ? WHERE id = ?', [name, website ?? null, localId]);
+  return localId;
+}
+
+export async function syncWellnessContact({ zenxUserId, name, email, phone }) {
+  if (!pool || !zenxUserId) return null;
+  const [rows] = await pool.query('SELECT id FROM users WHERE zenx_user_id = ? LIMIT 1', [zenxUserId]);
+  if (!rows[0]) return null;
+  await pool.query('UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?', [
+    name,
+    email,
+    phone ?? null,
+    rows[0].id,
+  ]);
+  return rows[0].id;
+}
+
+export async function listWellnessLastLoginsByZenxIds(zenxUserIds) {
+  const byId = new Map();
+  if (!pool || zenxUserIds.length === 0) return byId;
+  let rows;
+  try {
+    [rows] = await pool.query(
+      `SELECT zenx_user_id, last_login FROM users
+        WHERE zenx_user_id IN (${zenxUserIds.map(() => '?').join(',')})`,
+      zenxUserIds
+    );
+  } catch (err) {
+    if (err.code === 'ER_BAD_FIELD_ERROR') return byId;
+    throw err;
+  }
+  for (const row of rows) {
+    if (!row.zenx_user_id || !row.last_login) continue;
+    const iso = row.last_login instanceof Date ? row.last_login.toISOString() : new Date(row.last_login).toISOString();
+    if (!Number.isNaN(new Date(iso).getTime())) byId.set(row.zenx_user_id, iso);
+  }
+  return byId;
+}
+
 export async function listWellnessClients(zenxCompanyId, slug) {
   if (!pool) return { clients: [], dietitians: [] };
   const localId = await resolveLocalCompanyId({ zenxCompanyId, slug });
