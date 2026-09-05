@@ -75,7 +75,7 @@ export default function DashboardPage() {
                     <Link
                       key={status}
                       to={`/admin/enquiries?status=${status}`}
-                      className="rounded-md border border-border px-3 py-4 text-center transition hover:border-lime/40 hover:bg-white/5"
+                      className="rounded-md border border-border px-3 py-4 text-center transition hover:border-lime/40 hover:bg-ink"
                     >
                       <span className="block font-display text-2xl text-offwhite">{count}</span>
                       <span className="mt-1 block text-[10px] uppercase tracking-wider text-dim">
@@ -105,7 +105,7 @@ export default function DashboardPage() {
                       <Link
                         key={f.id}
                         to={`/admin/enquiries/${f.enquiry_id}`}
-                        className="flex items-center justify-between rounded-md border border-border px-3.5 py-3 transition hover:border-lime/40 hover:bg-white/5"
+                        className="flex items-center justify-between rounded-md border border-border px-3.5 py-3 transition hover:border-lime/40 hover:bg-ink"
                       >
                         <div>
                           <p className="text-sm text-offwhite">{enq?.company_name ?? "Unknown"}</p>

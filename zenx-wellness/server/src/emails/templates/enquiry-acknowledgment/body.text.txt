@@ -1,0 +1,5 @@
+Hi {{lead_name}}
+
+Thanks for reaching out about {{goal}} — we've received your enquiry.
+
+A member of the Nourishly team will be in touch soon to take things further.

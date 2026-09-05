@@ -60,9 +60,9 @@ export const login = asyncHandler(async (req, res) => {
     throw ApiError.forbidden('This login page belongs to a different company — check the URL your admin gave you.');
   }
 
-  await touchUserLastLogin(user.id);
-  const accessToken = issueTokens(res, user, company.id);
-  res.json({ user: toClientShape(user), accessToken, companyId: company.id });
+  const signedIn = await touchUserLastLogin(user.id);
+  const accessToken = issueTokens(res, signedIn, company.id);
+  res.json({ user: toClientShape(signedIn), accessToken, companyId: company.id });
 });
 
 export const refresh = asyncHandler(async (req, res) => {

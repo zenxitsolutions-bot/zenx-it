@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
+import { buildSetClause } from '../db/helpers.js';
 
 // The customer identity (a company's contact person) — table is literally named `users`, matching
 // the original schema; the file is named ZenxUser.js (matching the frontend's `ZenxUser` type in
@@ -16,9 +17,19 @@ export async function createUser(input, conn = pool) {
   return findUserById(id, conn);
 }
 
+function toIso(value) {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
 function mapUser(row) {
   if (!row) return null;
-  return { ...row, must_change_password: Boolean(row.must_change_password) };
+  return {
+    ...row,
+    must_change_password: Boolean(row.must_change_password),
+    last_login: toIso(row.last_login),
+  };
 }
 
 export async function findUserById(id, conn = pool) {
@@ -48,5 +59,25 @@ export async function markUserPasswordChanged(id) {
 }
 
 export async function touchUserLastLogin(id) {
-  await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP(3) WHERE id = ?', [id]);
+  // Bind a JS Date, not CURRENT_TIMESTAMP: the pool treats DATETIME as UTC (`timezone: 'Z'`),
+  // while CURRENT_TIMESTAMP writes the MySQL session's local clock. That pair stored 9:20pm
+  // local as if it were 9:20pm UTC, and the customer page then showed 4:20pm (UTC-5).
+  await pool.query('UPDATE users SET last_login = ? WHERE id = ?', [new Date(), id]);
+  return findUserById(id);
+}
+
+export async function updateUserProfile(id, patch) {
+  const { sets, params } = buildSetClause(
+    {
+      email: 'email',
+      firstName: 'first_name',
+      lastName: 'last_name',
+      phone: 'phone',
+      jobTitle: 'job_title',
+    },
+    patch
+  );
+  if (!sets.length) return findUserById(id);
+  await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
+  return findUserById(id);
 }

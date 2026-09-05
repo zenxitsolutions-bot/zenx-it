@@ -40,6 +40,9 @@ const ALTERS = [
 
   'ALTER TABLE companies ADD COLUMN timezone VARCHAR(64) NULL AFTER country',
   "ALTER TABLE companies ADD COLUMN subscription_plan ENUM('starter', 'growth', 'enterprise') NULL AFTER status",
+  // CREATE TABLE IF NOT EXISTS never adds this to a users table that already existed without it,
+  // so last_login stayed NULL-looking on the customer page (the column simply was not there).
+  'ALTER TABLE users ADD COLUMN last_login DATETIME(3) NULL AFTER updated_at',
 ];
 
 // wellness-app's own migrate.js can assume its database already exists (it always has). This one

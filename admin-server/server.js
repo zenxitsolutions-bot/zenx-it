@@ -1,10 +1,15 @@
 import { app } from './src/app.js';
 import { connectDb } from './src/config/db.js';
 import { env } from './src/config/env.js';
+import { assertEmailTransportConfigured, resolveTransportKind } from './src/emails/sendEmail.js';
 import { startReminderScheduler } from './src/services/reminderScheduler.js';
 
 async function main() {
   await connectDb();
+  // Before listen(), so a deployment whose EMAIL_TRANSPORT/SMTP_HOST is missing dies at boot
+  // instead of only failing on its first password-reset request.
+  assertEmailTransportConfigured();
+  console.log(`[email] transport: ${resolveTransportKind()}`);
   startReminderScheduler();
   const server = app.listen(env.port, () => console.log(`[server] listening on http://localhost:${env.port}`));
 

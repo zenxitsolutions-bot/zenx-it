@@ -36,7 +36,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
       {state && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm px-4">
           <div className="w-full max-w-sm rounded-xl2 border border-border bg-panel p-6 shadow-panel animate-fadeIn">
             <div
               className={`mb-4 flex h-10 w-10 items-center justify-center rounded-full ${

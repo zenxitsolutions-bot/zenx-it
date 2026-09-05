@@ -3,3 +3,17 @@ dist
 .DS_Store
 *.local
 .env
+
+# Secret-bearing files a bare ".env" rule does NOT match. Every one of these holds real
+# credentials (MySQL passwords, SMTP keys, JWT secrets) — the *.example files are the only
+# env files that belong in the repo.
+.env.*
+!.env.example
+*.bak
+*.bak.*
+
+# Rendered emails written by the console mail transport (zenx-wellness/server/.local/emails)
+.local/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

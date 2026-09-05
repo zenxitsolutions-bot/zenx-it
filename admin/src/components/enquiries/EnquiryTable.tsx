@@ -31,7 +31,7 @@ export function EnquiryTable({ enquiries, admins }: { enquiries: Enquiry[]; admi
           {enquiries.map((e) => {
             const admin = e.assigned_to ? adminById.get(e.assigned_to) : undefined;
             return (
-              <tr key={e.id} className="border-t border-border transition hover:bg-white/5">
+              <tr key={e.id} className="border-t border-border transition hover:bg-ink">
                 <td className="px-4 py-3">
                   <Link to={`/admin/enquiries/${e.id}`} className="font-semibold text-offwhite hover:text-lime">
                     {e.company_name}

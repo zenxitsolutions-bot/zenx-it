@@ -177,7 +177,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
       className="flex items-center justify-between rounded-md border border-border px-4 py-3 text-left transition hover:border-borderStrong"
     >
       <span className="text-sm text-offwhite">{label}</span>
-      <span className={`relative h-5 w-9 rounded-full transition ${checked ? "bg-lime" : "bg-white/10"}`}>
+      <span className={`relative h-5 w-9 rounded-full transition ${checked ? "bg-lime" : "bg-borderStrong"}`}>
         <span
           className={`absolute top-0.5 h-4 w-4 rounded-full bg-ink transition ${checked ? "left-4" : "left-0.5"}`}
         />

@@ -57,9 +57,12 @@ export const customerAuthService = {
       if (!hasGrant) {
         throw new CustomerAuthError("This login page belongs to a different company — check the URL your admin gave you.");
       }
+      const signedIn = { ...user, last_login: new Date().toISOString() };
+      const { list } = patchIn(state.zenxUsers, user.id, { last_login: signedIn.last_login });
+      demoStore.update((s) => ({ ...s, zenxUsers: list }));
       localStorage.setItem(CUSTOMER_DEMO_SESSION_KEY, user.id);
       localStorage.setItem(CUSTOMER_DEMO_COMPANY_KEY, company.id);
-      return user;
+      return signedIn;
     }
 
     try {

@@ -9,14 +9,40 @@ body,
 }
 
 body {
-  background-color: #0a0a09;
-  color: #f4f1e9;
-  font-family: "DM Sans", sans-serif;
+  background-color: #f4f7fc;
+  color: #0f172a;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+/* Type scale — one family, weight carries the hierarchy.
+   Headings 600 · numerals 600 · menu 500 · small caps labels 600 + tracking.
+   Declared in @layer base/components (never bare) so a Tailwind font-* utility on a one-off
+   element still wins — a bare rule here would sit after the utilities layer and silently beat
+   every `font-bold` in the app. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /* `font-display` now marks the heavier typographic role rather than a second typeface: the
+     dashboard's stat numerals, page titles and the wordmark. Tabular figures stop a counter from
+     changing width as its digits tick — Plus Jakarta Sans defaults to proportional figures. */
+  .font-display {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 ::selection {
-  background: #d7ff42;
-  color: #0a0a09;
+  background: #dbeafe;
+  color: #0f172a;
 }
 
 ::-webkit-scrollbar {
@@ -27,22 +53,23 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ffffff1a;
+  background: #cbd5e1;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #ffffff33;
+  background: #94a3b8;
 }
 
+/* The picker icon ships dark, which is what we want on light inputs — the theme used to invert it
+   to stay visible on the near-black fields, so inverting now would hide it again. */
 input[type="date"]::-webkit-calendar-picker-indicator,
 input[type="time"]::-webkit-calendar-picker-indicator {
-  filter: invert(1) brightness(1.6);
   cursor: pointer;
 }
 
 /* Strips react-phone-number-input's own border/background so its country-select + number field
    sit inside our .zenx-phone-field wrapper's border as one visual control, and recolors the
-   dropdown arrow for the dark theme (PhoneField.tsx). */
+   dropdown arrow to match our text color (PhoneField.tsx). */
 .zenx-phone-field .PhoneInputCountry {
   margin-right: 0;
 }
@@ -53,6 +80,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   box-shadow: none;
 }
 .zenx-phone-field .PhoneInputCountrySelectArrow {
-  color: #f4f1e9;
+  color: #0f172a;
   opacity: 0.6;
 }

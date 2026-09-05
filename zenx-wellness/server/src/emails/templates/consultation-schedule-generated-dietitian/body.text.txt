@@ -1,0 +1,8 @@
+Hi {{dietitian_name}}
+
+Based on {{client_name}}'s consultation schedule, {{count}} upcoming calls have been booked, from
+{{date_range}}.
+
+{{gap_notice}}
+
+View in Nourishly: {{login_url}}

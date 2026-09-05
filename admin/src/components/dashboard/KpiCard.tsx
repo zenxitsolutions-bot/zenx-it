@@ -17,7 +17,7 @@ export function KpiCard({ label, value, icon: Icon, accent }: KpiCardProps) {
         <span
           className={cn(
             "flex h-8 w-8 items-center justify-center rounded-full",
-            accent ? "bg-lime/10 text-lime" : "bg-white/5 text-muted"
+            accent ? "bg-lime/10 text-lime" : "bg-ink text-muted"
           )}
         >
           <Icon size={15} />
