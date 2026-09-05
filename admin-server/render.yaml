@@ -28,8 +28,8 @@ services:
         value: 15m
       - key: CUSTOMER_JWT_REFRESH_TTL
         value: 30d
-      # Comma-separated, no spaces — the deployed admin portal origin + the deployed public site
-      # origin (its contact form posts here too). e.g.
+      # Comma-separated, no spaces — extra origins beyond the built-in local + production
+      # defaults (admin.zenxitsolutions.com, zenxitsolutions.com). e.g.
       # https://zenx-admin.netlify.app,https://zenxitsolutions.com
       - key: CLIENT_ORIGINS
         sync: false

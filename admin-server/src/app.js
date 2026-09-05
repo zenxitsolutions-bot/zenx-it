@@ -22,10 +22,20 @@ import { notificationRouter } from './routes/notification.routes.js';
 
 export const app = express();
 
-app.use(helmet());
-// Two origins, not one — this backend serves both the admin portal (:5174) and the marketing
-// site's public contact form (:5173), unlike wellness-app's single-origin CORS config.
-app.use(cors({ origin: env.clientOrigins, credentials: true }));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+// Admin portal + marketing site (local and production). Reflect a matching Origin so
+// credentialed preflights get Access-Control-Allow-Origin; unknown origins get no header.
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || env.clientOrigins.includes(origin)) return callback(null, true);
+      return callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  })
+);
 app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
 app.use(cookieParser());

@@ -21,12 +21,23 @@ export const env = {
   customerJwtAccessTtl: process.env.CUSTOMER_JWT_ACCESS_TTL || '15m',
   customerJwtRefreshTtl: process.env.CUSTOMER_JWT_REFRESH_TTL || '30d',
 
-  // Comma-separated: this backend serves both the admin portal origin and the public marketing
-  // site's origin (its contact form hits the one public enquiry route).
-  clientOrigins: (process.env.CLIENT_ORIGINS || 'http://localhost:5174,http://localhost:5173')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
+  // Comma-separated extra origins. Always unioned with the known local + production frontends
+  // so a missing or localhost-only CLIENT_ORIGINS on the VPS cannot strip CORS from
+  // https://admin.zenxitsolutions.com (browser then reports the preflight as a CORS failure).
+  clientOrigins: [
+    ...new Set([
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'https://admin.zenxitsolutions.com',
+      'https://zenxitsolutions.com',
+      'https://www.zenxitsolutions.com',
+      ...(process.env.CLIENT_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim().replace(/\/+$/, ''))
+        .filter(Boolean),
+    ]),
+  ],
 
   // Which transport sendEmail.js actually delivers through: 'smtp', 'resend' or 'console'.
   // Unset defaults to 'console' in dev and 'smtp' in production — an unconfigured dev install
