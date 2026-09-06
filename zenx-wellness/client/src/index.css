@@ -1,0 +1,288 @@
+/* Fonts load via <link rel="preconnect"/stylesheet"> in index.html, not @import here — @import
+   is a render-blocking waterfall (fetch this file, parse it, then discover and fetch the font
+   CSS); a <link> in <head> lets the browser discover and fetch it in parallel from the start. */
+@import 'tailwindcss';
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* ZenX Admin palette, applied through the existing wellness token *names* so ~570 utility
+     classes (`text-forest`, `bg-sage`, `bg-coral`, …) re-skin without a component rewrite.
+     Values match admin/tailwind.config.ts. Prefer the semantic aliases below in new code. */
+  --color-forest: #1b2b42; /* primary heading/text; dark grounds (tooltips, auth panel) */
+  --color-forest-2: #0f1f35; /* sidebar navy — hover/deeper dark grounds */
+  --color-sage: #eaf2ff; /* brand-soft blue tint — avatars, hover states, muted surfaces */
+  --color-sage-deep: #2563b8; /* primary hover / secondary accent text */
+  --color-cream: #f5f7fb; /* recessed surface — list rows, inputs, table headers */
+  --color-peach: #eaf2ff; /* extra chart series fill */
+  --color-coral: #3478d8; /* brand blue — primary buttons, badges, avatar circles */
+  --color-yellow: #f59e42;
+  --color-ink: #1b2b42;
+  --color-dim: #9aa6b5;
+  --color-line: #e5eaf2;
+
+  --color-navy: #1b2b42;
+  --color-brand: #3478d8;
+  --color-brand-strong: #2563b8;
+  --color-brand-mid: #5b9bf3;
+  --color-sky: #eaf2ff;
+  --color-mist: #f5f7fb;
+  --color-positive: #22a06b;
+  --color-negative: #e85d5d;
+  --color-white: #ffffff;
+
+  --color-hydration: #5b9bf3;
+  --color-hydration-tint: #eaf2ff;
+  --color-calories: #f59e42;
+  --color-calories-tint: #fff3e5;
+  --color-measure: #7c5ce1;
+  --color-measure-tint: #f1ebff;
+  --color-measure-ink: #5b3fc4;
+
+  /* Dark navy rail — matches admin Sidebar. */
+  --color-sidebar-bg: #0f1f35;
+  --color-sidebar-hover: #162b47;
+  --color-sidebar-text: #d1d9e6;
+  --color-sidebar-line: #1c3251;
+
+  --color-status-new: #3478d8;
+  --color-status-contacted: #7c5ce1;
+  --color-status-followup: #f59e42;
+  --color-status-converted: #22a06b;
+  --color-status-lost: #e85d5d;
+  --color-status-new-ink: #2563b8;
+  --color-status-contacted-ink: #5b3fc4;
+  --color-status-followup-ink: #a35700;
+  --color-status-converted-ink: #157a4e;
+  --color-status-lost-ink: #b93232;
+
+  --color-tint-blue: #eaf2ff;
+  --color-tint-purple: #f1ebff;
+  --color-tint-orange: #fff3e5;
+  --color-tint-green: #e8f7f0;
+  --color-tint-red: #fdecec;
+
+  --color-brand-2: #5b9bf3;
+
+  --shadow-soft: 0 1px 2px rgba(27, 43, 66, 0.04), 0 4px 12px rgba(27, 43, 66, 0.05);
+  --shadow-lift: 0 2px 4px rgba(27, 43, 66, 0.06), 0 12px 28px rgba(27, 43, 66, 0.1);
+  --shadow-panel: 0 1px 2px rgba(27, 43, 66, 0.04), 0 8px 24px rgba(27, 43, 66, 0.06);
+  --shadow-float: 0 12px 32px rgba(27, 43, 66, 0.14), 0 2px 8px rgba(27, 43, 66, 0.08);
+
+  --radius-card: 14px;
+  --radius-pill: 999px;
+}
+
+@theme inline {
+  --font-heading: var(--font-display);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+/* shadcn/ui semantic tokens, mapped onto the palette above (CLAUDE.md §4) */
+:root {
+  --background: var(--color-mist);
+  --foreground: var(--color-ink);
+  --card: var(--color-white);
+  --card-foreground: var(--color-ink);
+  --popover: var(--color-white);
+  --popover-foreground: var(--color-ink);
+  --primary: var(--color-brand);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-forest);
+  --secondary-foreground: var(--color-white);
+  --muted: #f5f7fb;
+  /* Direct hex, not var(--color-muted) — that name is owned by the @theme inline block above
+     (it maps to --muted, the recessed *surface* color), so routing through it here would collapse
+     "muted surface" and "text on a muted surface" onto the identical color.
+     #6B7A90 is Admin secondary text — 4.6:1 on white, so it clears AA at body size. */
+  --muted-foreground: #6b7a90;
+  --accent: var(--color-sage);
+  --accent-foreground: var(--color-brand-strong);
+  --destructive: var(--color-negative);
+  --border: var(--color-line);
+  --input: var(--color-line);
+  --ring: var(--color-brand);
+  --chart-1: var(--color-brand);
+  --chart-2: var(--color-status-contacted);
+  --chart-3: var(--color-brand-mid);
+  --chart-4: var(--color-positive);
+  --chart-5: var(--color-calories);
+  --radius: 0.875rem;
+  --sidebar: var(--color-sidebar-bg);
+  --sidebar-foreground: var(--color-sidebar-text);
+  --sidebar-primary: var(--color-brand);
+  --sidebar-primary-foreground: var(--color-white);
+  --sidebar-accent: var(--color-sidebar-hover);
+  --sidebar-accent-foreground: var(--color-white);
+  --sidebar-border: var(--color-sidebar-line);
+  --sidebar-ring: var(--color-brand);
+}
+
+.dark {
+  --background: #0f1f35;
+  --foreground: #d1d9e6;
+  --card: #162b47;
+  --card-foreground: #d1d9e6;
+  --popover: #162b47;
+  --popover-foreground: #d1d9e6;
+  --primary: #5b9bf3;
+  --primary-foreground: #0f1f35;
+  --secondary: #1c3251;
+  --secondary-foreground: #d1d9e6;
+  --muted: #1c3251;
+  --muted-foreground: #9aa6b5;
+  --accent: #1c3251;
+  --accent-foreground: #d1d9e6;
+  --destructive: #e85d5d;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.15);
+  --ring: #5b9bf3;
+  --sidebar: #0f1f35;
+  --sidebar-foreground: #d1d9e6;
+  --sidebar-primary: #3478d8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #162b47;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1c3251;
+  --sidebar-ring: #5b9bf3;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  html {
+    @apply font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    margin-top: 0;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Same role as admin: heavier numerals / titles, tabular figures so counters don't jump. */
+  .font-display {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+::selection {
+  background: #eaf2ff;
+  color: #1b2b42;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #dce3ec;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9aa6b5;
+}
+
+@utility card-hover {
+  /* Hover elevation for cards that are themselves links, buttons, or otherwise interactive.
+     Opt-in per card rather than applied to every surface: a card that does nothing when clicked
+     should not appear to lift. */
+  transition:
+    box-shadow 200ms ease,
+    transform 200ms ease,
+    border-color 200ms ease;
+  &:hover {
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-2px);
+  }
+}
+
+/* Users who ask their OS for less motion get none of the decorative movement — transitions
+   collapse to near-instant rather than being removed, so state changes stay legible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .card-hover:hover {
+    transform: none;
+  }
+}
+
+/* Strips react-phone-number-input's own border/background so its country-select + number field
+   sit inside our .nourishly-phone-input wrapper's border as one visual control. */
+.nourishly-phone-input .PhoneInputCountry {
+  margin-right: 0;
+}
+.nourishly-phone-input .PhoneInputCountrySelect {
+  cursor: pointer;
+}
+.nourishly-phone-input .PhoneInputCountryIcon {
+  box-shadow: none;
+}
+.nourishly-phone-input .PhoneInputCountrySelectArrow {
+  color: #1b2b42;
+  opacity: 0.6;
+}

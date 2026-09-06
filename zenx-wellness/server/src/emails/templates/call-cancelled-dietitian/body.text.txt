@@ -1,0 +1,6 @@
+Hi {{dietitian_name}}
+
+Your call with {{client_name}}, previously scheduled for {{meeting_time}}, has been cancelled.
+The attached file removes it from your calendar automatically.
+
+View schedule: {{meeting_link}}

@@ -1,0 +1,5 @@
+Hi {{lead_name}}
+
+Thanks for reaching out about {{goal}} — we've received your enquiry.
+
+A member of the ZenX Dietitian team will be in touch soon to take things further.

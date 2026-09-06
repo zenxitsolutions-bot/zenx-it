@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: #F5F7FB;
+  color: #1B2B42;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+}
+
+/* Type scale — one family, weight carries the hierarchy.
+   Headings 600 · numerals 600 · menu 500 · small caps labels 600 + tracking.
+   Declared in @layer base/components (never bare) so a Tailwind font-* utility on a one-off
+   element still wins — a bare rule here would sit after the utilities layer and silently beat
+   every `font-bold` in the app. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+  }
+}
+
+@layer components {
+  /* `font-display` now marks the heavier typographic role rather than a second typeface: the
+     dashboard's stat numerals, page titles and the wordmark. Tabular figures stop a counter from
+     changing width as its digits tick — Plus Jakarta Sans defaults to proportional figures. */
+  .font-display {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+::selection {
+  background: #EAF2FF;
+  color: #1B2B42;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #DCE3EC;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9AA6B5;
+}
+
+/* The picker icon ships dark, which is what we want on light inputs — the theme used to invert it
+   to stay visible on the near-black fields, so inverting now would hide it again. */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+}
+
+/* Strips react-phone-number-input's own border/background so its country-select + number field
+   sit inside our .zenx-phone-field wrapper's border as one visual control, and recolors the
+   dropdown arrow to match our text color (PhoneField.tsx). */
+.zenx-phone-field .PhoneInputCountry {
+  margin-right: 0;
+}
+.zenx-phone-field .PhoneInputCountrySelect {
+  cursor: pointer;
+}
+.zenx-phone-field .PhoneInputCountryIcon {
+  box-shadow: none;
+}
+.zenx-phone-field .PhoneInputCountrySelectArrow {
+  color: #1B2B42;
+  opacity: 0.6;
+}
