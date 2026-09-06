@@ -1,17 +1,18 @@
 import { WEEKDAYS } from './clientPortal';
-import { addCalendarDays, toCalendarDate } from './calendarDate';
+import { addCalendarDays, toCalendarDate, toLocalCalendarDate } from './calendarDate';
 import { FIXED_MEAL_SLOT_TYPES } from './mealSlotTypes';
 
-// UTC-based deliberately, matching server/src/controllers/insights.controller.js's fix for the
-// same bug: local-time Date methods + .toISOString() shift the computed Monday by a day in any
-// timezone ahead of UTC (e.g. IST), so this and the server's stored `Plan.week` — which must
-// compare equal for the plan builder to find an existing plan — silently disagreed. Found by
-// actually loading the plan builder for a client with a seeded plan and seeing an empty schedule.
-export function startOfWeek(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff)).toISOString().slice(0, 10);
+// The plan week now starts on the day the dietitian is building it, not the Monday of the
+// surrounding week — a plan written on a Thursday covers Thu–Wed, which is what "this week's plan"
+// means to the person writing it.
+//
+// Local, not UTC. `week` is a plain calendar date the dietitian picked out of a date input showing
+// their own local dates, so deriving it from UTC would show yesterday to anyone east of Greenwich
+// late in the evening. (The old Monday-snapping helper was UTC-based for a different reason — it
+// had to agree with a server-computed Monday — which no longer applies now that the date is simply
+// "today".)
+export function defaultWeekStart() {
+  return toLocalCalendarDate();
 }
 
 // The diet week's end date — always exactly 6 days after its start. Same UTC-safe math as
@@ -71,4 +72,55 @@ export function toApiMeal({ mealType, customMealType, day, time, recipeId, custo
     customTitle: isCustom ? customTitle?.trim() || null : null,
     notes: notes || null,
   };
+}
+
+
+/* Selectable meal times, replacing what used to be a free-text box. That box let anything through
+   and the data shows it — the database currently holds "9:30 pM", which no formatter parses and no
+   sort orders correctly. 15-minute steps across 5:00 AM–11:00 PM covers real meal and snack slots
+   without turning the list into 96 entries. */
+function buildMealTimes() {
+  const out = [];
+  for (let minutes = 5 * 60; minutes <= 23 * 60; minutes += 15) {
+    const h24 = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const suffix = h24 < 12 ? 'AM' : 'PM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    out.push(`${h12}:${String(m).padStart(2, '0')} ${suffix}`);
+  }
+  return out;
+}
+
+export const MEAL_TIME_OPTIONS = buildMealTimes();
+
+/**
+ * Canonicalises a stored time to the exact `h:mm AM/PM` spelling used in MEAL_TIME_OPTIONS, so a
+ * legacy row still selects its matching option instead of looking like an unknown value. Handles
+ * the casing and spacing variants free text produced ("9:30 pM", "9:30pm", "09:30 PM") and 24-hour
+ * input ("21:30"). Returns null when it genuinely can't tell — the caller keeps the raw string
+ * rather than guessing, so no saved value is ever silently rewritten to something else.
+ */
+export function normalizeMealTime(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+
+  const ampm = raw.match(/^(\d{1,2}):(\d{2})\s*([AaPp])\.?[Mm]\.?$/);
+  if (ampm) {
+    const h = Number(ampm[1]);
+    const m = Number(ampm[2]);
+    if (h < 1 || h > 12 || m > 59) return null;
+    return `${h}:${String(m).padStart(2, '0')} ${ampm[3].toUpperCase()}M`;
+  }
+
+  const h24 = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (h24) {
+    const h = Number(h24[1]);
+    const m = Number(h24[2]);
+    if (h > 23 || m > 59) return null;
+    const suffix = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  }
+
+  return null;
 }

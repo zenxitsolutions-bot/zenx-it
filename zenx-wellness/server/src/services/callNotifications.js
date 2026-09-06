@@ -75,7 +75,7 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   // Named after whichever provider actually created the room, not the currently-configured one —
   // a call booked before the setting changed still carries a working link from the old provider,
   // and labelling it with the new one would send people looking for the wrong app.
-  const joinLabel = call.meetingUrl ? providerJoinLabel(call.meetingProvider) : 'View in Nourishly';
+  const joinLabel = call.meetingUrl ? providerJoinLabel(call.meetingProvider) : 'View in ZenX Dietitian';
   // Two independently-correct renderings of the SAME UTC instant — the client's email uses the
   // client's (or lead's, defaulting to UTC) zone, the dietitian's email uses the dietitian's.
   const dietitianMeetingTime = formatMeetingTime(call.scheduledAt, dietitian);
@@ -86,15 +86,15 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   const icsBase = {
     callId: call.id,
     sequence: call.icsSequence,
-    summary: `Nourishly call with ${dietitian.name}`,
+    summary: `ZenX Dietitian call with ${dietitian.name}`,
     // The join link goes in the description as well as `url`: calendar clients differ in which
     // one they surface, and Google Calendar in particular renders the description body but not
     // every event URL field.
     description: call.meetingUrl
-      ? `Your call with ${dietitian.name} via Nourishly.
+      ? `Your call with ${dietitian.name} via ZenX Dietitian.
 
 Join: ${call.meetingUrl}`
-      : `Your call with ${dietitian.name} via Nourishly.`,
+      : `Your call with ${dietitian.name} via ZenX Dietitian.`,
     url: joinUrl,
     start: call.scheduledAt,
     organizer: { name: dietitian.name, email: dietitian.email },

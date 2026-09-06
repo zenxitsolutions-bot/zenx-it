@@ -105,6 +105,53 @@ export function getNextCall(calls) {
   return splitCalls(calls).upcoming[0] ?? null;
 }
 
+/**
+ * The four buckets behind the calls screens' tabs. Derived from the same two facts `splitCalls`
+ * uses — `status` and whether `scheduledAt` has passed — so a call can never appear under one
+ * heading here and a contradictory one there.
+ *
+ *   all        every call, newest activity first
+ *   upcoming   still scheduled and still in the future
+ *   finished   completed, plus scheduled calls whose time has passed (nobody marked them done,
+ *              but they are not "upcoming" either — leaving them out entirely is how calls used
+ *              to silently vanish from both sections)
+ *   cancelled  explicitly cancelled
+ *
+ * `upcoming` sorts soonest-first (the next thing you must act on); every other bucket sorts
+ * most-recent-first, because there the useful end is what just happened.
+ */
+export const CALL_TABS = [
+  { id: 'all', label: 'Total calls' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'finished', label: 'Finished' },
+  { id: 'cancelled', label: 'Cancelled' },
+];
+
+export function groupCallsByTab(calls) {
+  const now = Date.now();
+  const all = [...(calls ?? [])];
+  const upcoming = [];
+  const finished = [];
+  const cancelled = [];
+
+  for (const call of all) {
+    if (call.status === 'cancelled') cancelled.push(call);
+    else if (call.status === 'completed') finished.push(call);
+    else if (new Date(call.scheduledAt).getTime() >= now) upcoming.push(call);
+    else finished.push(call); // scheduled, but the slot has already passed
+  }
+
+  const soonestFirst = (a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt);
+  const latestFirst = (a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt);
+
+  upcoming.sort(soonestFirst);
+  finished.sort(latestFirst);
+  cancelled.sort(latestFirst);
+  all.sort(latestFirst);
+
+  return { all, upcoming, finished, cancelled };
+}
+
 // Body measurements tracked alongside weight (spec §3.1) — one place both the My Progress screen
 // and the Client Dashboard snapshot derive their "current vs previous" cards and history table
 // from, so the two never drift on which fields exist or how a delta/direction is computed.

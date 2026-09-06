@@ -30,7 +30,7 @@ export function TimezoneToggle({ mode, onChange, theirsAvailable = true, company
           disabled={disabled[opt.mode]}
           onClick={() => onChange(opt.mode)}
           className={`rounded px-2.5 py-1.5 transition ${
-            mode === opt.mode ? "bg-lime text-ink" : disabled[opt.mode] ? "cursor-not-allowed text-dim/50" : "text-muted hover:text-offwhite"
+            mode === opt.mode ? "bg-lime text-white" : disabled[opt.mode] ? "cursor-not-allowed text-dim/50" : "text-muted hover:text-offwhite"
           }`}
         >
           {opt.label}

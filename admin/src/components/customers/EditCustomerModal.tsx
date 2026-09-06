@@ -102,7 +102,7 @@ export function EditCustomerModal({ open, company, contact, onClose }: EditCusto
   return (
     <Modal open onClose={() => onClose(false)} title="Edit customer" subtitle={company.company_name} width="lg">
       <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-        <FieldWrap label="Company name" htmlFor="ec-company">
+        <FieldWrap label="Company name" htmlFor="ec-company" required>
           <Input id="ec-company" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
         </FieldWrap>
 
@@ -122,10 +122,10 @@ export function EditCustomerModal({ open, company, contact, onClose }: EditCusto
         {contact && (
           <>
             <div className="grid grid-cols-2 gap-4">
-              <FieldWrap label="First name" htmlFor="ec-first">
+              <FieldWrap label="First name" htmlFor="ec-first" required>
                 <Input id="ec-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
               </FieldWrap>
-              <FieldWrap label="Last name" htmlFor="ec-last">
+              <FieldWrap label="Last name" htmlFor="ec-last" required>
                 <Input id="ec-last" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
               </FieldWrap>
             </div>
@@ -133,7 +133,7 @@ export function EditCustomerModal({ open, company, contact, onClose }: EditCusto
               <FieldWrap label="Contact phone" htmlFor="ec-phone">
                 <PhoneField id="ec-phone" value={phone} onChange={setPhone} />
               </FieldWrap>
-              <FieldWrap label="Contact email" htmlFor="ec-email">
+              <FieldWrap label="Contact email" htmlFor="ec-email" required>
                 <Input id="ec-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </FieldWrap>
             </div>
@@ -192,7 +192,7 @@ export function EditCustomerModal({ open, company, contact, onClose }: EditCusto
         </div>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-dangerInk">
             <AlertCircle size={14} />
             {error}
           </div>

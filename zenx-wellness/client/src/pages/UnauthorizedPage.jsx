@@ -10,7 +10,7 @@ export function UnauthorizedPage() {
     <main className="grid min-h-screen place-items-center bg-cream px-6 text-center">
       <div>
         <Link to="/" className="mb-6 inline-block font-display text-xl text-forest">
-          ✦ nourishly
+          ✦ ZenX Dietitian
         </Link>
         <p className="text-xs font-bold tracking-widest text-sage-deep">ACCESS RESTRICTED</p>
         <h1 className="mt-2 mb-3 text-6xl text-forest">403</h1>

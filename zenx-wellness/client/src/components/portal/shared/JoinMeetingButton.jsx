@@ -30,7 +30,7 @@ export function JoinMeetingButton({ call, className = '' }) {
       // noreferrer alongside noopener: the tab is opened on a third-party video provider, and
       // there is no reason to leak the portal URL (which contains the company slug) as a referrer.
       rel="noopener noreferrer"
-      className={`inline-flex items-center gap-2 rounded-full bg-forest px-4 py-2 text-sm font-semibold text-white transition hover:bg-forest-2 ${className}`}
+      className={`inline-flex h-10 items-center gap-2 rounded-pill bg-coral px-5 text-sm font-semibold text-white shadow-[0_2px_8px_rgba(0,60,50,0.18)] transition-all hover:bg-brand-strong hover:shadow-[0_4px_14px_rgba(0,60,50,0.24)] ${className}`}
     >
       <Video size={15} aria-hidden="true" />
       {label}

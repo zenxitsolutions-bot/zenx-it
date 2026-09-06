@@ -22,7 +22,7 @@ export function ForgotPasswordPage() {
   const [serverError, setServerError] = useState(null);
   const { companySlug } = useParams();
   // Branding and the back-link both follow the slug, so a user who starts at /{slug}/login stays
-  // inside their company for the whole reset round-trip instead of dropping to generic Nourishly
+  // inside their company for the whole reset round-trip instead of dropping to generic
   // pages and, at the end, to a bare /login that would refuse them.
   const { data: company } = usePublicCompany(companySlug);
   const loginPath = companySlug ? `/${companySlug}/login` : '/login';
@@ -52,7 +52,7 @@ export function ForgotPasswordPage() {
     return (
       <AuthLayout eyebrow="CHECK YOUR EMAIL" title="Reset link sent" company={company}>
         <p className="text-sm text-muted-foreground">
-          If that email is registered with Nourishly, we've sent a link to reset your password. It expires in an
+          If that email is registered with ZenX Dietitian, we've sent a link to reset your password. It expires in an
           hour.
         </p>
         <Link to={loginPath} className="mt-6 inline-block text-sm font-semibold text-forest hover:underline">

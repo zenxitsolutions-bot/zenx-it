@@ -10,7 +10,6 @@ import { useUpdateUser } from '@/hooks/useUsers';
 import { useConsultationSchedule, useSaveConsultationSchedule, useGeneratedUpcomingCalls } from '@/hooks/useConsultationSchedule';
 import { consultationScheduleFormSchema, toFormValues, toApiPayload, schedulePatternChanged } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from './ConsultationScheduleFields';
-import { ConsultationScheduleRegenerateDialog } from './ConsultationScheduleRegenerateDialog';
 import { ConsultationScheduleSeriesLists } from './ConsultationScheduleSeriesLists';
 
 // The one shared component for editing a client's consultation schedule from either portal —
@@ -40,7 +39,6 @@ export function ConsultationScheduleTab({ clientId }) {
     );
   }
 
-  const [pendingPayload, setPendingPayload] = useState(null);
   const [warning, setWarning] = useState(null);
 
   const form = useForm({ resolver: zodResolver(consultationScheduleFormSchema), defaultValues: toFormValues(null) });
@@ -74,26 +72,21 @@ export function ConsultationScheduleTab({ clientId }) {
 
   function onSubmit(values) {
     const payload = toApiPayload(values);
-    const affectedCalls = upcomingCalls ?? [];
     const patternChanged = Boolean(schedule) && schedulePatternChanged(schedule, payload);
 
-    // Real booked calls would be cancelled+rebooked by a regenerate — ask first (never silently
-    // rewrite something the client is already expecting).
-    if (patternChanged && affectedCalls.length > 0) {
-      setPendingPayload(payload);
-      return;
-    }
-    // Nothing but stale gaps (or nothing at all) is affected — there's no booking to lose, so
-    // regenerate straight away. Previously this fell through to a plain config-only save
-    // (regenerateFutureCalls: false) whenever there were 0 upcoming calls, which silently skipped
-    // regeneration entirely: the new time was stored but never actually retried, and old gap rows
-    // from the previous pattern were left showing in "Needs attention" forever (nothing in the
-    // codebase ever deleted a gap row) even after the conflict they described no longer existed.
-    if (patternChanged && gaps.length > 0) {
-      submitSave(payload, true);
-      return;
-    }
-    submitSave(payload, false);
+    // Changing the recurrence pattern always cancels the future calls the old pattern generated
+    // and rebooks them from the new one — the schedule is the source of truth, so leaving calls
+    // behind on a pattern that no longer exists is what made the two disagree.
+    //
+    // This used to open a dialog asking "regenerate, or leave them as they are?". That choice is
+    // gone by request: a changed schedule now always wins. Only calls this schedule generated and
+    // that are still in the future are touched — a manually booked call, or one that has already
+    // happened, is never affected (see cancelFutureGeneratedCalls in
+    // server/src/services/consultationScheduleService.js).
+    //
+    // Note the side effect: each cancelled call sends its cancellation email and each new one its
+    // booking email, so a pattern change is visible to the client immediately.
+    submitSave(payload, patternChanged);
   }
 
   if (clientLoading || scheduleLoading) return <Skeleton className="h-64 w-full" />;
@@ -132,15 +125,6 @@ export function ConsultationScheduleTab({ clientId }) {
         </div>
       )}
 
-      {pendingPayload && (
-        <ConsultationScheduleRegenerateDialog
-          open
-          onOpenChange={(open) => !open && setPendingPayload(null)}
-          affectedCalls={upcomingCalls ?? []}
-          isPending={save.isPending}
-          onConfirm={(regenerate) => submitSave(pendingPayload, regenerate)}
-        />
-      )}
     </div>
   );
 }

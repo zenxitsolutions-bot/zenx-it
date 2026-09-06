@@ -4,8 +4,8 @@
 // the thing it demonstrates.
 const SAMPLE_CALL_ICS = {
   callId: 'sample-call-id',
-  summary: 'Nourishly call with Dr. Asha Rao',
-  description: 'Your call with Dr. Asha Rao via Nourishly.',
+  summary: 'ZenX Dietitian call with Dr. Asha Rao',
+  description: 'Your call with Dr. Asha Rao via ZenX Dietitian.',
   url: 'http://localhost:5173/app/calls',
   organizer: { name: 'Dr. Asha Rao', email: 'dietitian@nourishly.test' },
   attendee: { name: 'Priya Sharma', email: 'client@nourishly.test' },

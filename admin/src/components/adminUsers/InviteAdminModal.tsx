@@ -38,14 +38,14 @@ export function InviteAdminModal({ open, onClose, onCreated }: { open: boolean; 
     <Modal open={open} onClose={onClose} title="Invite Admin User">
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrap label="First name" htmlFor="a-first">
+          <FieldWrap label="First name" htmlFor="a-first" required>
             <Input id="a-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
           </FieldWrap>
-          <FieldWrap label="Last name" htmlFor="a-last">
+          <FieldWrap label="Last name" htmlFor="a-last" required>
             <Input id="a-last" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
           </FieldWrap>
         </div>
-        <FieldWrap label="Email" htmlFor="a-email">
+        <FieldWrap label="Email" htmlFor="a-email" required>
           <Input id="a-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </FieldWrap>
         <FieldWrap label="Role" htmlFor="a-role">

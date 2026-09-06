@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useEnquiryHistory } from '@/hooks/useEnquiries';
 import { formatDateTime } from '@/lib/format';
-import { STATUS_LABEL } from '@/lib/enquiryStatus';
+import { STATUS_LABEL, STATUS_CHIP } from '@/lib/enquiryStatus';
 
 // enquiry: null when closed, otherwise the card being inspected.
 export function EnquiryDetailDrawer({ enquiry, onOpenChange }) {
@@ -38,7 +38,11 @@ export function EnquiryDetailDrawer({ enquiry, onOpenChange }) {
                     {history.map((entry) => (
                       <li key={entry._id} className="rounded-xl bg-cream p-3">
                         <div className="flex items-center justify-between gap-2">
-                          <Badge variant="secondary">{STATUS_LABEL[entry.status] ?? entry.status}</Badge>
+                          {/* Status-colored chip rather than one neutral grey for every stage, so a history
+                              timeline reads at a glance the way the pipeline board does. */}
+                          <Badge className={STATUS_CHIP[entry.status] ?? 'bg-muted text-muted-foreground'}>
+                            {STATUS_LABEL[entry.status] ?? entry.status}
+                          </Badge>
                           <span className="text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</span>
                         </div>
                         {entry.note && <p className="mt-2 text-sm text-forest">{entry.note}</p>}

@@ -29,41 +29,56 @@ export function PortalHeader({ onOpenMobileNav }) {
   }
 
   return (
-    <header className="flex h-18 items-center justify-between border-b border-line bg-white/85 px-5 min-[1050px]:px-9">
+    <header className="sticky top-0 z-30 flex h-18 items-center justify-between border-b border-line bg-white/85 px-5 backdrop-blur min-[1050px]:px-9">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={onOpenMobileNav}
-          className="grid size-9 place-items-center rounded-lg text-forest hover:bg-sage/40 min-[1050px]:hidden"
+          className="grid size-10 place-items-center rounded-xl text-forest transition-colors hover:bg-sage/60 min-[1050px]:hidden"
           aria-label="Open menu"
         >
           <Menu className="size-5" aria-hidden="true" />
         </button>
-        <span className="text-sm text-muted-foreground">
-          {roleLabel} portal{current ? ` / ${current.label}` : ''}
-        </span>
+        {/* Page context, not a page title: the screen below already carries its own <h1>, so this
+            stays a quiet breadcrumb rather than competing with it. */}
+        <p className="text-sm text-muted-foreground">
+          {roleLabel} portal
+          {current && (
+            <>
+              <span aria-hidden="true" className="px-1.5 text-line">
+                /
+              </span>
+              <span className="font-semibold text-forest">{current.label}</span>
+            </>
+          )}
+        </p>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => toast('No new notifications yet.')}
-          className="relative grid size-9 place-items-center rounded-full text-forest hover:bg-sage/40"
+          className="relative grid size-10 place-items-center rounded-full text-forest transition-colors hover:bg-sage/60"
           aria-label="Notifications"
         >
           <Bell className="size-4.5" aria-hidden="true" />
-          <span className="absolute top-2 right-2 size-1.5 rounded-full bg-coral" aria-hidden="true" />
+          {/* Ringed in the header's own background so the dot reads as a separate mark rather
+              than a smudge on the bell. */}
+          <span
+            className="absolute top-2.5 right-2.5 size-2 rounded-full bg-negative ring-2 ring-white"
+            aria-hidden="true"
+          />
         </button>
 
         <DropdownMenu>
-          <DropdownMenuTrigger className="flex items-center gap-2 rounded-full py-1 pr-2 pl-1 text-sm hover:bg-sage/40">
-            <span className="grid size-8 place-items-center rounded-full bg-coral font-semibold text-white">
+          <DropdownMenuTrigger className="flex items-center gap-2 rounded-pill border border-transparent py-1 pr-2.5 pl-1 text-sm transition-colors hover:border-line hover:bg-sage/40">
+            <span className="grid size-9 place-items-center rounded-full bg-coral text-sm font-semibold text-white">
               {user.name[0]}
             </span>
-            <span className="hidden text-forest sm:inline">{user.name}</span>
+            <span className="hidden font-medium text-forest sm:inline">{user.name}</span>
             <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuLabel className="font-normal">
               <p className="text-sm font-semibold text-forest">{user.name}</p>
               <p className="text-xs text-muted-foreground">{user.email}</p>

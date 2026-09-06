@@ -3,6 +3,11 @@ import { isValidPhoneNumber } from 'libphonenumber-js';
 import { PLAN_DURATIONS } from '../constants/planDurations.js';
 
 export const createEnquirySchema = z.object({
+  // Which company's funnel this lead came through — the slug from the public URL
+  // (/:companySlug/enquiry). Optional: the bare, un-slugged funnel still posts without one and
+  // falls back to LEGACY_COMPANY_ID, so existing links keep working. The controller is what
+  // resolves it to a company id and rejects a slug that matches nothing.
+  companySlug: z.string().min(1).optional(),
   goal: z.string().min(1),
   name: z.string().min(1),
   email: z.string().email(),

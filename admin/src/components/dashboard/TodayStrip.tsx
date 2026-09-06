@@ -17,7 +17,7 @@ export function TodayStrip({ today }: { today: TodaySummary }) {
       <div className="flex flex-wrap gap-x-8 gap-y-3">
         {items.map((item) => (
           <div key={item.label}>
-            <span className={`font-display text-2xl ${item.warn ? "text-danger" : "text-offwhite"}`}>
+            <span className={`font-display text-2xl ${item.warn ? "text-dangerInk" : "text-offwhite"}`}>
               {item.value}
             </span>
             <span className="ml-2 text-xs text-muted">{item.label}</span>

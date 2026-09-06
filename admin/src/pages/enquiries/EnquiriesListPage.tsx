@@ -11,6 +11,7 @@ import { EnquiryTable } from "../../components/enquiries/EnquiryTable";
 import { EnquiryFilters, type EnquiryFilterState } from "../../components/enquiries/EnquiryFilters";
 import { AddEnquiryModal } from "../../components/enquiries/AddEnquiryModal";
 import { Button } from "../../components/ui/Button";
+import { PageHeader, MetaChip } from "../../components/ui/PageHeader";
 import { SkeletonRows } from "../../components/ui/Skeleton";
 import { LEAD_PRIORITIES, type EnquiryStatus } from "../../types/domain";
 
@@ -21,11 +22,17 @@ const PRIORITY_RANK: Record<string, number> = Object.fromEntries(
 export default function EnquiriesListPage() {
   const [searchParams] = useSearchParams();
   const initialStatus = (searchParams.get("status") as EnquiryStatus | null) ?? "ALL";
+  // The topbar's global search sends the user here with ?q=…; seeding the filter from it is what
+  // makes that search land on results rather than on an unfiltered list. Local edits to the search
+  // box afterwards are ordinary component state — the URL is only the entry point.
+  const initialSearch = searchParams.get("q") ?? "";
 
-  const [view, setView] = useState<"pipeline" | "table">("pipeline");
+  // A search arriving from the topbar should show matches across every stage, so it opens on the
+  // table rather than the pipeline board, where a hit in a collapsed column is easy to miss.
+  const [view, setView] = useState<"pipeline" | "table">(initialSearch ? "table" : "pipeline");
   const [addOpen, setAddOpen] = useState(false);
   const [filters, setFilters] = useState<EnquiryFilterState>({
-    search: "",
+    search: initialSearch,
     status: initialStatus,
     service: "ALL",
     source: "ALL",
@@ -77,11 +84,20 @@ export default function EnquiriesListPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center justify-end">
-        <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus size={14} /> Add Enquiry
-        </Button>
-      </div>
+      <PageHeader
+        description="Every lead in the pipeline. Drag a card between columns to change its stage."
+        meta={
+          <MetaChip>
+            {filtered.length}
+            {enquiries && filtered.length !== enquiries.length ? ` of ${enquiries.length}` : ""} enquiries
+          </MetaChip>
+        }
+        actions={
+          <Button size="sm" onClick={() => setAddOpen(true)}>
+            <Plus size={14} /> Add Enquiry
+          </Button>
+        }
+      />
 
       <AddEnquiryModal
         open={addOpen}

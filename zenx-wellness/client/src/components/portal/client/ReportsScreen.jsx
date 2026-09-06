@@ -9,11 +9,11 @@ export function ReportsScreen() {
   const { data, isLoading, isError, refetch } = useReports();
 
   return (
-    <div className="mx-auto max-w-3xl p-9">
-      <div className="mb-6">
-        <p className="text-muted-foreground">Share what you're tracking</p>
-        <h1 className="mt-1 text-3xl text-forest">Reports</h1>
-        <p className="mt-1 text-muted-foreground">Upload lab results or photos and hear back from your dietitian here.</p>
+    <div className="mx-auto max-w-3xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
+      <div className="mb-7">
+        <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Share what you're tracking</p>
+        <h1 className="mt-1.5 text-3xl font-semibold text-forest">Reports</h1>
+        <p className="mt-1.5 text-muted-foreground">Upload lab results or photos and hear back from your dietitian here.</p>
       </div>
 
       <div className="grid gap-6">

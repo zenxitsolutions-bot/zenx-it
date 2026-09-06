@@ -6,21 +6,24 @@
    reference them. --on-accent exists because text sitting on a blue or navy fill needs to stay
    light while the page's own text is navy. */
 :root {
-  --bg: #f4f7fc;
+  /* Light SaaS palette, shared with the ZenX admin portal (admin/tailwind.config.ts) and the
+     wellness client so all three products read as one brand: cool blue-grey page, white cards,
+     modern blue accent, navy text. */
+  --bg: #f5f7fb;
   --panel: #ffffff;
-  --ink: #0f172a;
-  --text: #475569;
-  --muted: #64748b;
-  --dim: #94a3b8;
-  --line: #e2e8f0;
-  --line-strong: #cbd5e1;
-  --accent: #2563eb;
-  --accent-soft: #93c5fd;
-  --accent-tint: #dbeafe;
+  --ink: #1b2b42;
+  --text: #6b7a90;
+  --muted: #6b7a90;
+  --dim: #9aa6b5;
+  --line: #e5eaf2;
+  --line-strong: #dce3ec;
+  --accent: #3478d8;
+  --accent-soft: #5b9bf3;
+  --accent-tint: #eaf2ff;
   --on-accent: #ffffff;
-  --danger: #dc2626;
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
-  --shadow-float: 0 18px 50px rgba(15, 23, 42, 0.1);
+  --danger: #e85d5d;
+  --shadow-card: 0 1px 2px rgba(27, 43, 66, 0.04), 0 8px 24px rgba(27, 43, 66, 0.06);
+  --shadow-float: 0 18px 50px rgba(27, 43, 66, 0.12);
 }
 
 * {
@@ -80,7 +83,7 @@ a {
   align-items: center;
   justify-content: space-between;
   padding: 24px 5vw;
-  background: linear-gradient(rgba(244,247,252,.95),transparent);
+  background: linear-gradient(rgba(245,247,251,.95),transparent);
   backdrop-filter: blur(5px);
 }
 .brand {
@@ -157,7 +160,7 @@ a {
   border-radius: 50%;
   background: var(--accent);
   margin-right: 8px;
-  box-shadow: 0 0 18px rgba(37,99,235,.45);
+  box-shadow: 0 0 18px rgba(52,120,216,.45);
 }
 .hero h1 {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
@@ -226,8 +229,8 @@ a {
 .orb-a {
   width: 290px;
   height: 290px;
-  background: radial-gradient(circle at 35% 30%,#dbeafe,#60a5fa 42%,#1d4ed8 70%);
-  box-shadow: 0 0 100px rgba(37,99,235,.25);
+  background: radial-gradient(circle at 35% 30%,#eaf2ff,#5b9bf3 42%,#2563b8 70%);
+  box-shadow: 0 0 100px rgba(52,120,216,.25);
 }
 .orb-b {
   width: 130px;
@@ -305,7 +308,7 @@ a {
   height: 9px;
   background: var(--accent);
   border-radius: 50%;
-  box-shadow: 0 0 0 7px rgba(37,99,235,.12);
+  box-shadow: 0 0 0 7px rgba(52,120,216,.12);
 }
 .arrow {
   margin-left: auto;
@@ -477,7 +480,7 @@ a {
 /* The eyebrow is a dim gray by default, which is too weak on both filled cards. */
 .dietitian .product-number,
 .pos .product-number {
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.82);
 }
 .product-copy {
   display: flex;
@@ -532,7 +535,7 @@ a {
   align-self: center;
   border: 1px solid var(--line);
   background: var(--panel);
-  box-shadow: 25px 30px 80px rgba(15,23,42,.18);
+  box-shadow: 25px 30px 80px rgba(27,43,66,.18);
   transform: rotate(2deg);
   color: var(--ink);
 }
@@ -599,7 +602,7 @@ a {
 .chart-grid {
   position: absolute;
   inset: 35px 12px 20px;
-  background: repeating-linear-gradient(to bottom,#fff0 0 30px,rgba(15,23,42,.06) 31px);
+  background: repeating-linear-gradient(to bottom,#fff0 0 30px,rgba(27,43,66,.06) 31px);
 }
 .chart-line {
   position: absolute;
@@ -620,7 +623,7 @@ a {
   color: var(--ink);
   min-height: 470px;
   padding: 22px;
-  box-shadow: 25px 30px 80px rgba(15,23,42,.25);
+  box-shadow: 25px 30px 80px rgba(27,43,66,.25);
   transform: rotate(-2deg);
 }
 .pos-bar {
@@ -775,7 +778,7 @@ a {
   border-radius: 50%;
   right: -100px;
   bottom: -120px;
-  background: radial-gradient(circle at 35% 35%,#dbeafe,#60a5fa 35%,transparent 70%);
+  background: radial-gradient(circle at 35% 35%,#eaf2ff,#5b9bf3 35%,transparent 70%);
   opacity: .5;
   filter: blur(3px);
 }

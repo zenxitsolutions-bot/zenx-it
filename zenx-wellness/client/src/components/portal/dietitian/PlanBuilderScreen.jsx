@@ -10,7 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useClients, useDietitians } from '@/hooks/useClients';
 import { useRecipes } from '@/hooks/useRecipes';
 import { useCreatePlan, usePlanForWeek, useUpdatePlan } from '@/hooks/usePlans';
-import { createBlankMeal, endOfWeek, startOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
+import { createBlankMeal, defaultWeekStart, endOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
 import { cn } from '@/lib/utils';
 import { ScheduleRow } from './ScheduleRow';
 import { RecipeRail } from './RecipeRail';
@@ -25,7 +25,7 @@ export function PlanBuilderScreen() {
   const dietitiansQuery = useDietitians(isAdmin);
 
   const [clientId, setClientId] = useState('');
-  const [week, setWeek] = useState(() => startOfWeek());
+  const [week, setWeek] = useState(() => defaultWeekStart());
   const [title, setTitle] = useState('');
   const [meals, setMeals] = useState([]);
   const [planId, setPlanId] = useState(null);

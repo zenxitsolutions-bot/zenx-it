@@ -24,7 +24,7 @@ const ICONS: Record<ToastVariant, typeof CheckCircle2> = {
 
 const ACCENTS: Record<ToastVariant, string> = {
   success: "border-lime/40 text-lime",
-  error: "border-danger/40 text-danger",
+  error: "border-danger/40 text-dangerInk",
   info: "border-borderStrong text-offwhite",
 };
 

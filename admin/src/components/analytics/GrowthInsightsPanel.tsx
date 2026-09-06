@@ -39,7 +39,7 @@ export function GrowthInsightsPanel({ growth }: { growth: GrowthInsights }) {
             <p className="mt-1 text-sm text-offwhite">{growth.bestSource ? growth.bestSource.source : "Not enough data yet"}</p>
           </div>
           <div>
-            <p className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-danger">
+            <p className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-dangerInk">
               <TrendingDown size={13} /> Lowest Performing Source
             </p>
             <p className="mt-1 text-sm text-offwhite">{growth.worstSource ? growth.worstSource.source : "Not enough data yet"}</p>
@@ -70,7 +70,7 @@ function InsightCard({
     <Card className="p-5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">{label}</p>
       <p className="mt-2 font-display text-3xl text-offwhite">{value}</p>
-      <p className={`mt-2 text-xs ${warn ? "text-warn" : "text-dim"}`}>{message}</p>
+      <p className={`mt-2 text-xs ${warn ? "text-warnInk" : "text-dim"}`}>{message}</p>
     </Card>
   );
 }

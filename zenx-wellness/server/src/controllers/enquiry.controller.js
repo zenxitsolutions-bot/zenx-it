@@ -8,7 +8,7 @@ import {
 } from '../models/Enquiry.js';
 import { listByEnquiryId, createHistoryEntry } from '../models/EnquiryHistory.js';
 import { findUserByEmail, findUserById, createUser as createUserRecord, updateUser as updateUserRecord } from '../models/User.js';
-import { findCompanyById } from '../models/Company.js';
+import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
 import { reassignEnquiryCallsToClient } from '../models/Call.js';
 import { createClientNote } from '../models/ClientNote.js';
 import { hashPassword } from '../utils/password.js';
@@ -76,12 +76,38 @@ async function createConvertedAccount(enquiry, { planId, planDuration, password,
   );
 }
 
-// Public, unauthenticated — there is one public funnel today, so it always attaches to the
-// configured legacy/default company (see env.js#legacyCompanyId's comment). A real per-company
-// public funnel (e.g. resolved from a URL slug) is future work, not built here.
+// Which company a public enquiry belongs to. The slug comes from the funnel's own URL
+// (/:companySlug/enquiry) and is the ONLY thing that decides which admin pipeline the lead lands
+// in — every read path is already scoped by company (listEnquiries, assertOwnEnquiry), so getting
+// this right here is what keeps one tenant's leads out of another's board.
+//
+// An unknown slug is a 404, never a fall back to the default company: silently re-homing a lead
+// would put a real person's contact details on the wrong company's screen, which is worse than
+// asking them to retry. The no-slug case is the pre-existing bare funnel and keeps its old
+// behaviour, so links that predate per-company URLs are unaffected.
+async function resolveEnquiryCompanyId(companySlug) {
+  if (!companySlug) {
+    if (!env.legacyCompanyId) throw new Error('LEGACY_COMPANY_ID is not configured');
+    return env.legacyCompanyId;
+  }
+  const company = await findCompanyBySlug(companySlug);
+  if (!company) throw ApiError.notFound('Unknown company');
+  // A non-ACTIVE company blocks login and authentication everywhere else (auth.controller.js,
+  // middleware/authenticate.js), so its admins cannot reach the pipeline at all. Accepting leads
+  // into a board nobody can open would strand a real person's contact details, so the public
+  // funnel closes with them.
+  if (company.status !== 'ACTIVE') {
+    throw ApiError.notFound('This clinic is not accepting enquiries right now');
+  }
+  return company.id;
+}
+
+// Public, unauthenticated. `companySlug` is stripped from the payload rather than passed through —
+// the enquiries table stores a company_id, and the slug is only ever an addressing detail.
 export const createEnquiry = asyncHandler(async (req, res) => {
-  if (!env.legacyCompanyId) throw new Error('LEGACY_COMPANY_ID is not configured');
-  const enquiry = await createEnquiryRecord({ ...req.body, companyId: env.legacyCompanyId });
+  const { companySlug, ...payload } = req.body;
+  const companyId = await resolveEnquiryCompanyId(companySlug);
+  const enquiry = await createEnquiryRecord({ ...payload, companyId });
   await notifyEnquirySubmitted(enquiry);
   res.status(201).json(toClientShape(enquiry));
 });

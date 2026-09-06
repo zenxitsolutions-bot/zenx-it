@@ -32,18 +32,20 @@ export function ReportUploadCard() {
   }
 
   return (
-    <section className="rounded-card bg-white p-6 shadow-soft">
-      <h2 className="text-xl">Upload a report</h2>
+    <section className="rounded-card border border-line bg-white p-6 shadow-lift">
+      <h2 className="text-xl font-semibold text-forest">Upload a report</h2>
       <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
-        <div className="rounded-xl border border-dashed border-line p-6 text-center">
-          <UploadCloud className="mx-auto mb-2 size-6 text-sage-deep" aria-hidden="true" />
+        <div className="rounded-card border border-dashed border-sage bg-cream/60 p-6 text-center transition-colors hover:border-coral/40">
+          <span className="mx-auto mb-3 grid size-12 place-items-center rounded-full bg-white text-brand-strong shadow-soft">
+            <UploadCloud className="size-5" aria-hidden="true" />
+          </span>
           <strong className="block text-sm text-forest">{file ? file.name : 'Drop a report here'}</strong>
           <p className="mt-1 text-xs text-muted-foreground">PDF, photo, or lab result · up to 10 MB</p>
           <Button
             type="button"
             variant="outline"
             onClick={() => inputRef.current?.click()}
-            className="mt-3 rounded-full border-line text-forest"
+            className="mt-3 rounded-pill"
           >
             Choose a file
           </Button>
@@ -60,7 +62,8 @@ export function ReportUploadCard() {
         <Button
           type="submit"
           disabled={uploadReport.isPending}
-          className="rounded-full bg-coral text-white hover:bg-coral/90"
+          size="lg"
+          className="rounded-pill"
         >
           {uploadReport.isPending ? 'Uploading…' : 'Upload report'}
         </Button>

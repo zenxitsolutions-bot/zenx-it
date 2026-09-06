@@ -140,7 +140,7 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
               </>
             )}
 
-            <Button type="submit" disabled={isPending} className="mt-1 w-full rounded-full bg-coral text-white hover:bg-coral/90">
+            <Button type="submit" disabled={isPending} className="mt-1 w-full rounded-pill">
               {isPending ? 'Saving…' : isReschedule ? 'Save new time' : 'Book call'}
             </Button>
           </form>

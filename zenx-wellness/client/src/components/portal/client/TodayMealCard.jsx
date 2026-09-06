@@ -6,16 +6,19 @@ export function TodayMealCard({ meal, whenLabel, onMarkEaten, isPending }) {
   const title = recipe?.title ?? meal.customTitle ?? `${meal.mealType} — recipe TBD`;
 
   return (
-    <div className="mt-4 flex items-center gap-4 rounded-xl bg-cream p-4">
-      <div className="grid size-12 shrink-0 place-items-center rounded-full bg-white text-2xl">
+    <div className="mt-4 flex items-center gap-4 rounded-card border border-sage bg-cream p-4">
+      <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-2xl shadow-soft">
         {recipe?.emoji ?? '🍽️'}
       </div>
-      <div className="flex-1">
-        <span className="text-xs font-semibold tracking-wide text-sage-deep uppercase">
+      <div className="min-w-0 flex-1">
+        <span className="text-xs font-semibold tracking-wide text-brand-strong uppercase">
           {meal.completed ? 'Already logged' : 'Up next'}
           {whenLabel ? ` · ${whenLabel}` : ''} · {meal.time}
         </span>
-        <h3 className="text-base font-semibold text-forest">{title}</h3>
+        <h3 className="truncate text-base font-semibold text-forest">{title}</h3>
+        {recipe?.tags?.length > 0 && (
+          <p className="mt-0.5 truncate text-xs text-muted-foreground">{recipe.tags.join(' · ')}</p>
+        )}
       </div>
       <button
         type="button"
@@ -23,13 +26,13 @@ export function TodayMealCard({ meal, whenLabel, onMarkEaten, isPending }) {
         disabled={meal.completed || isPending}
         aria-label={meal.completed ? `${meal.mealType} already marked complete` : `Mark ${meal.mealType} complete`}
         className={cn(
-          'grid size-9 shrink-0 place-items-center rounded-full border transition-colors',
+          'grid size-10 shrink-0 place-items-center rounded-full border transition-all',
           meal.completed
-            ? 'border-sage-deep bg-sage-deep text-white'
-            : 'border-line bg-white text-forest hover:border-sage-deep'
+            ? 'border-coral bg-coral text-white'
+            : 'border-line bg-white text-forest hover:border-coral hover:bg-sage hover:text-brand-strong'
         )}
       >
-        <Check className="size-4" aria-hidden="true" />
+        <Check className="size-4.5" aria-hidden="true" />
       </button>
     </div>
   );

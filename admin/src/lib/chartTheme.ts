@@ -5,28 +5,30 @@
 // Values mirror the config's colors.
 
 export const TOOLTIP_STYLE = {
-  background: "#ffffff",
-  border: "1px solid #e2e8f0",
-  borderRadius: 8,
-  boxShadow: "0 8px 24px rgba(15,23,42,0.08)",
+  background: "#FFFFFF",
+  border: "1px solid #E5EAF2",
+  borderRadius: 10,
+  boxShadow: "0 12px 32px rgba(27,43,66,0.12)",
   fontSize: 12,
-  color: "#0f172a",
+  color: "#1B2B42",
 };
 
-export const LEGEND_STYLE = { fontSize: 11, color: "#64748b" };
+export const LEGEND_STYLE = { fontSize: 11, color: "#6B7A90" };
 
 export const CHART = {
-  grid: "#e2e8f0",
-  axis: "#94a3b8",
-  cursorFill: "rgba(37,99,235,0.06)",
-  cursorStroke: "#cbd5e1",
-  accent: "#2563eb",
-  ok: "#16a34a",
-  danger: "#dc2626",
+  grid: "#E9EDF3",
+  axis: "#9AA6B5",
+  cursorFill: "rgba(52,120,216,0.06)",
+  cursorStroke: "#DCE3EC",
+  accent: "#3478D8",
+  ok: "#22A06B",
+  danger: "#E85D5D",
+  warn: "#F59E42",
+  purple: "#7C5CE1",
 };
 
-// Categorical series (enquiry sources) — blues first so the largest slices read as brand color,
-// then distinct hues for the long tail. Segments are separated by a white stroke, matching the
-// card they sit on.
-export const SERIES = ["#2563eb", "#60a5fa", "#1e3a8a", "#93c5fd", "#16a34a", "#f59e0b", "#94a3b8"];
-export const SERIES_STROKE = "#ffffff";
+// Categorical series (enquiry sources): brand blue first so the largest slices read as ZenX blue,
+// then the rest of the status palette, then a neutral for the long tail. Slices are separated by a
+// white stroke, matching the card they sit on.
+export const SERIES = ["#3478D8", "#7C5CE1", "#5B9BF3", "#22A06B", "#F59E42", "#E85D5D", "#9AA6B5"];
+export const SERIES_STROKE = "#FFFFFF";

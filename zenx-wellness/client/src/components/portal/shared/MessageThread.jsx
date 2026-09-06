@@ -76,9 +76,9 @@ export function MessageThread({ clientId, title, peerId }) {
               const mine = message.sender === user._id;
               return (
                 <div key={message._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3.5 py-2 text-sm ${mine ? 'bg-forest text-white' : 'bg-cream text-forest'}`}>
+                  <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 text-sm ${mine ? 'bg-coral text-white' : 'border border-line bg-cream text-forest'}`}>
                     <p className="whitespace-pre-wrap">{message.body}</p>
-                    <span className={`mt-1 block text-[10px] ${mine ? 'text-sage/70' : 'text-muted-foreground'}`}>
+                    <span className={`mt-1 block text-[10px] ${mine ? 'text-white/70' : 'text-muted-foreground'}`}>
                       {formatDateTime(message.createdAt, timezone)}
                     </span>
                   </div>
@@ -109,7 +109,7 @@ export function MessageThread({ clientId, title, peerId }) {
           size="icon"
           disabled={sendMessage.isPending || !body.trim()}
           aria-label="Send message"
-          className="rounded-full bg-coral text-white hover:bg-coral/90"
+          className="rounded-pill"
         >
           <Send className="size-4" aria-hidden="true" />
         </Button>

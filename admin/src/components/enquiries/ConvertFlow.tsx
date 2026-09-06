@@ -163,10 +163,10 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <FieldWrap label="First name" htmlFor="c-first">
+            <FieldWrap label="First name" htmlFor="c-first" required>
               <Input id="c-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
             </FieldWrap>
-            <FieldWrap label="Last name" htmlFor="c-last">
+            <FieldWrap label="Last name" htmlFor="c-last" required>
               <Input id="c-last" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
             </FieldWrap>
           </div>
@@ -190,10 +190,10 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
           </FieldWrap>
 
           <div className="grid grid-cols-2 gap-4">
-            <FieldWrap label="Phone" htmlFor="c-phone">
+            <FieldWrap label="Phone" htmlFor="c-phone" required>
               <PhoneField id="c-phone" value={phone} onChange={setPhone} required />
             </FieldWrap>
-            <FieldWrap label="Email" htmlFor="c-email">
+            <FieldWrap label="Email" htmlFor="c-email" required>
               <Input id="c-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </FieldWrap>
           </div>
@@ -205,8 +205,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
           <FieldWrap
             label="Temporary password"
             htmlFor="c-password"
-            hint="Shown once — the customer must change it on first login."
-          >
+            hint="Shown once — the customer must change it on first login." required>
             <div className="flex gap-2">
               <Input
                 id="c-password"
@@ -223,7 +222,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
           </FieldWrap>
 
           {error && (
-            <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+            <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-dangerInk">
               <AlertCircle size={14} />
               {error}
             </div>

@@ -822,3 +822,7 @@ One line per work session, newest first. Links to `docs/worklog/YYYY-MM-DD.md`.
 - [2026-09-06](worklog/2026-09-06.md) — SMTP transport added alongside console/Resend (prod default
   now `smtp`); `npm run db:migrate` run on `nourishly`, fixing the dead `calls.reminder_sent_at`
   reminder scheduler; diagnosed forgot-password silence as a Resend sandbox limit, not a bug.
+- [2026-09-07](worklog/2026-09-07.md) — ZenX Dietitian theme: palette re-pointed to the wellness
+  green in `index.css`, light sidebar, Inter, new dashboard summary strip and phone tab bar,
+  primitives and every screen restyled. Presentation only — no API, hook, route or calculation
+  touched.

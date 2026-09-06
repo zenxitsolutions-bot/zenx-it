@@ -27,7 +27,7 @@ export function LoginPage() {
   // (auth.controller.js#login returns it in `details`), so it can be offered as a link.
   const [companyLoginPath, setCompanyLoginPath] = useState(null);
   // Only queried on a slug-scoped URL (/:companySlug/login) — the bare /login has no company to
-  // brand for. Resolves to null for an unknown slug, which falls back to Nourishly's branding
+  // brand for. Resolves to null for an unknown slug, which falls back to ZenX Dietitian's branding
   // rather than revealing whether that slug exists.
   const { data: company } = usePublicCompany(companySlug);
 
@@ -62,7 +62,7 @@ export function LoginPage() {
   return (
     <AuthLayout
       eyebrow="WELCOME BACK"
-      title={company ? `Log in to ${company.name}` : 'Log in to Nourishly'}
+      title={company ? `Log in to ${company.name}` : 'Log in to ZenX Dietitian'}
       subtitle="Pick up right where you left off."
       company={company}
     >
@@ -119,7 +119,7 @@ export function LoginPage() {
                 >
                   Forgot your password
                 </Link>{' '}
-                or open Nourishly from your ZenX account.
+                or open it from your ZenX account.
               </p>
             </div>
           )}

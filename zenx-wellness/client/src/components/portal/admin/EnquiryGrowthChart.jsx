@@ -35,7 +35,7 @@ export function EnquiryGrowthChart({ data, large = false }) {
         />
         {large && <YAxis allowDecimals={false} tick={{ fill: CHART.axis, fontSize: 11 }} axisLine={false} tickLine={false} width={28} />}
         <Tooltip content={<ChartTooltip />} cursor={{ fill: CHART.cursor }} />
-        <Bar dataKey="enquiries" fill={CHART.line} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="enquiries" fill={CHART.line} radius={[8, 8, 0, 0]} maxBarSize={36} />
       </BarChart>
     </ResponsiveContainer>
   );

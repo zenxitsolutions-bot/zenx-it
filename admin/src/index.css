@@ -9,8 +9,8 @@ body,
 }
 
 body {
-  background-color: #f4f7fc;
-  color: #0f172a;
+  background-color: #F5F7FB;
+  color: #1B2B42;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
@@ -41,8 +41,8 @@ body {
 }
 
 ::selection {
-  background: #dbeafe;
-  color: #0f172a;
+  background: #EAF2FF;
+  color: #1B2B42;
 }
 
 ::-webkit-scrollbar {
@@ -53,11 +53,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #DCE3EC;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9AA6B5;
 }
 
 /* The picker icon ships dark, which is what we want on light inputs — the theme used to invert it
@@ -80,6 +80,6 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   box-shadow: none;
 }
 .zenx-phone-field .PhoneInputCountrySelectArrow {
-  color: #0f172a;
+  color: #1B2B42;
   opacity: 0.6;
 }

@@ -44,15 +44,15 @@ export function ProgressScreen() {
     : [];
 
   return (
-    <div className="mx-auto max-w-5xl p-9">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto max-w-6xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
+      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground">Look how far you've come</p>
-          <h1 className="mt-1 text-3xl text-forest">Your progress</h1>
-          <p className="mt-1 text-muted-foreground">Every update tells a story of care and consistency.</p>
+          <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Look how far you've come</p>
+          <h1 className="mt-1.5 text-3xl font-semibold text-forest">Your progress</h1>
+          <p className="mt-1.5 text-muted-foreground">Every update tells a story of care and consistency.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
-          Update today's progress →
+        <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-pill">
+          Update today's progress
         </Button>
       </div>
 
@@ -74,20 +74,26 @@ export function ProgressScreen() {
           title="No progress logged yet"
           description="Log your first weight check-in and your trend will appear here."
           action={
-            <Button onClick={() => setDialogOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+            <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-pill">
               Log your first entry
             </Button>
           }
         />
       ) : (
         <div className="grid gap-5 min-[900px]:grid-cols-[1fr_280px]">
-          <section className="rounded-card bg-white p-6 shadow-soft">
+          <section className="rounded-card border border-line bg-white p-6 shadow-lift">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl">Your weight trend</h2>
+                <h2 className="text-xl font-semibold text-forest">Your weight trend</h2>
                 <span className="text-xs text-muted-foreground">Every check-in you've logged so far</span>
               </div>
-              <strong className={stats.weightChangeTotal <= 0 ? 'text-sage-deep' : 'text-coral'}>
+              <strong
+                className={`rounded-pill px-3 py-1 text-sm tabular-nums ${
+                  stats.weightChangeTotal <= 0
+                    ? 'bg-tint-green text-positive'
+                    : 'bg-tint-orange text-status-followup-ink'
+                }`}
+              >
                 {stats.weightChangeTotal > 0 ? '+' : ''}
                 {stats.weightChangeTotal.toFixed(1)} kg
               </strong>
@@ -97,12 +103,14 @@ export function ProgressScreen() {
             </div>
           </section>
 
-          <aside className="rounded-card bg-white p-6 shadow-soft">
-            <h2 className="text-xl">Lovely milestones</h2>
+          <aside className="rounded-card border border-line bg-white p-6 shadow-soft">
+            <h2 className="text-xl font-semibold text-forest">Lovely milestones</h2>
             <div className="mt-4 grid gap-4">
               {milestones.map(({ icon: Icon, title, description }) => (
                 <div key={title} className="flex gap-3">
-                  <Icon className="mt-0.5 size-5 shrink-0 text-sage-deep" aria-hidden="true" />
+                  <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sage text-brand-strong">
+                    <Icon className="size-4.5" aria-hidden="true" />
+                  </span>
                   <div>
                     <strong className="block text-sm text-forest">{title}</strong>
                     <span className="text-xs text-muted-foreground">{description}</span>
@@ -112,9 +120,9 @@ export function ProgressScreen() {
             </div>
           </aside>
 
-          <section className="rounded-card bg-white p-6 shadow-soft min-[900px]:col-span-2">
+          <section className="rounded-card border border-line bg-white p-6 shadow-soft min-[900px]:col-span-2">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl">Measurements</h2>
+              <h2 className="text-xl font-semibold text-forest">Measurements</h2>
               {!stats.previous && (
                 <span className="text-xs text-muted-foreground">Log a second entry to start seeing change over time</span>
               )}
@@ -136,8 +144,8 @@ export function ProgressScreen() {
             </div>
           </section>
 
-          <section className="rounded-card bg-white p-6 shadow-soft min-[900px]:col-span-2">
-            <h2 className="text-xl">Full history</h2>
+          <section className="rounded-card border border-line bg-white p-6 shadow-soft min-[900px]:col-span-2">
+            <h2 className="text-xl font-semibold text-forest">Full history</h2>
             <span className="text-xs text-muted-foreground">Every check-in you've logged, most recent first</span>
             <div className="mt-4">
               <ProgressHistoryTable entries={stats.sorted} />

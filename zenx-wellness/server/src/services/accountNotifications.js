@@ -27,8 +27,8 @@ export async function notifyClientAccountCreated(user, { plainPassword }) {
   try {
     if (!canNotifyUser(user)) return;
     const dietitianName = user.assignedDietitian
-      ? (await findUserById(user.assignedDietitian).catch(() => null))?.name ?? 'your Nourishly dietitian'
-      : 'your Nourishly team';
+      ? (await findUserById(user.assignedDietitian).catch(() => null))?.name ?? 'your dietitian'
+      : 'your ZenX Dietitian team';
 
     await sendEmail(
       user.email,

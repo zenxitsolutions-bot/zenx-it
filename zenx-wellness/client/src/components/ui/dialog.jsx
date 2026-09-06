@@ -58,7 +58,15 @@ function DialogContent({
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          // max-h + overflow live here rather than on each dialog. The panel is centred with
+          // `top-1/2 -translate-y-1/2`, so without a height cap a form taller than the viewport
+          // overflows off BOTH ends with nothing to scroll — the top of the form and the submit
+          // button both become unreachable. Five dialogs had already worked around this with their
+          // own `max-h-[90vh] overflow-y-auto`; the schedule-call dialogs never did, which is what
+          // made them impossible to complete on a short window.
+          // 100dvh (not 100vh) so mobile browser chrome is accounted for. Callers that pass their
+          // own max-h/overflow still win — cn() runs tailwind-merge.
+          "fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto overscroll-contain rounded-card border border-line bg-popover p-6 text-sm text-popover-foreground shadow-lift duration-150 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className
         )}
         {...props}>
@@ -98,7 +106,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "-mx-6 -mb-6 mt-1 flex flex-col-reverse gap-2 rounded-b-card border-t bg-cream/60 p-5 sm:flex-row sm:justify-end",
         className
       )}
       {...props}>
@@ -119,7 +127,7 @@ function DialogTitle({
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("font-heading text-base leading-none font-medium", className)}
+      className={cn("text-lg leading-snug font-semibold text-forest", className)}
       {...props} />
   );
 }

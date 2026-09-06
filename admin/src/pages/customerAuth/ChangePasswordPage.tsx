@@ -73,7 +73,7 @@ export default function ChangePasswordPage() {
       </p>
 
       <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
-        <FieldWrap label="New password" htmlFor="new-password" hint="At least 8 characters">
+        <FieldWrap label="New password" htmlFor="new-password" hint="At least 8 characters" required>
           <Input
             id="new-password"
             type="password"
@@ -83,7 +83,7 @@ export default function ChangePasswordPage() {
             required
           />
         </FieldWrap>
-        <FieldWrap label="Confirm password" htmlFor="confirm-password">
+        <FieldWrap label="Confirm password" htmlFor="confirm-password" required>
           <Input
             id="confirm-password"
             type="password"
@@ -95,7 +95,7 @@ export default function ChangePasswordPage() {
         </FieldWrap>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-dangerInk">
             <AlertCircle size={14} />
             {error}
           </div>

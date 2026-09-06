@@ -9,7 +9,7 @@ export const getMyCompany = asyncHandler(async (req, res) => {
   const company = await findCompanyById(req.user.companyId);
   // A user can legitimately predate its company ever being mirrored here (an account created
   // directly in this app before any SSO handoff). Null rather than 404 so the UI can fall back to
-  // the default Nourishly branding instead of rendering an error for a normal state.
+  // the default ZenX Dietitian branding instead of rendering an error for a normal state.
   res.json({
     company: company
       ? { id: company.id, name: company.name, slug: company.slug, website: company.website, logoUrl: company.logo_url }

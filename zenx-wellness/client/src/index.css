@@ -7,42 +7,101 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-  --font-sans: 'DM Sans', Arial, sans-serif;
+  --font-sans: 'Inter', 'DM Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   --font-display: 'Playfair Display', serif;
 
-  /* Blue-and-white palette, sampled from the ZenX dashboard design (2026-09-04): brand blue
-     #2563eb, its #dbeafe tint, white cards on a #f4f7fc page, navy #0f172a text.
+  /* ZenX Dietitian wellness palette: deep green-teal brand (#087F6B) on an almost-white warm
+     mint page (#F6FAF8), white cards, green-black (#102A2A) text.
      The token *names* below are the original green-palette ones (forest/sage/cream/coral). They're
-     deliberately kept: ~300 utility classes across ~40 component files reference them
+     deliberately kept: ~570 utility classes across ~60 component files reference them
      (`text-forest`, `bg-sage/40`, `bg-cream`, `bg-coral`), so re-pointing the values re-skins the
      whole app from this one file. Prefer the semantic aliases below them in new code. */
-  --color-forest: #0f172a; /* navy — primary text/heading color */
-  --color-forest-2: #1e293b; /* deeper navy — raised surfaces on a dark ground */
-  --color-sage: #dbeafe; /* light blue tint — avatars, hover states, muted surfaces */
-  --color-sage-deep: #1d4ed8; /* deep blue — hint text and secondary accents on white */
-  --color-cream: #f4f7fc; /* page + list-row surface */
-  --color-peach: #e0edff; /* soft blue — extra chart series */
-  --color-coral: #2563eb; /* brand blue — primary buttons, badges, avatar circles */
-  --color-yellow: #f59e0b; /* amber — retained for warning/attention accents */
-  --color-ink: #0f172a;
-  --color-line: #e2e8f0;
+  --color-forest: #102a2a; /* green-black — primary text/heading, dark grounds (tooltips, auth panel) */
+  --color-forest-2: #071d1b; /* deeper green-black — hover on those dark grounds */
+  --color-sage: #ddf4e9; /* light green tint — avatars, hover states, muted surfaces */
+  --color-sage-deep: #075f55; /* dark green — hint text and secondary accents on cards */
+  --color-cream: #eef7f3; /* secondary surface — list rows, soft panels */
+  --color-peach: #e4f0fb; /* soft blue — extra chart series, hydration-adjacent fills */
+  --color-coral: #087f6b; /* brand green — primary buttons, badges, avatar circles */
+  /* Amber stays light: it is a fill/icon token, never text on a card. It backs the timezone banner
+     under green-black text and marks icons on dark grounds, and both want it light. */
+  --color-yellow: #e9a23b;
+  --color-ink: #102a2a;
+  --color-line: #e1ece8;
 
   /* Honest names for the same values — use these going forward. */
-  --color-navy: #0f172a;
-  --color-brand: #2563eb;
-  --color-brand-strong: #1d4ed8;
-  --color-sky: #dbeafe;
-  --color-mist: #f4f7fc;
-  /* Trend direction on stat cards: a rising figure reads green and a falling one red regardless of
-     the brand hue, so these are their own tokens rather than aliases of it. */
-  --color-positive: #16a34a;
-  --color-negative: #dc2626;
+  --color-navy: #102a2a; /* kept as an alias so no existing `*-navy` class breaks */
+  --color-brand: #087f6b;
+  --color-brand-strong: #075f55;
+  --color-brand-mid: #159a7c; /* medium green — secondary chart series, gradients */
+  --color-sky: #ddf4e9;
+  --color-mist: #f6faf8;
+  /* Trend direction on stat cards: green up, red down. The positive green is deliberately a
+     cooler, darker leaf green than the brand teal so a trend never reads as brand decoration.
+     The red is a muted brick rather than a pure red, and dark enough (5.5:1) to carry the small
+     bold text of a delta pill on its own tint. */
+  --color-positive: #157a4e;
+  --color-negative: #a83a32;
+  /* Cards are pure white on the mint page, so Tailwind's own `white` needs no override —
+     it is redefined here only so the ~140 `bg-white`/`text-white` usages keep resolving through
+     one token if the card surface ever moves off #fff again. */
+  --color-white: #ffffff;
 
-  /* Tighter and cooler than the old green-tinted glow — the design's cards sit almost flat on the
-     page, lifted by a hairline border plus a short shadow rather than a large soft one. */
-  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  /* Health-metric accents. Soft and muted, never fully saturated: blue reads as hydration,
+     amber as energy/calories, pink marks a selected measurement. Each has a tint for the
+     rounded icon chip that sits behind it. */
+  --color-hydration: #3e9bd1;
+  --color-hydration-tint: #e6f2fb;
+  --color-calories: #e9a23b;
+  --color-calories-tint: #fdf1e1;
+  --color-measure: #db7e9c;
+  --color-measure-tint: #fcecf1;
+  /* The pink fill above is a dot/fill value — 2.5:1 on its own tint, so anything drawn *in*
+     pink (an icon or a label) uses this darker ink instead, which clears 4.8:1 there. */
+  --color-measure-ink: #a84a66;
 
-  --radius-card: 16px;
+  /* Light sidebar rail. It used to be a dark navy rail; the ZenX design puts the nav on a
+     near-white ground with a light-green active pill, so these are light values now and
+     Sidebar.jsx sets its text colors to match. */
+  --color-sidebar-bg: #ffffff;
+  --color-sidebar-hover: #eef7f3;
+  --color-sidebar-text: #4a625e;
+  --color-sidebar-line: #e1ece8;
+
+  /* Status palette, identical in meaning to the CRM's: new blue · contacted purple ·
+     follow-up amber · converted green · unsuccessful red, retuned to the muted wellness range.
+     The pure values are for dots, chart series and fills. */
+  --color-status-new: #3e9bd1;
+  --color-status-contacted: #8a7be0;
+  --color-status-followup: #e9a23b;
+  --color-status-converted: #159a7c;
+  --color-status-lost: #de7a72;
+  /* …and their text-safe counterparts. The fills above are far too light to carry small text on
+     white (the amber lands around 2.1:1), so anything that *writes* in a status color uses these:
+     same hue, dark enough to clear 4.5:1 on its own tint. */
+  --color-status-new-ink: #1f6c97;
+  --color-status-contacted-ink: #5b4bc4;
+  --color-status-followup-ink: #96580a;
+  --color-status-converted-ink: #0b6e5d;
+  --color-status-lost-ink: #b2453c;
+
+  /* Soft pastel grounds for status chips and stat icons. */
+  --color-tint-blue: #e6f2fb;
+  --color-tint-purple: #f0ecfc;
+  --color-tint-orange: #fcf1e3;
+  --color-tint-green: #ddf4e9;
+  --color-tint-red: #fbebea;
+
+  --color-brand-2: #4fc9a6; /* light mint — accents that sit on a dark green ground */
+
+  /* Cards sit almost flat on the page, lifted by a hairline border plus a short, cool,
+     green-tinted shadow rather than a large grey one. `soft` is the default card; `lift` is
+     for the few cards that lead a screen (today's plan, next call, progress summary) and for
+     hover elevation. */
+  --shadow-soft: 0 1px 2px rgba(0, 60, 50, 0.04), 0 4px 20px rgba(0, 60, 50, 0.06);
+  --shadow-lift: 0 2px 4px rgba(0, 60, 50, 0.05), 0 14px 34px rgba(0, 60, 50, 0.1);
+
+  --radius-card: 20px;
   --radius-pill: 999px;
 }
 
@@ -89,76 +148,78 @@
 :root {
   --background: var(--color-mist);
   --foreground: var(--color-ink);
-  --card: #ffffff;
+  --card: var(--color-white);
   --card-foreground: var(--color-ink);
-  --popover: #ffffff;
+  --popover: var(--color-white);
   --popover-foreground: var(--color-ink);
   --primary: var(--color-brand);
-  --primary-foreground: #ffffff;
-  --secondary: var(--color-navy);
-  --secondary-foreground: #ffffff;
-  --muted: var(--color-sky);
+  --primary-foreground: var(--color-white);
+  --secondary: var(--color-forest);
+  --secondary-foreground: var(--color-white);
+  --muted: #edf6f2;
   /* Direct hex, not var(--color-muted) — that name is owned by the @theme inline block above
-     (it maps to --muted, the light blue *surface* color), so routing through it here collapsed
+     (it maps to --muted, the light green *surface* color), so routing through it here collapsed
      "muted surface" and "text on a muted surface" onto the identical color: a real, sitewide
      contrast bug (text nearly invisible against the page) that Lighthouse's accessibility audit
-     caught directly, not something visible from reading the code alone. */
-  --muted-foreground: #64748b;
-  --accent: var(--color-sky);
+     caught directly, not something visible from reading the code alone.
+     #607574 is the design's secondary text — 4.9:1 on white, so it clears AA at body size. */
+  --muted-foreground: #607574;
+  --accent: var(--color-sage);
   --accent-foreground: var(--color-brand-strong);
   --destructive: var(--color-negative);
   --border: var(--color-line);
   --input: var(--color-line);
   --ring: var(--color-brand);
-  /* Ordered light→dark within the blue family, with green/amber last for series that are
+  /* Ordered dark→light within the green family, with blue/amber/purple last for series that are
      categorical rather than sequential. */
   --chart-1: var(--color-brand);
-  --chart-2: #60a5fa;
-  --chart-3: #1e3a8a;
-  --chart-4: var(--color-positive);
-  --chart-5: var(--color-yellow);
+  --chart-2: var(--color-brand-mid);
+  --chart-3: var(--color-hydration);
+  --chart-4: var(--color-calories);
+  --chart-5: #8a7be0;
   --radius: 1rem;
-  /* White sidebar with a light-blue active pill, per the design — not the dark rail this used to
-     be. Sidebar.jsx sets its own text colors to match. */
-  --sidebar: #ffffff;
-  --sidebar-foreground: #334155;
+  /* Near-white sidebar with a light-green active pill, per the design — not the dark rail this
+     used to be. Sidebar.jsx sets its own text colors to match. */
+  --sidebar: var(--color-white);
+  --sidebar-foreground: var(--color-sidebar-text);
   --sidebar-primary: var(--color-brand);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: var(--color-sky);
+  --sidebar-primary-foreground: var(--color-white);
+  --sidebar-accent: var(--color-sage);
   --sidebar-accent-foreground: var(--color-brand-strong);
   --sidebar-border: var(--color-line);
   --sidebar-ring: var(--color-brand);
 }
 
 .dark {
-  --background: #0b1220;
-  --foreground: #e2e8f0;
-  --card: #111c31;
-  --card-foreground: #e2e8f0;
-  --popover: #111c31;
-  --popover-foreground: #e2e8f0;
-  /* Lighter than the light theme's brand blue: #2563eb on a near-black ground is too low-contrast
-     for button text, so the dark theme steps up the lightness instead of reusing the token. */
-  --primary: #3b82f6;
-  --primary-foreground: #ffffff;
-  --secondary: #1e293b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #1e293b;
-  --muted-foreground: #94a3b8;
-  --accent: #1e293b;
-  --accent-foreground: #e2e8f0;
-  --destructive: #f87171;
+  --background: #071614;
+  --foreground: #e6f1ed;
+  --card: #0e2422;
+  --card-foreground: #e6f1ed;
+  --popover: #0e2422;
+  --popover-foreground: #e6f1ed;
+  /* Lighter than the light theme's brand green: #087f6b on a near-black ground is too
+     low-contrast for button text, so the dark theme steps up the lightness instead of reusing
+     the token. */
+  --primary: #2fae90;
+  --primary-foreground: #06201c;
+  --secondary: #143330;
+  --secondary-foreground: #e6f1ed;
+  --muted: #143330;
+  --muted-foreground: #9ab3ad;
+  --accent: #143330;
+  --accent-foreground: #e6f1ed;
+  --destructive: #f08c84;
   --border: rgba(255, 255, 255, 0.1);
   --input: rgba(255, 255, 255, 0.15);
-  --ring: #3b82f6;
-  --sidebar: #111c31;
-  --sidebar-foreground: #cbd5e1;
-  --sidebar-primary: #3b82f6;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #1e293b;
+  --ring: #2fae90;
+  --sidebar: #0e2422;
+  --sidebar-foreground: #b9cec8;
+  --sidebar-primary: #2fae90;
+  --sidebar-primary-foreground: #06201c;
+  --sidebar-accent: #143330;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #1e293b;
-  --sidebar-ring: #3b82f6;
+  --sidebar-border: #143330;
+  --sidebar-ring: #2fae90;
 }
 
 @layer base {
@@ -167,6 +228,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
   html {
     @apply font-sans;
@@ -179,8 +242,45 @@
   h3 {
     font-family: var(--font-sans);
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
     margin-top: 0;
+  }
+  /* A visible, brand-colored focus ring on every keyboard-focused control, including the plain
+     <a>/<button> elements that carry no Tailwind ring classes of their own. Mouse clicks are
+     unaffected (:focus-visible, not :focus). */
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+}
+
+@utility card-hover {
+  /* Hover elevation for cards that are themselves links, buttons, or otherwise interactive.
+     Opt-in per card rather than applied to every surface: a card that does nothing when clicked
+     should not appear to lift. */
+  transition:
+    box-shadow 200ms ease,
+    transform 200ms ease,
+    border-color 200ms ease;
+  &:hover {
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-2px);
+  }
+}
+
+/* Users who ask their OS for less motion get none of the decorative movement — transitions
+   collapse to near-instant rather than being removed, so state changes stay legible. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .card-hover:hover {
+    transform: none;
   }
 }
 

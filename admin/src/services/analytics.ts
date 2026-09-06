@@ -153,6 +153,108 @@ export function computeMonthlySeries(enquiries: Enquiry[], followups: Followup[]
   return points;
 }
 
+/**
+ * Daily counterpart to computeMonthlySeries, for the dashboard's 7- and 30-day ranges. It emits
+ * the same MonthlyPoint shape so MonthlyTrendChart renders it without changes.
+ *
+ * One deliberate difference: the monthly series buckets an enquiry's outcome into the month it was
+ * *created*, which is the right read for "how did this cohort do". Over a 7-day window that hides
+ * the thing you actually want to see — a conversion that happened today against an enquiry raised
+ * three weeks ago would land outside the window entirely. So here each event is counted on the day
+ * it happened, using converted_at / lost_at rather than created_at.
+ */
+export interface ResponseMetrics {
+  /** Share of all enquiries that ended in LOST. */
+  lostRate: number;
+  /** Mean hours from an enquiry being raised to its first follow-up being booked, over the
+   *  enquiries that have one. Null when nothing has been followed up yet — a zero would read as
+   *  "instant response" rather than "no data". */
+  avgFollowupHours: number | null;
+  /** How many enquiries that average is drawn from, so the figure can be shown with its basis. */
+  followupSample: number;
+  /** Mean days from enquiry to conversion, over converted enquiries that carry a converted_at. */
+  avgConversionDays: number | null;
+  conversionSample: number;
+}
+
+export function computeResponseMetrics(enquiries: Enquiry[], followups: Followup[]): ResponseMetrics {
+  const total = enquiries.length;
+  const lost = enquiries.filter((e) => e.status === "LOST").length;
+
+  // First follow-up per enquiry, by creation time — "how quickly did someone act on this", not
+  // "how far out was it scheduled".
+  const firstFollowup = new Map<string, string>();
+  for (const f of followups) {
+    const seen = firstFollowup.get(f.enquiry_id);
+    if (!seen || +new Date(f.created_at) < +new Date(seen)) firstFollowup.set(f.enquiry_id, f.created_at);
+  }
+
+  const gaps: number[] = [];
+  for (const e of enquiries) {
+    const first = firstFollowup.get(e.id);
+    if (!first) continue;
+    const hours = (+new Date(first) - +new Date(e.created_at)) / 36e5;
+    // A follow-up recorded before its enquiry means clock skew or a backfilled row; averaging a
+    // negative gap in would drag the figure below zero and make it meaningless.
+    if (hours >= 0) gaps.push(hours);
+  }
+
+  const convDays: number[] = [];
+  for (const e of enquiries) {
+    if (e.status !== "CONVERTED" || !e.converted_at) continue;
+    const days = (+new Date(e.converted_at) - +new Date(e.created_at)) / 864e5;
+    if (days >= 0) convDays.push(days);
+  }
+
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
+  return {
+    lostRate: total ? (lost / total) * 100 : 0,
+    avgFollowupHours: mean(gaps),
+    followupSample: gaps.length,
+    avgConversionDays: mean(convDays),
+    conversionSample: convDays.length,
+  };
+}
+
+export function computeDailySeries(
+  enquiries: Enquiry[],
+  followups: Followup[],
+  days: number,
+  timezone: string = browserTimezone()
+): MonthlyPoint[] {
+  const dayKey = (iso: string) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(
+      new Date(iso)
+    );
+
+  const points: MonthlyPoint[] = [];
+  const now = new Date();
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const key = dayKey(d.toISOString());
+    const label = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    const created = enquiries.filter((e) => dayKey(e.created_at) === key).length;
+    const converted = enquiries.filter((e) => e.converted_at && dayKey(e.converted_at) === key).length;
+    const lost = enquiries.filter((e) => e.lost_at && dayKey(e.lost_at) === key).length;
+    const dayFollowups = followups.filter((f) => dayKey(f.created_at) === key).length;
+
+    points.push({
+      key,
+      label,
+      enquiries: created,
+      converted,
+      lost,
+      followups: dayFollowups,
+      conversionRate: created ? (converted / created) * 100 : 0,
+    });
+  }
+  return points;
+}
+
 export function computeSourcePerformance(enquiries: Enquiry[]): SourcePerformance[] {
   return LEAD_SOURCES.map((source) => {
     const forSource = enquiries.filter((e) => e.source === source);
@@ -242,6 +344,7 @@ export const analyticsService = {
       sourcePerformance: computeSourcePerformance(enquiries),
       servicePerformance: computeServicePerformance(enquiries),
       growth: computeGrowthInsights(enquiries),
+      response: computeResponseMetrics(enquiries, followups),
       enquiries,
       followups,
     };

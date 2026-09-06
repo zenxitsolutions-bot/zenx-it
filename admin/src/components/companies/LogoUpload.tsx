@@ -66,7 +66,7 @@ export function LogoUpload({ companyId, logoUrl, onChange }: LogoUploadProps) {
           )}
         </div>
         {error ? (
-          <p className="text-xs text-danger">{error}</p>
+          <p className="text-xs text-dangerInk">{error}</p>
         ) : (
           <p className="text-xs text-dim">PNG, JPEG, or WEBP — up to 2MB.</p>
         )}

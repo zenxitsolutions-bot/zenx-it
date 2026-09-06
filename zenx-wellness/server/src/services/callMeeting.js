@@ -70,7 +70,7 @@ export async function attachMeetingToCall(call) {
       const { meetingUrl } = createMeetingRoom();
       const event = await createCalendarEventForCall({
         dietitianId,
-        summary: `Nourishly consultation — ${who}`,
+        summary: `ZenX Dietitian consultation — ${who}`,
         description: [
           `Consultation with ${dietitian?.name ?? 'your dietitian'}.`,
           call.notes ? `\nNotes: ${call.notes}` : '',
@@ -94,7 +94,7 @@ export async function attachMeetingToCall(call) {
 
     const meeting = await createMeetingForCall({
       dietitianId,
-      summary: `Nourishly consultation — ${who}`,
+      summary: `ZenX Dietitian consultation — ${who}`,
       description: [
         `Consultation with ${dietitian?.name ?? 'your dietitian'}.`,
         call.notes ? `\nNotes: ${call.notes}` : '',

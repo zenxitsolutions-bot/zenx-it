@@ -42,12 +42,12 @@ export function MealsScreen() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-9">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto max-w-6xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
+      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground">Made to nourish your week</p>
-          <h1 className="mt-1 text-3xl text-forest">This week's meals</h1>
-          <p className="mt-1 text-muted-foreground">Tap a meal when you've enjoyed it. Every little tick is a win.</p>
+          <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Made to nourish your week</p>
+          <h1 className="mt-1.5 text-3xl font-semibold text-forest">This week's meals</h1>
+          <p className="mt-1.5 text-muted-foreground">Tap a meal when you've enjoyed it. Every little tick is a win.</p>
         </div>
       </div>
 
@@ -95,12 +95,16 @@ export function MealsScreen() {
             </div>
           </section>
 
-          <aside className="rounded-card bg-forest p-6 text-white shadow-soft">
-            <h2 className="text-xl">Your weekly rhythm</h2>
+          <aside className="h-fit rounded-card bg-forest p-6 text-white shadow-lift min-[900px]:sticky min-[900px]:top-24">
+            <h2 className="text-xl font-semibold text-white">Your weekly rhythm</h2>
             <p className="mt-3 text-sm text-sage/90">
               You've completed {completed} of {total} meals this week.
             </p>
-            <Progress value={total ? (completed / total) * 100 : 0} className="mt-3 bg-white/15 [&>div]:bg-yellow" />
+            <p className="mt-4 text-4xl font-semibold tabular-nums">
+              {total ? Math.round((completed / total) * 100) : 0}
+              <span className="text-xl text-sage/70">%</span>
+            </p>
+            <Progress value={total ? (completed / total) * 100 : 0} className="mt-3 bg-white/15 [&>div]:bg-brand-2" />
           </aside>
         </div>
       )}

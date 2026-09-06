@@ -21,8 +21,10 @@ export function DayTabs({ weekStart, selectedDay, onSelect }) {
             aria-selected={isActive}
             onClick={() => onSelect(day)}
             className={cn(
-              'shrink-0 rounded-xl px-3.5 py-2 text-center text-sm font-semibold transition-colors',
-              isActive ? 'bg-forest text-white' : 'bg-cream text-forest hover:bg-sage/50'
+              'shrink-0 rounded-xl border px-4 py-2 text-center text-sm font-semibold transition-all',
+              isActive
+                ? 'border-coral bg-coral text-white shadow-[0_2px_8px_rgba(0,60,50,0.18)]'
+                : 'border-line bg-white text-forest hover:border-sage-deep/30 hover:bg-sage/60'
             )}
           >
             {date ? formatCalendarDate(date, { weekday: 'short' }) : day.slice(0, 3)}

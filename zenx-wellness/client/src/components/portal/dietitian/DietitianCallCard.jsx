@@ -76,9 +76,11 @@ export function DietitianCallCard({ call, onReschedule }) {
               <button type="button" onClick={() => setStatus('completed')} className="text-sm font-semibold text-sage-deep hover:underline">
                 Mark complete
               </button>
-              <button type="button" onClick={onReschedule} className="text-sm font-semibold text-forest hover:underline">
-                Reschedule
-              </button>
+              {onReschedule && (
+                <button type="button" onClick={onReschedule} className="text-sm font-semibold text-forest hover:underline">
+                  Reschedule
+                </button>
+              )}
               <button type="button" onClick={() => setConfirmingCancel(true)} className="text-sm font-semibold text-destructive hover:underline">
                 Cancel
               </button>

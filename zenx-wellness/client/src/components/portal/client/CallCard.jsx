@@ -24,10 +24,10 @@ export function CallCard({ call, onReschedule }) {
   }
 
   return (
-    <article className="rounded-card bg-white p-4 shadow-soft">
+    <article className="card-hover rounded-card border border-line bg-white p-5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-display text-lg text-forest">
+          <p className="text-lg font-semibold text-forest">
             {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' })}
           </p>
           <p className="text-sm text-muted-foreground">{formatTime(call.scheduledAt)} · with {call.dietitian?.name ?? 'your dietitian'}</p>
@@ -54,9 +54,11 @@ export function CallCard({ call, onReschedule }) {
             </div>
           ) : (
             <>
-              <button type="button" onClick={onReschedule} className="text-sm font-semibold text-forest hover:underline">
-                Reschedule
-              </button>
+              {onReschedule && (
+                <button type="button" onClick={onReschedule} className="text-sm font-semibold text-forest hover:underline">
+                  Reschedule
+                </button>
+              )}
               <button type="button" onClick={() => setConfirmingCancel(true)} className="text-sm font-semibold text-destructive hover:underline">
                 Cancel call
               </button>
