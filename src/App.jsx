@@ -1,10 +1,10 @@
 import Navbar from "./components/Navbar.jsx";
 import Hero from "./components/Hero.jsx";
-import Statement from "./components/Statement.jsx";
 import Services from "./components/Services.jsx";
-import Products from "./components/Products.jsx";
 import Process from "./components/Process.jsx";
+import Products from "./components/Products.jsx";
 import Industries from "./components/Industries.jsx";
+import Cta from "./components/Cta.jsx";
 import Contact from "./components/Contact.jsx";
 import Footer from "./components/Footer.jsx";
 
@@ -12,16 +12,17 @@ export default function App() {
   return (
     <>
       <div className="noise"></div>
+      <div className="page-glow" aria-hidden="true"></div>
 
       <Navbar />
 
       <main id="top">
         <Hero />
-        <Statement />
         <Services />
-        <Products />
         <Process />
+        <Products />
         <Industries />
+        <Cta />
         <Contact />
       </main>
 
