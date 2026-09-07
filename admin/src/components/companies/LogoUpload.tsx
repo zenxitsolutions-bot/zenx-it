@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { ImagePlus, Trash2 } from "lucide-react";
 import { Button } from "../ui/Button";
 import { companiesService, LogoValidationError } from "../../services/companies";
+import { resolveAssetUrl } from "../../lib/assetUrl";
 import { useToast } from "../../context/ToastContext";
 
 interface LogoUploadProps {
@@ -39,12 +40,12 @@ export function LogoUpload({ companyId, logoUrl, onChange }: LogoUploadProps) {
   };
 
   return (
-    <div className="flex items-center gap-4">
-      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl2 border border-border bg-panel/70">
+    <div className="flex items-center gap-5">
+      <div className="flex h-48 w-48 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-border bg-panel p-2">
         {logoUrl ? (
-          <img src={logoUrl} alt="Company logo" className="h-full w-full object-contain" />
+          <img src={resolveAssetUrl(logoUrl) ?? undefined} alt="Company logo" className="h-full w-full object-contain" />
         ) : (
-          <ImagePlus size={22} className="text-dim" />
+          <ImagePlus size={36} className="text-dim" />
         )}
       </div>
       <div className="flex flex-col gap-2">

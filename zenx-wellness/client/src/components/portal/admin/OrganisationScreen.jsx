@@ -60,7 +60,7 @@ export function OrganisationScreen() {
           <dl>
             <Row label="Company name">
               <div className="flex items-center gap-2">
-                {company.logoUrl && <img src={company.logoUrl} alt="" className="size-8 shrink-0 rounded-md object-cover" />}
+                {company.logoUrl && <img src={company.logoUrl} alt="" className="size-14 shrink-0 rounded-md object-contain" />}
                 <span className="font-semibold text-forest">{company.name}</span>
               </div>
             </Row>

@@ -29,25 +29,19 @@ export function Sidebar({ onNavigate }) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-sidebar-line bg-sidebar-bg p-5 text-sidebar-text">
-      <div className="mb-8">
-        <Link to="/" className="inline-flex items-center gap-2.5 font-display text-lg tracking-wide text-white">
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Link to="/" className="flex w-full flex-col items-center font-display tracking-wide text-white">
           {company?.logoUrl ? (
-            <img src={company.logoUrl} alt="" className="size-9 shrink-0 rounded-lg object-cover" />
+            <img
+              src={company.logoUrl}
+              alt={company?.name || "Home"}
+              className="h-40 w-full max-w-[200px] object-contain"
+            />
           ) : (
-            <span
-              aria-hidden="true"
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-coral text-base text-white"
-            >
-              ✦
+            <span className="text-base font-semibold leading-snug text-white">
+              ZENX<span className="text-brand-2">.</span>
             </span>
           )}
-          <span className="truncate">
-            {company?.name ?? (
-              <>
-                ZENX<span className="text-brand-2">.</span>
-              </>
-            )}
-          </span>
         </Link>
 
         {company?.website && (
@@ -55,7 +49,7 @@ export function Sidebar({ onNavigate }) {
             href={company.website}
             target="_blank"
             rel="noreferrer noopener"
-            className="mt-1.5 ml-11.5 flex items-center gap-1 text-xs text-sidebar-text/75 hover:text-white"
+            className="mt-1.5 flex max-w-full items-center justify-center gap-1 text-xs text-sidebar-text/75 hover:text-white"
           >
             <span className="truncate">{formatWebsiteLabel(company.website)}</span>
             <ExternalLink className="size-3 shrink-0" aria-hidden="true" />

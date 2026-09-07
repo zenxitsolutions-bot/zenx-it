@@ -21,7 +21,7 @@ export function AuthLayout({ eyebrow, title, subtitle, company, children }) {
         <div className="relative mx-auto w-full max-w-sm">
           <Link to="/" className="mb-10 inline-flex items-center gap-2 font-display text-xl tracking-wide text-forest">
             {company?.logoUrl ? (
-              <img src={company.logoUrl} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+              <img src={company.logoUrl} alt="" className="size-10 shrink-0 rounded-md object-contain" />
             ) : (
               <span aria-hidden="true" className="text-coral">
                 ✦

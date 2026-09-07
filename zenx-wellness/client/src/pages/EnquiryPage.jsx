@@ -42,7 +42,7 @@ export function EnquiryPage() {
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-5 py-10">
       <div className="mb-6 flex items-center gap-2.5">
         {company.logoUrl ? (
-          <img src={company.logoUrl} alt="" className="size-9 shrink-0 rounded-xl object-cover" />
+          <img src={company.logoUrl} alt="" className="size-12 shrink-0 rounded-xl object-contain" />
         ) : (
           <span
             aria-hidden="true"

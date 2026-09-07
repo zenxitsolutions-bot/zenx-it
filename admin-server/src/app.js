@@ -40,7 +40,16 @@ app.use(rateLimit({ windowMs: 5 * 60 * 1000, limit: 3000, standardHeaders: true,
 
 // company-logos is a deliberately public bucket (matches the original Supabase storage.sql
 // policy: public select, admin-only write) — plain static serving is correct here.
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// helmet() sets Cross-Origin-Resource-Policy: same-origin, which would block <img> tags on the
+// admin portal and wellness-app (different origins) from loading these files. Override only here.
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  },
+  express.static(path.join(process.cwd(), 'uploads'), { fallthrough: false }),
+);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
