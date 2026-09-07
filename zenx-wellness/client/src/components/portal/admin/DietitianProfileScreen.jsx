@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +10,7 @@ import { useClient } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_BADGE_VARIANT } from '@/lib/accountStatus';
 import { DietitianDetailsForm } from './DietitianDetailsForm';
+import { DietitianDetailsView } from './DietitianDetailsView';
 import { DietitianWorkingHoursTab } from './DietitianWorkingHoursTab';
 import { ResetUserPasswordDialog } from './ResetUserPasswordDialog';
 
@@ -20,9 +21,18 @@ import { ResetUserPasswordDialog } from './ResetUserPasswordDialog';
 export function DietitianProfileScreen() {
   const { id, companySlug } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user: viewer } = useAuth();
   const [resetOpen, setResetOpen] = useState(false);
   const { data: dietitian, isLoading, isError, refetch } = useClient(id);
+  const editing = searchParams.get('edit') === '1';
+
+  function setEditing(on) {
+    const next = new URLSearchParams(searchParams);
+    if (on) next.set('edit', '1');
+    else next.delete('edit');
+    setSearchParams(next, { replace: true });
+  }
 
   return (
     <div className="mx-auto max-w-3xl p-9">
@@ -65,11 +75,22 @@ export function DietitianProfileScreen() {
                 <p className="text-muted-foreground">{dietitian.email}</p>
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
             {dietitian._id !== viewer?._id && (
               <Button type="button" variant="outline" onClick={() => setResetOpen(true)}>
                 Reset password
               </Button>
             )}
+            {editing ? (
+              <Button type="button" variant="outline" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+            ) : (
+              <Button type="button" className="rounded-full bg-coral text-white hover:bg-coral/90" onClick={() => setEditing(true)}>
+                Edit details
+              </Button>
+            )}
+            </div>
           </div>
           <ResetUserPasswordDialog open={resetOpen} onOpenChange={setResetOpen} user={dietitian} />
 
@@ -80,7 +101,11 @@ export function DietitianProfileScreen() {
             </TabsList>
 
             <TabsContent value="details" className="mt-4">
-              <DietitianDetailsForm dietitian={dietitian} />
+              {editing ? (
+                <DietitianDetailsForm dietitian={dietitian} onSaved={() => setEditing(false)} />
+              ) : (
+                <DietitianDetailsView dietitian={dietitian} />
+              )}
             </TabsContent>
 
             <TabsContent value="hours" className="mt-4">

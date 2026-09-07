@@ -13,7 +13,11 @@ import {
   countClientsCreatedBetween,
 } from '../models/User.js';
 import { countCalls, listCallsForDietitianInRange } from '../models/Call.js';
-import { countPlanStatesForDietitian, countPublishedPlansCreatedBetween } from '../models/Plan.js';
+import {
+  countPlanStatesForDietitian,
+  countPublishedPlansCreatedBetween,
+  listSwapRequestsForDietitian,
+} from '../models/Plan.js';
 import { countProgressByDayForClients, latestProgressByClientIds } from '../models/Progress.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { toClientShape } from '../utils/serialize.js';
@@ -212,6 +216,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     plansPrevWindow,
     callsToday,
     callsSameDayLastWeek,
+    swapRequests,
   ] = await Promise.all([
     listCallsForDietitianInRange(dietitianId, dayStart, dayEnd),
     latestProgressByClientIds(clientIds),
@@ -228,6 +233,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
       from: new Date(dayStart.getTime() - 7 * day),
       to: new Date(dayEnd.getTime() - 7 * day),
     }),
+    listSwapRequestsForDietitian(dietitianId),
   ]);
 
   // Progress logs per day across the last PROGRESS_SERIES_DAYS days, gaps filled with zero so the
@@ -244,7 +250,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
 
   res.json({
     todaysAppointments: todaysAppointments.map((c) => toClientShape(c)),
-    attentionItems: [],
+    attentionItems: swapRequests.map((item) => ({ type: 'swap-request', ...item })),
     clientMomentum: clientMomentum.length,
     // Each stat pairs its own value with the change figure the UI labels it by — the client never
     // has to guess which window a percentage came from.

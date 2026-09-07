@@ -14,6 +14,8 @@ const mealSlot = z
     recipe: z.string().nullable().optional(),
     customTitle: z.string().max(255).nullable().optional(),
     notes: z.string().nullable().optional(),
+    completed: z.boolean().optional(),
+    swapRequested: z.boolean().optional(),
   })
   .refine((data) => !(data.recipe && data.customTitle), {
     message: 'A meal slot can reference a catalog recipe or a custom recipe name, not both',
@@ -50,6 +52,17 @@ export const updatePlanSchema = z.object({
   title: z.string().optional(),
   meals: z.array(mealSlot).optional(),
   published: z.boolean().optional(),
+  // Dietitian resolving a client's swap request — save the new recipe, then email the client.
+  notifySwaps: z.boolean().optional(),
+  swapResolutions: z
+    .array(
+      z.object({
+        day: z.string().min(1),
+        time: z.string().min(1),
+        previousMeal: z.string().min(1),
+      })
+    )
+    .optional(),
 });
 
 export const updateMealStatusSchema = z

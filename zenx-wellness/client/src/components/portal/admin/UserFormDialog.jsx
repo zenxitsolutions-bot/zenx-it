@@ -19,6 +19,7 @@ import { useSaveConsultationSchedule } from '@/hooks/useConsultationSchedule';
 import { PLAN_DURATIONS } from '@/lib/planDurations';
 import { defaultConsultationScheduleValues, toApiPayload } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from '@/components/portal/shared/ConsultationScheduleFields';
+import { toLocalCalendarDate } from '@/lib/calendarDate';
 
 // Phone/address are only required for a dietitian (spec §2026-round2-fixes item 1's explicit "Add
 // and require: Email, Phone Number, Address") — enforced below via superRefine, mirroring the
@@ -32,6 +33,7 @@ const schema = z
     phone: z.string().optional(),
     address: z.string().optional(),
     qualifications: z.string().optional(),
+    joinedOn: z.string().optional(),
     assignedDietitian: z.string().optional(),
     programPlan: z.string().optional(),
     planDuration: z.string().optional(),
@@ -75,6 +77,7 @@ const EMPTY = {
   phone: '',
   address: '',
   qualifications: '',
+  joinedOn: toLocalCalendarDate(),
   assignedDietitian: 'none',
   programPlan: 'none',
   planDuration: 'none',
@@ -123,6 +126,7 @@ export function UserFormDialog({ open, onOpenChange }) {
       phone: values.phone || undefined,
       address: values.address || undefined,
       qualifications: values.role === 'dietitian' && values.qualifications ? values.qualifications : undefined,
+      joinedOn: values.role === 'dietitian' && values.joinedOn ? values.joinedOn : undefined,
       assignedDietitian: values.role === 'client' && values.assignedDietitian !== 'none' ? values.assignedDietitian : null,
       programPlan: values.role === 'client' && values.programPlan !== 'none' ? values.programPlan : null,
       planDuration: values.role === 'client' && values.planDuration !== 'none' ? values.planDuration : null,
@@ -258,6 +262,7 @@ export function UserFormDialog({ open, onOpenChange }) {
               )}
             />
             {role === 'dietitian' && (
+              <>
               <FormField
                 control={form.control}
                 name="qualifications"
@@ -271,6 +276,20 @@ export function UserFormDialog({ open, onOpenChange }) {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="joinedOn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of joining</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              </>
             )}
 
             {role === 'client' && (

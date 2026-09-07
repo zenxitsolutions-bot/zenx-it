@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDietitianOverview } from '@/hooks/useInsights';
 import { useClients } from '@/hooks/useClients';
 import { formatRelativeDay, formatTime } from '@/lib/format';
+import { formatCalendarDate } from '@/lib/calendarDate';
 import { ClientProgressChart } from './ClientProgressChart';
 import { PlansOverviewChart } from './PlansOverviewChart';
 
@@ -111,6 +112,46 @@ export function DietitianOverviewScreen() {
               hint={`${data.stats.activePlans.publishedThisWindow} published in the last ${data.stats.activePlans.windowDays} days`}
             />
           </div>
+
+          <section className="rounded-card border border-line bg-white p-6 shadow-soft">
+            <SectionHeader
+              title="Needs attention"
+              subtitle="Meal swap requests from your clients"
+              to={appHref('plan')}
+              linkLabel="Open planner"
+            />
+            {(data.attentionItems ?? []).length === 0 ? (
+              <div className="mt-4">
+                <EmptyState title="All clear" description="No meal swap requests right now." />
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {data.attentionItems.map((item, i) => {
+                  const dateLabel = item.mealDate
+                    ? formatCalendarDate(item.mealDate, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+                    : item.day;
+                  return (
+                    <PersonRow
+                      key={`${item.planId}-${item.day}-${item.time}-${i}`}
+                      initial={item.clientName?.[0] ?? 'C'}
+                      name={item.clientName ?? 'Client'}
+                      meta={`${item.mealTitle} · ${item.mealType} · ${dateLabel} · ${item.time}`}
+                      trailing={
+                        <Link
+                          to={appHref(
+                            `plan?client=${item.clientId}&week=${item.week}&day=${encodeURIComponent(item.day)}&time=${encodeURIComponent(item.time)}`
+                          )}
+                          className="shrink-0 text-sm font-semibold text-forest hover:underline"
+                        >
+                          Review →
+                        </Link>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
           <div className="grid gap-5 min-[900px]:grid-cols-2">
             <section className="rounded-card border border-line bg-white p-6 shadow-soft">

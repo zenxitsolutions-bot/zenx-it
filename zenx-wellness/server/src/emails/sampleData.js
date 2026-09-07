@@ -31,6 +31,23 @@ export const SAMPLE_DATA = {
     week_range: '25 Aug 2026 – 31 Aug 2026',
     login_url: 'http://localhost:5173/app/meals',
   },
+  'meal-swap-requested': {
+    dietitian_name: 'Dr. Asha Rao',
+    client_name: 'Priya Sharma',
+    meal_title: 'Berry yogurt bowl',
+    meal_type: 'Breakfast',
+    meal_when: 'Monday · 8:00 AM',
+    login_url: 'http://localhost:5173/nourishly-demo/app/clients/sample-client-id',
+  },
+  'meal-swap-fulfilled': {
+    client_name: 'Priya Sharma',
+    dietitian_name: 'Dr. Asha Rao',
+    previous_meal: 'Berry yogurt bowl',
+    new_meal: 'Spinach omelette',
+    meal_type: 'Breakfast',
+    meal_when: 'Mon, 7 Sep · 8:00 AM',
+    login_url: 'http://localhost:5173/nourishly-demo/app/meals',
+  },
   'call-scheduled': {
     client_name: 'Priya Sharma',
     dietitian_name: 'Dr. Asha Rao',

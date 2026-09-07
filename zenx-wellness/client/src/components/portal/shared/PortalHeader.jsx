@@ -13,12 +13,15 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { NAV_BY_ROLE } from '@/lib/portalNav';
 import { PreferencesDialog } from './PreferencesDialog';
+import { useDietitianOverview } from '@/hooks/useInsights';
 
 export function PortalHeader({ onOpenMobileNav }) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
+  const { data: overview } = useDietitianOverview();
+  const attentionItems = user.role === 'dietitian' ? (overview?.attentionItems ?? []) : [];
 
   const current = (NAV_BY_ROLE[user.role] ?? []).find((item) => item.to === location.pathname);
   const roleLabel = user.role[0].toUpperCase() + user.role.slice(1);
@@ -57,17 +60,23 @@ export function PortalHeader({ onOpenMobileNav }) {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => toast('No new notifications yet.')}
+          onClick={() => {
+            if (user.role === 'dietitian' && attentionItems.length > 0) {
+              navigate(`/${user.companySlug}/app/overview`);
+              return;
+            }
+            toast(attentionItems.length ? `${attentionItems.length} swap request${attentionItems.length === 1 ? '' : 's'} waiting.` : 'No new notifications yet.');
+          }}
           className="relative grid size-10 place-items-center rounded-full text-forest transition-colors hover:bg-cream"
           aria-label="Notifications"
         >
           <Bell className="size-4.5" aria-hidden="true" />
-          {/* Ringed in the header's own background so the dot reads as a separate mark rather
-              than a smudge on the bell. */}
-          <span
-            className="absolute top-2.5 right-2.5 size-2 rounded-full bg-negative ring-2 ring-white"
-            aria-hidden="true"
-          />
+          {attentionItems.length > 0 && (
+            <span
+              className="absolute top-2.5 right-2.5 size-2 rounded-full bg-negative ring-2 ring-white"
+              aria-hidden="true"
+            />
+          )}
         </button>
 
         <DropdownMenu>

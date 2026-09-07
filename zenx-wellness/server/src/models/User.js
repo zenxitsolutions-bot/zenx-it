@@ -1,5 +1,6 @@
 import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
+import { toCalendarDate } from '../utils/calendarDate.js';
 
 // program_plan_name is only present when the caller asked for it via the LEFT JOIN below (mirrors
 // Call.js's dietitian_name/client_name populate pattern).
@@ -14,6 +15,7 @@ function mapUser(row) {
     phone: row.phone,
     address: row.address,
     qualifications: row.qualifications,
+    joinedOn: toCalendarDate(row.joined_on_ymd ?? (row.joined_on instanceof Date ? row.joined_on.toISOString().slice(0, 10) : row.joined_on)),
     accountStatus: row.account_status,
     assignedDietitian: row.assigned_dietitian_id,
     refreshTokenVersion: row.refresh_token_version,
@@ -36,14 +38,17 @@ function mapUser(row) {
   return user;
 }
 
-const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, pp.name AS program_plan_name FROM users u
+const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, DATE_FORMAT(u.joined_on, '%Y-%m-%d') AS joined_on_ymd, pp.name AS program_plan_name FROM users u
    LEFT JOIN program_plans pp ON pp.id = u.program_plan_id`;
 
 export async function findUserByEmail(email) {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized) return null;
   // LOWER() so a stored mixed-case address still matches what loginSchema normalizes to.
-  const [rows] = await pool.query('SELECT * FROM users WHERE LOWER(email) = ? LIMIT 1', [normalized]);
+  const [rows] = await pool.query(
+    "SELECT *, DATE_FORMAT(joined_on, '%Y-%m-%d') AS joined_on_ymd FROM users WHERE LOWER(email) = ? LIMIT 1",
+    [normalized]
+  );
   return mapUser(rows[0]);
 }
 
@@ -71,6 +76,7 @@ export async function createUser(
     phone = null,
     address = null,
     qualifications = null,
+    joinedOn = null,
     assignedDietitian = null,
     mustChangePassword = false,
     programPlan = null,
@@ -86,8 +92,8 @@ export async function createUser(
 ) {
   if (!companyId) throw new Error('createUser: companyId is required');
   const id = newId();
-  const columns = ['id', 'name', 'email', 'password_hash', 'role', 'phone', 'address', 'qualifications', 'assigned_dietitian_id', 'must_change_password', 'program_plan_id', 'plan_duration', 'zenx_user_id', 'company_id', 'company_slug'];
-  const values = [id, name, email, passwordHash, role, phone, address, qualifications, assignedDietitian, mustChangePassword, programPlan, planDuration, zenxUserId, companyId, companySlug];
+  const columns = ['id', 'name', 'email', 'password_hash', 'role', 'phone', 'address', 'qualifications', 'joined_on', 'assigned_dietitian_id', 'must_change_password', 'program_plan_id', 'plan_duration', 'zenx_user_id', 'company_id', 'company_slug'];
+  const values = [id, name, email, passwordHash, role, phone, address, qualifications, joinedOn, assignedDietitian, mustChangePassword, programPlan, planDuration, zenxUserId, companyId, companySlug];
   if (timezone !== undefined) {
     columns.push('timezone');
     values.push(timezone);
@@ -127,7 +133,7 @@ export async function listUsers(filter = {}) {
   return rows.map(mapUser);
 }
 
-// patch may include: name, email, phone, address, qualifications, accountStatus, role,
+// patch may include: name, email, phone, address, qualifications, joinedOn, accountStatus, role,
 // assignedDietitian, programPlan, planDuration, timezone
 export async function updateUser(id, patch, conn = pool) {
   const columns = {
@@ -136,6 +142,7 @@ export async function updateUser(id, patch, conn = pool) {
     phone: 'phone',
     address: 'address',
     qualifications: 'qualifications',
+    joinedOn: 'joined_on',
     accountStatus: 'account_status',
     role: 'role',
     assignedDietitian: 'assigned_dietitian_id',

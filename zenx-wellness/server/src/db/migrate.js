@@ -140,6 +140,8 @@ const ALTERS = [
   // Stamped on password login and ZenX SSO handoff so the admin customer page can show a real
   // last-login instead of "Never" when the person only ever signs into this app.
   'ALTER TABLE users ADD COLUMN last_login DATETIME(3) NULL AFTER updated_at',
+  // Dietitian date of joining — civil day only. See schema.sql's joined_on comment.
+  'ALTER TABLE users ADD COLUMN joined_on DATE NULL AFTER qualifications',
 ];
 
 // admin-server (ZenX) is the source of truth for company identity; this is only the local mirror

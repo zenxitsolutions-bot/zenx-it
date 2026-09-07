@@ -5,8 +5,10 @@ import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useCurrentPlan, useUpdateMealStatus } from '@/hooks/usePlans';
 import { getTodayName, getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
+import { formatCalendarDate } from '@/lib/calendarDate';
 import { DayTabs } from './DayTabs';
 import { MealCard } from './MealCard';
+import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
 import { Utensils } from 'lucide-react';
 
 export function MealsScreen() {
@@ -35,9 +37,17 @@ export function MealsScreen() {
 
   function toggle(meal, field) {
     if (!plan) return;
+    const next = !meal[field];
     updateMeal.mutate(
-      { planId: plan._id, mealIndex: plan.meals.indexOf(meal), [field]: !meal[field] },
-      { onError: () => toast.error("That didn't save — please try again.") }
+      { planId: plan._id, mealIndex: plan.meals.indexOf(meal), [field]: next },
+      {
+        onError: () => toast.error("That didn't save — please try again."),
+        onSuccess: () => {
+          if (field === 'swapRequested' && next) {
+            toast.success('Swap requested — your dietitian has been notified.');
+          }
+        },
+      }
     );
   }
 
@@ -47,8 +57,13 @@ export function MealsScreen() {
         <div>
           <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Made to nourish your week</p>
           <h1 className="mt-1.5 text-3xl font-semibold text-forest">This week's meals</h1>
-          <p className="mt-1.5 text-muted-foreground">Tap a meal when you've enjoyed it. Every little tick is a win.</p>
+          <p className="mt-1.5 text-muted-foreground">
+            {plan
+              ? `${plan.title} · ${formatCalendarDate(plan.week)} – ${formatCalendarDate(plan.weekEnd)}`
+              : "Tap a meal when you've enjoyed it. Every little tick is a win."}
+          </p>
         </div>
+        {plan ? <DownloadPlanPdfButton planId={plan._id} /> : null}
       </div>
 
       {isLoading ? (

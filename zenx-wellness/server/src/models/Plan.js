@@ -3,6 +3,7 @@ import { newId } from '../db/id.js';
 import { buildSetClause } from '../db/helpers.js';
 import { mapRecipeRow, tagsByRecipeIds } from './Recipe.js';
 import { toClientShape } from '../utils/serialize.js';
+import { dateForWeekdaySlot } from '../utils/calendarDate.js';
 
 const PLAN_COLUMNS = { title: 'title', published: 'published' };
 
@@ -108,6 +109,9 @@ export async function listPlans(filter = {}) {
   if (filter.week) {
     where.push('p.week = ?');
     params.push(filter.week);
+  }
+  if (filter.published === true) {
+    where.push('p.published = 1');
   }
   const [rows] = await pool.query(
     `${PLAN_SELECT} JOIN users du ON du.id = p.dietitian_id WHERE ${where.join(' AND ')} ORDER BY p.week DESC`,
@@ -235,4 +239,37 @@ export async function updatePlanMealByIndex(planId, index, patch) {
     await pool.query(`UPDATE plan_meals SET ${sets.join(', ')} WHERE id = ?`, [...params, target.id]);
   }
   return findPlanById(planId);
+}
+
+export async function listSwapRequestsForDietitian(dietitianId) {
+  const [rows] = await pool.query(
+    `SELECT
+       p.id AS plan_id,
+       p.client_id,
+       DATE_FORMAT(p.week, '%Y-%m-%d') AS week,
+       u.name AS client_name,
+       pm.day,
+       pm.time,
+       pm.meal_type,
+       pm.custom_title,
+       r.title AS recipe_title
+     FROM plan_meals pm
+     JOIN plans p ON p.id = pm.plan_id
+     JOIN users u ON u.id = p.client_id
+     LEFT JOIN recipes r ON r.id = pm.recipe_id
+     WHERE p.dietitian_id = ? AND pm.swap_requested = 1
+     ORDER BY p.week DESC, pm.idx`,
+    [dietitianId]
+  );
+  return rows.map((row) => ({
+    planId: row.plan_id,
+    clientId: row.client_id,
+    clientName: row.client_name,
+    week: row.week,
+    day: row.day,
+    time: row.time,
+    mealType: row.meal_type,
+    mealTitle: row.recipe_title || row.custom_title || row.meal_type,
+    mealDate: dateForWeekdaySlot(row.week, row.day),
+  }));
 }

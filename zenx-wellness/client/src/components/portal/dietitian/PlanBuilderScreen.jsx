@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,18 +15,20 @@ import { createBlankMeal, defaultWeekStart, endOfWeek, toApiMeal, toLocalMeal } 
 import { cn } from '@/lib/utils';
 import { ScheduleRow } from './ScheduleRow';
 import { RecipeRail } from './RecipeRail';
+import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
 
 const SAVE_LABEL = { idle: '', saving: 'Saving…', saved: 'Saved', error: "Couldn't save" };
 
 export function PlanBuilderScreen() {
   const { user } = useAuth();
   const isAdmin = user.role === 'admin';
+  const [searchParams] = useSearchParams();
   const clientsQuery = useClients();
   const recipesQuery = useRecipes();
   const dietitiansQuery = useDietitians(isAdmin);
 
-  const [clientId, setClientId] = useState('');
-  const [week, setWeek] = useState(() => defaultWeekStart());
+  const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
+  const [week, setWeek] = useState(() => searchParams.get('week') || defaultWeekStart());
   const [title, setTitle] = useState('');
   const [meals, setMeals] = useState([]);
   const [planId, setPlanId] = useState(null);
@@ -48,6 +51,8 @@ export function PlanBuilderScreen() {
   const planIdRef = useRef(planId);
   const lastSavedRef = useRef({ title: '', meals: [] });
   const lastHydratedKeyRef = useRef(null);
+  const highlightRef = useRef(null);
+  const didScrollHighlightRef = useRef(false);
   mealsRef.current = meals;
   titleRef.current = title;
   const planQuery = usePlanForWeek(clientId || null, week);
@@ -62,12 +67,23 @@ export function PlanBuilderScreen() {
   // plan.controller.js#createPlan). Once a plan exists its dietitian is fixed, not editable here.
   const needsDietitianChoice = isAdmin && !planId && !dietitianId;
 
+  // Review from the dashboard names a client/week in the URL. Apply once per URL change so
+  // the dietitian can still switch client afterwards without being yanked back.
+  useEffect(() => {
+    const fromUrl = searchParams.get('client');
+    const weekFromUrl = searchParams.get('week');
+    if (fromUrl) setClientId(fromUrl);
+    if (weekFromUrl) setWeek(weekFromUrl);
+    didScrollHighlightRef.current = false;
+  }, [searchParams]);
+
   // Default to the first client once the list loads. Depends on clientsQuery.data (a stable
   // reference from React Query) rather than the `clients` fallback array, which is a fresh `[]`
   // literal every render while loading and would otherwise re-trigger this on every render.
   useEffect(() => {
+    if (searchParams.get('client')) return;
     if (!clientId && clientsQuery.data?.length > 0) setClientId(clientsQuery.data[0]._id);
-  }, [clientId, clientsQuery.data]);
+  }, [clientId, clientsQuery.data, searchParams]);
 
   // Hydrate local editable state whenever the loaded plan (or selected client/week) changes.
   // A background refetch of the SAME client/week (triggered by the save mutation's own
@@ -87,7 +103,18 @@ export function PlanBuilderScreen() {
       setPlanId(planQuery.plan._id);
       planIdRef.current = planQuery.plan._id;
       nextTitle = planQuery.plan.title;
-      nextMeals = planQuery.plan.meals.map(toLocalMeal);
+      nextMeals = planQuery.plan.meals.map((meal) => {
+        const local = toLocalMeal(meal);
+        if (!isSameSelection) return local;
+        const prev = mealsRef.current.find((m) => m.day === meal.day && m.time === meal.time);
+        if (prev?.swapOriginalTitle == null && prev?.swapOriginalRecipeId === undefined) return local;
+        return {
+          ...local,
+          swapOriginalRecipeId: prev.swapOriginalRecipeId,
+          swapOriginalCustomTitle: prev.swapOriginalCustomTitle,
+          swapOriginalTitle: prev.swapOriginalTitle,
+        };
+      });
       setTitle(nextTitle);
       setMeals(nextMeals);
       setDietitianId(planQuery.plan.dietitian ?? '');
@@ -111,12 +138,12 @@ export function PlanBuilderScreen() {
   // meals/title, read via refs — the moment the in-flight one finishes, instead of firing a second
   // overlapping request that could land at the DB out of order and silently overwrite the newer edit.
   async function save(extra = {}) {
-    if (!clientId) return;
+    if (!clientId) return false;
     clearTimeout(saveTimerRef.current);
 
     if (saveInFlightRef.current) {
       pendingSaveRef.current = extra;
-      return;
+      return false;
     }
 
     saveInFlightRef.current = true;
@@ -140,12 +167,14 @@ export function PlanBuilderScreen() {
       lastSavedRef.current = { title: titleRef.current, meals: mealsRef.current };
       dirtyRef.current = false;
       setSaveState('saved');
+      return true;
     } catch {
       setTitle(lastSavedRef.current.title);
       setMeals(lastSavedRef.current.meals);
       dirtyRef.current = false;
       setSaveState('error');
       toast.error("That didn't save — your last saved version was restored.");
+      return false;
     } finally {
       saveInFlightRef.current = false;
       if (pendingSaveRef.current !== null) {
@@ -174,6 +203,30 @@ export function PlanBuilderScreen() {
     markDirty(meals.map((m) => (m.localId === localId ? { ...m, ...patch } : m)));
   }
 
+  async function notifySwap(localId) {
+    const meal = mealsRef.current.find((m) => m.localId === localId);
+    if (!meal) return;
+    if (!meal.recipeId && !(meal.customTitle ?? '').trim()) {
+      toast.error('Choose a replacement recipe first.');
+      return;
+    }
+    const nextMeals = mealsRef.current.map((m) => (m.localId === localId ? { ...m, swapRequested: false } : m));
+    mealsRef.current = nextMeals;
+    setMeals(nextMeals);
+    dirtyRef.current = true;
+    const saved = await save({
+      notifySwaps: true,
+      swapResolutions: [
+        {
+          day: meal.day,
+          time: meal.time,
+          previousMeal: meal.swapOriginalTitle || meal.customTitle || meal.mealType,
+        },
+      ],
+    });
+    if (saved) toast.success('Client notified of the swap.');
+  }
+
   function addMeal() {
     markDirty([...meals, createBlankMeal()]);
   }
@@ -192,6 +245,14 @@ export function PlanBuilderScreen() {
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
+  const highlightDay = searchParams.get('day');
+  const highlightTime = searchParams.get('time');
+
+  useEffect(() => {
+    if (didScrollHighlightRef.current || !meals.length || !highlightDay) return;
+    highlightRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    didScrollHighlightRef.current = true;
+  }, [meals, highlightDay, highlightTime]);
 
   return (
     <div className="mx-auto max-w-6xl p-9">
@@ -207,6 +268,7 @@ export function PlanBuilderScreen() {
               {SAVE_LABEL[saveState]}
             </span>
           )}
+          <DownloadPlanPdfButton planId={planId} />
           <Button
             onClick={() => {
               if (meals.length === 0) {
@@ -306,16 +368,25 @@ export function PlanBuilderScreen() {
                 <Skeleton className="h-40 w-full" />
               ) : (
                 <div className="grid gap-2">
-                  {meals.map((meal) => (
-                    <ScheduleRow
-                      key={meal.localId}
-                      meal={meal}
-                      recipes={recipes}
-                      weekStart={week}
-                      onChange={(patch) => updateMeal(meal.localId, patch)}
-                      onRemove={() => removeMeal(meal.localId)}
-                    />
-                  ))}
+                  {meals.map((meal) => {
+                    const highlighted = Boolean(
+                      highlightDay && highlightTime && meal.day === highlightDay && meal.time === highlightTime
+                    );
+                    return (
+                      <ScheduleRow
+                        key={meal.localId}
+                        ref={highlighted ? highlightRef : undefined}
+                        meal={meal}
+                        recipes={recipes}
+                        weekStart={week}
+                        highlighted={highlighted}
+                        onChange={(patch) => updateMeal(meal.localId, patch)}
+                        onRemove={() => removeMeal(meal.localId)}
+                        onNotifySwap={() => notifySwap(meal.localId)}
+                        notifyPending={updatePlan.isPending}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </section>

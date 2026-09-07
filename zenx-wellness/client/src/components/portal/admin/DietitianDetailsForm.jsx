@@ -22,6 +22,7 @@ const schema = z.object({
   phone: z.string().refine(isValidPhoneNumber, 'Enter a valid phone number'),
   address: z.string().min(1, 'Enter an address'),
   qualifications: z.string().optional(),
+  joinedOn: z.string().optional(),
   accountStatus: z.enum(ACCOUNT_STATUSES),
 });
 
@@ -32,6 +33,7 @@ function toFormValues(dietitian) {
     phone: toE164OrEmpty(dietitian.phone),
     address: dietitian.address ?? '',
     qualifications: dietitian.qualifications ?? '',
+    joinedOn: dietitian.joinedOn ?? '',
     accountStatus: dietitian.accountStatus ?? 'active',
   };
 }
@@ -40,7 +42,7 @@ function toFormValues(dietitian) {
 // 2's "full editing" list, minus working hours (its own tab — see DietitianWorkingHoursTab.jsx).
 // 'suspended'/'inactive' never touch this dietitian's existing clients/calls/plans on their own —
 // see the account_status comment in schema.sql for exactly what each state does and doesn't do.
-export function DietitianDetailsForm({ dietitian }) {
+export function DietitianDetailsForm({ dietitian, onSaved }) {
   const updateUser = useUpdateUser();
   const form = useForm({ resolver: zodResolver(schema), defaultValues: toFormValues(dietitian) });
 
@@ -51,9 +53,12 @@ export function DietitianDetailsForm({ dietitian }) {
 
   function onSubmit(values) {
     updateUser.mutate(
-      { userId: dietitian._id, ...values },
+      { userId: dietitian._id, ...values, joinedOn: values.joinedOn || null },
       {
-        onSuccess: () => toast.success('Profile updated.'),
+        onSuccess: () => {
+          toast.success('Profile updated.');
+          onSaved?.();
+        },
         onError: (error) => {
           // Email changes keep the account working — sessions/tokens key off the user's id, not
           // email (see server/src/utils/jwt.js) — the only real failure mode is a duplicate,
@@ -137,6 +142,19 @@ export function DietitianDetailsForm({ dietitian }) {
                 <FormLabel>Credentials / qualifications</FormLabel>
                 <FormControl>
                   <Textarea rows={3} placeholder="e.g. Registered Dietitian, MS in Clinical Nutrition" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="joinedOn"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Date of joining</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

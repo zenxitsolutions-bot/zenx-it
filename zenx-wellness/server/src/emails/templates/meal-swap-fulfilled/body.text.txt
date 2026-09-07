@@ -1,0 +1,9 @@
+Hi {{client_name}}
+
+{{dietitian_name}} swapped a meal on your weekly plan.
+
+{{meal_type}} · {{meal_when}}
+Was: {{previous_meal}}
+Now: {{new_meal}}
+
+It's ready to view on This week's meals: {{login_url}}

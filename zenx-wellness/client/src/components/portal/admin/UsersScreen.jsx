@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsers } from '@/hooks/useUsers';
 import { useDietitians } from '@/hooks/useClients';
+import { formatCalendarDate } from '@/lib/calendarDate';
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_BADGE_VARIANT } from '@/lib/accountStatus';
 import { UserFormDialog } from './UserFormDialog';
 import { UserEditDialog } from './UserEditDialog';
@@ -50,9 +51,12 @@ export function UsersScreen() {
 
   // Dietitians get their own richer page (spec §2026-round2-fixes item 2 — personal/contact
   // details, credentials, working hours, account status); client/admin edits stay in the dialog.
-  function openEdit(user) {
-    if (user.role === 'dietitian') navigate(`/${companySlug}/app/users/dietitians/${user._id}`);
-    else setEditing(user);
+  function openProfile(user, { edit = false } = {}) {
+    if (user.role === 'dietitian') {
+      navigate(`/${companySlug}/app/users/dietitians/${user._id}${edit ? '?edit=1' : ''}`);
+      return;
+    }
+    setEditing(user);
   }
 
   return (
@@ -134,6 +138,9 @@ export function UsersScreen() {
                   {u.role === 'client' && (
                     <> · {u.assignedDietitian ? `Works with ${dietitianName(u.assignedDietitian) ?? '…'}` : 'No dietitian yet'}</>
                   )}
+                  {u.role === 'dietitian' && u.joinedOn && (
+                    <> · Joined {formatCalendarDate(u.joinedOn, { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                  )}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-3">
@@ -146,9 +153,18 @@ export function UsersScreen() {
                     Reset password
                   </button>
                 )}
+                {u.role === 'dietitian' && (
+                  <button
+                    type="button"
+                    onClick={() => openProfile(u)}
+                    className="text-sm font-semibold text-forest hover:underline"
+                  >
+                    View
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => openEdit(u)}
+                  onClick={() => openProfile(u, { edit: true })}
                   className="text-sm font-semibold text-forest hover:underline"
                 >
                   Edit

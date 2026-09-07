@@ -37,6 +37,10 @@ CREATE TABLE IF NOT EXISTS users (
   -- rather than a separate dietitian-only table, same convention already used for phone/timezone.
   address VARCHAR(255) NULL,
   qualifications TEXT NULL,
+  -- Civil day the dietitian joined this organisation. Meaningful for role='dietitian';
+  -- left on `users` like address/qualifications rather than a separate table. DATE (not
+  -- DATETIME) so timezone conversion cannot shift the day — same reason plans.week is DATE.
+  joined_on DATE NULL,
   -- Deliberately never touches assigned_dietitian_id, calls, or plans on its own — see the
   -- account_status comment further down and enquiry.controller.js-style "don't silently orphan"
   -- reasoning in docs/worklog/2026-08-23.md. 'suspended' blocks login (middleware/authenticate.js);

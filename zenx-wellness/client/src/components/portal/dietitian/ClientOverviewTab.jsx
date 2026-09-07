@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatCalendarDate } from '@/lib/calendarDate';
 import { formatDate } from '@/lib/format';
 import { ClientContactEditDialog } from './ClientContactEditDialog';
+import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
 
 // Spec §6 item 1: client information, plan, and plan duration — plus a quick pointer at the
 // current weekly meal plan (full history of those lives in the Meal plans tab). Spec
@@ -99,12 +100,15 @@ export function ClientOverviewTab({ client }) {
         {planQuery.isLoading ? (
           <Skeleton className="mt-4 h-14 w-full" />
         ) : planQuery.plan ? (
-          <div className="mt-4 rounded-xl bg-cream p-3">
-            <strong className="block text-sm text-forest">{planQuery.plan.title}</strong>
-            <span className="text-xs text-muted-foreground">
-              Week of {formatCalendarDate(planQuery.plan.week, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {planQuery.plan.published ? 'Published' : 'Draft'} ·{' '}
-              {planQuery.plan.meals.length} meal{planQuery.plan.meals.length === 1 ? '' : 's'}
-            </span>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream p-3">
+            <div>
+              <strong className="block text-sm text-forest">{planQuery.plan.title}</strong>
+              <span className="text-xs text-muted-foreground">
+                Week of {formatCalendarDate(planQuery.plan.week, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {planQuery.plan.published ? 'Published' : 'Draft'} ·{' '}
+                {planQuery.plan.meals.length} meal{planQuery.plan.meals.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <DownloadPlanPdfButton planId={planQuery.plan._id} size="sm" />
           </div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">No weekly plan assigned yet.</p>

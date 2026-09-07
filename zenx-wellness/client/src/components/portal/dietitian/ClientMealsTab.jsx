@@ -49,6 +49,7 @@ export function ClientMealsTab({ clientId }) {
               <th className="py-2 pr-4">Meal</th>
               <th className="py-2 pr-4">Time</th>
               <th className="py-2 pr-4">Recipe</th>
+              <th className="py-2 pr-4">Swap</th>
               <th className="py-2 pr-4">Notes</th>
             </tr>
           </thead>
@@ -62,6 +63,15 @@ export function ClientMealsTab({ clientId }) {
                 <td className="py-2 pr-4 whitespace-nowrap text-muted-foreground">{meal.time}</td>
                 <td className="py-2 pr-4">
                   {meal.recipe ? `${meal.recipe.emoji ?? ''} ${meal.recipe.title}`.trim() : (meal.customTitle ?? '—')}
+                </td>
+                <td className="py-2 pr-4">
+                  {meal.swapRequested ? (
+                    <span className="rounded-full bg-calories-tint px-2 py-0.5 text-xs font-semibold text-status-followup-ink">
+                      Requested
+                    </span>
+                  ) : (
+                    '—'
+                  )}
                 </td>
                 <td className="py-2 pr-4 text-muted-foreground">{meal.notes || '—'}</td>
               </tr>

@@ -18,6 +18,16 @@ export function addCalendarDays(ymd, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+// Plan meals store WEEKDAYS positional keys (Monday = slot 0), not the civil weekday of week start.
+const WEEKDAY_SLOTS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+export function dateForWeekdaySlot(week, day) {
+  const start = toCalendarDate(week);
+  const offset = WEEKDAY_SLOTS.indexOf(day);
+  if (!start || offset < 0) return null;
+  return addCalendarDays(start, offset);
+}
+
 export function formatCalendarDate(value, pattern = { day: 'numeric', month: 'short', year: 'numeric' }) {
   const ymd = toCalendarDate(value);
   if (!ymd) return '';

@@ -88,6 +88,27 @@ export function computeMealCompletion(plan) {
   return { completed: meals.filter((meal) => meal.completed).length, total: meals.length };
 }
 
+function planCoversDate(plan, today) {
+  const start = toCalendarDate(plan?.week);
+  if (!start) return false;
+  const end = toCalendarDate(plan.weekEnd) || addCalendarDays(start, 6);
+  return today >= start && today <= end;
+}
+
+// "This week's plan" is the one whose 7-day window contains today — not merely the newest row.
+// A future draft (week DESC first) was hiding the published week clients actually need.
+export function pickCurrentPlan(plans, today = toLocalCalendarDate()) {
+  const list = Array.isArray(plans) ? plans : [];
+  const covering = list.filter((p) => planCoversDate(p, today));
+  return (
+    covering.find((p) => p.published) ||
+    covering[0] ||
+    list.find((p) => p.published) ||
+    list[0] ||
+    null
+  );
+}
+
 export function splitCalls(calls) {
   const now = Date.now();
   const upcoming = [];
@@ -209,4 +230,18 @@ export function computeProgressStats(entries) {
     energyChangeRecent: previous && latest.energy != null && previous.energy != null ? latest.energy - previous.energy : null,
     checkInsLast30Days: sorted.filter((entry) => new Date(entry.date).getTime() >= thirtyDaysAgo).length,
   };
+}
+
+export function recipeIngredientList(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return [];
+  if (/\r?\n/.test(raw)) return raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  return raw.split(',').map((item) => item.replace(/\.$/, '').trim()).filter(Boolean);
+}
+
+export function recipeInstructionSteps(text) {
+  const raw = String(text ?? '').trim();
+  if (!raw) return [];
+  if (/\r?\n/.test(raw)) return raw.split(/\r?\n/).map((step) => step.trim()).filter(Boolean);
+  return [raw];
 }

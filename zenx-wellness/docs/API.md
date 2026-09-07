@@ -158,6 +158,7 @@ client account). `PATCH /enquiries/:id`'s payload by `status`:
 |---|---|---|---|
 | GET | `/plans` | Auth (own) | `?client=&week=` → `[plan]` (meals populate `recipe`) |
 | GET | `/plans/:id` | Auth (own) | → `{plan}` |
+| GET | `/plans/:id/pdf` | Auth (own) | → PDF of the full week + every meal's recipe (ingredients, method, notes) |
 | POST | `/plans` | dietitian(own client only, `403` otherwise — `dietitian` derived from caller), admin(explicit `dietitian`) | `{client, dietitian?, title?, week, weekEnd, meals[]}` → `{plan}` |
 | PATCH | `/plans/:id` | dietitian(own plan only, `403` otherwise), admin | `{title?, meals?, published?}` → `{plan}` — a genuine `published` transition (`false`/unset → `true`) queues a `plan-published` email to the client (2026-08-23, see below); a repeat `published: true` on an already-published plan (or any other field changing) does not |
 | PATCH | `/plans/:id/meals/:index` | client (own) | `{completed?, swapRequested?}` → `{plan}` — client can mark a meal eaten or flag it for a swap; cannot change what the meal is |

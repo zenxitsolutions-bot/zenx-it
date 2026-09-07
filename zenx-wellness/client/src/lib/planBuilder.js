@@ -33,6 +33,8 @@ export function createBlankMeal(day = WEEKDAYS[0]) {
     recipeId: null,
     customTitle: '',
     notes: '',
+    completed: false,
+    swapRequested: false,
   };
 }
 
@@ -53,6 +55,15 @@ export function toLocalMeal(meal) {
     recipeId: meal.recipe?._id ?? meal.recipe ?? null,
     customTitle: meal.customTitle ?? '',
     notes: meal.notes ?? '',
+    completed: !!meal.completed,
+    swapRequested: !!meal.swapRequested,
+    // Frozen at first load of a swap request — autosave must not rewrite these, or "notify"
+    // thinks the replacement is the original.
+    swapOriginalRecipeId: meal.swapRequested ? (meal.recipe?._id ?? meal.recipe ?? null) : undefined,
+    swapOriginalCustomTitle: meal.swapRequested ? (meal.customTitle ?? '') : undefined,
+    swapOriginalTitle: meal.swapRequested
+      ? (meal.recipe?.title ?? meal.customTitle ?? meal.mealType)
+      : undefined,
   };
 }
 
@@ -62,7 +73,7 @@ export function toLocalMeal(meal) {
 // holds for the custom buffers once a fixed type is picked. A blank custom meal-type name falls
 // back to the literal "Custom" rather than blocking autosave mid-edit, the same tolerant-of-an-
 // incomplete-slot spirit as an empty recipe already rendering as "<type> — recipe TBD" elsewhere.
-export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes }) {
+export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes, completed, swapRequested }) {
   const isCustom = mealType === 'Custom';
   return {
     day,
@@ -71,6 +82,8 @@ export function toApiMeal({ mealType, customMealType, day, time, recipeId, custo
     recipe: isCustom ? null : recipeId,
     customTitle: isCustom ? customTitle?.trim() || null : null,
     notes: notes || null,
+    completed: !!completed,
+    swapRequested: !!swapRequested,
   };
 }
 

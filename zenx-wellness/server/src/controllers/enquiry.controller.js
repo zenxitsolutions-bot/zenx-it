@@ -161,13 +161,25 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   const { status, note } = req.body;
 
   if (status === 'follow-up') {
-    const { dietitian, scheduledAt } = req.body;
-    // Goes through the exact same service call.controller.js#createCall uses (availability check,
-    // transaction, AND the booking-email notification to both the dietitian and the enquiry's own
-    // contact email) — this used to call the model directly, silently skipping the booking email
-    // for every Follow-up call. `enquiry`, not `client`: no account exists to attach this call to
-    // yet.
-    const call = await bookCall({ enquiry: existing.id, dietitian, scheduledAt, notes: note });
+    const { scheduledAt, assignedTo, dietitian } = req.body;
+    const hostId = assignedTo || dietitian || req.user.id;
+    const host = await findUserById(hostId);
+    if (!host || host.role !== 'admin' || host.companyId !== existing.companyId) {
+      throw ApiError.badRequest('Follow-up must be assigned to an admin in this organisation');
+    }
+    if (host.accountStatus && host.accountStatus !== 'active') {
+      throw ApiError.badRequest('That admin account is not active');
+    }
+    // Hosts are admins, who typically have no weekly hours — skip dietitian-slot availability.
+    // Still goes through bookCall so the booking email fires to the admin and the enquiry contact.
+    // `enquiry`, not `client`: no account exists to attach this call to yet.
+    const call = await bookCall({
+      enquiry: existing.id,
+      dietitian: hostId,
+      scheduledAt,
+      notes: note,
+      force: true,
+    });
     await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null, callId: call.id });
     const enquiry = await updateEnquiryById(req.params.id, { status, note });
     return res.json(toClientShape(enquiry));
