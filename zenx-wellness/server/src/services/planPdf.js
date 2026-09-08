@@ -1,5 +1,5 @@
 import PDFDocument from 'pdfkit';
-import { addCalendarDays, dateForWeekdaySlot, formatCalendarDate, toCalendarDate } from '../utils/calendarDate.js';
+import { addCalendarDays, formatCalendarDate, planWeekDays, toCalendarDate } from '../utils/calendarDate.js';
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const FOREST = '#1b2b42';
@@ -44,9 +44,12 @@ function mealTitle(meal) {
 }
 
 function groupMealsByDay(plan) {
-  const map = Object.fromEntries(WEEKDAYS.map((day) => [day, []]));
+  const days = planWeekDays(plan.week);
+  const map = Object.fromEntries(days.map((day) => [day, []]));
   for (const meal of plan.meals ?? []) {
-    (map[meal.day] ??= []).push(meal);
+    const offset = WEEKDAYS.indexOf(meal.day);
+    const day = offset >= 0 ? days[offset] : meal.day;
+    (map[day] ??= []).push(meal);
   }
   for (const day of Object.keys(map)) {
     map[day].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
@@ -54,13 +57,16 @@ function groupMealsByDay(plan) {
   return map;
 }
 
-function orderedDays(mealsByDay) {
-  const extra = Object.keys(mealsByDay).filter((day) => !WEEKDAYS.includes(day));
-  return [...WEEKDAYS, ...extra];
+function orderedDays(plan, mealsByDay) {
+  const days = planWeekDays(plan.week);
+  const extra = Object.keys(mealsByDay).filter((day) => !days.includes(day));
+  return [...days, ...extra];
 }
 
 function dayLabel(week, day) {
-  const date = dateForWeekdaySlot(week, day);
+  const start = toCalendarDate(week);
+  const index = planWeekDays(week).indexOf(day);
+  const date = start && index >= 0 ? addCalendarDays(start, index) : null;
   if (!date) return day;
   return `${formatCalendarDate(date, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}`;
 }
@@ -234,7 +240,7 @@ function drawWeek(doc, plan, mealsByDay) {
   writeParagraph(doc, 'Every meal in the plan, with ingredients and method.', { size: 9, color: MUTED, gapAfter: 10 });
   rule(doc);
 
-  for (const day of orderedDays(mealsByDay)) {
+  for (const day of orderedDays(plan, mealsByDay)) {
     const meals = mealsByDay[day] ?? [];
     if (meals.length === 0) continue;
     ensureSpace(doc, 36);

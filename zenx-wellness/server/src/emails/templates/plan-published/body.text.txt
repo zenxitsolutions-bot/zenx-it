@@ -2,4 +2,4 @@ Hi {{client_name}}
 
 {{dietitian_name}} just published your plan for {{week_range}}: {{plan_name}}.
 
-It's ready to view now: {{login_url}}
+It's ready to view now (a PDF of this week's meals is attached): {{login_url}}

@@ -5,13 +5,20 @@ import { mapRecipeRow, tagsByRecipeIds } from './Recipe.js';
 import { toClientShape } from '../utils/serialize.js';
 import { dateForWeekdaySlot } from '../utils/calendarDate.js';
 
-const PLAN_COLUMNS = { title: 'title', published: 'published' };
+const PLAN_COLUMNS = {
+  title: 'title',
+  published: 'published',
+  reusable: 'reusable',
+  client: 'client_id',
+  week: 'week',
+  weekEnd: 'week_end',
+};
 
 // DATE_FORMAT keeps week/week_end as the stored civil day. Returning the raw DATE column lets
 // mysql2 wrap it in a UTC Date; JSON then becomes an ISO timestamp the client's local timezone
 // can shift (Thursday 3 Sep → another weekday). Same reason Progress.js formats dates in SQL.
 const PLAN_DATE_COLUMNS = `DATE_FORMAT(p.week, '%Y-%m-%d') AS week, DATE_FORMAT(p.week_end, '%Y-%m-%d') AS week_end`;
-const PLAN_SELECT = `SELECT p.id, p.client_id, p.dietitian_id, p.title, ${PLAN_DATE_COLUMNS}, p.published, p.created_at, p.updated_at FROM plans p`;
+const PLAN_SELECT = `SELECT p.id, p.client_id, p.dietitian_id, p.title, ${PLAN_DATE_COLUMNS}, p.published, p.reusable, p.created_at, p.updated_at FROM plans p`;
 
 function mapPlan(row) {
   return {
@@ -22,6 +29,7 @@ function mapPlan(row) {
     week: row.week,
     weekEnd: row.week_end,
     published: !!row.published,
+    reusable: !!row.reusable,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -113,8 +121,11 @@ export async function listPlans(filter = {}) {
   if (filter.published === true) {
     where.push('p.published = 1');
   }
+  if (filter.reusable === true) {
+    where.push('p.reusable = 1');
+  }
   const [rows] = await pool.query(
-    `${PLAN_SELECT} JOIN users du ON du.id = p.dietitian_id WHERE ${where.join(' AND ')} ORDER BY p.week DESC`,
+    `${PLAN_SELECT} JOIN users du ON du.id = p.dietitian_id WHERE ${where.join(' AND ')} ORDER BY p.week DESC, p.updated_at DESC`,
     params
   );
   const mealsByPlan = await getMealsForPlans(rows.map((r) => r.id));
@@ -158,12 +169,12 @@ async function insertMeals(conn, planId, meals) {
   );
 }
 
-export async function createPlan({ client, dietitian, title, week, weekEnd, meals = [], published }) {
+export async function createPlan({ client, dietitian, title, week, weekEnd, meals = [], published, reusable }) {
   const id = newId();
   await withTransaction(async (conn) => {
     await conn.query(
-      'INSERT INTO plans (id, client_id, dietitian_id, title, week, week_end, published) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, client, dietitian, title ?? 'Weekly nourish plan', week, weekEnd, published ?? false]
+      'INSERT INTO plans (id, client_id, dietitian_id, title, week, week_end, published, reusable) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, client, dietitian, title ?? 'Weekly nourish plan', week, weekEnd, published ?? false, reusable ?? false]
     );
     await insertMeals(conn, id, meals);
   });

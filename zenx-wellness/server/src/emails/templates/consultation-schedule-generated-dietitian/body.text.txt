@@ -5,4 +5,4 @@ Based on {{client_name}}'s consultation schedule, {{count}} upcoming calls have 
 
 {{gap_notice}}
 
-View in ZenX Dietitian: {{login_url}}
+View in {{company_name}}: {{login_url}}

@@ -1,8 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
 import { CallsScreen } from '@/components/portal/client/CallsScreen';
 import { DietitianCallsScreen } from '@/components/portal/dietitian/DietitianCallsScreen';
+import { AdminCallsScreen } from '@/components/portal/admin/AdminCallsScreen';
 
 export function CallsPage() {
   const { user } = useAuth();
-  return user.role === 'client' ? <CallsScreen /> : <DietitianCallsScreen />;
+  if (user.role === 'client') return <CallsScreen />;
+  if (user.role === 'admin') return <AdminCallsScreen />;
+  return <DietitianCallsScreen />;
 }

@@ -1,16 +1,16 @@
-import { WEEKDAYS } from '@/lib/clientPortal';
+import { planWeekDays } from '@/lib/clientPortal';
 import { addCalendarDays, formatCalendarDate, toCalendarDate } from '@/lib/calendarDate';
 import { cn } from '@/lib/utils';
 
-// weekStart is the dietitian's exact civil start date (YYYY-MM-DD). Tabs are that day plus
-// 0..6 calendar days — the storage key WEEKDAYS[index] is only the meal's positional slot, not
-// a claim that index 0 is Monday.
+// Tabs follow the plan's own 7-day window: a Wednesday start renders Wed…Tue, not Mon–Sun.
+// The tab key is that civil weekday so "today" and meal grouping use the same name.
 export function DayTabs({ weekStart, selectedDay, onSelect }) {
   const start = toCalendarDate(weekStart);
+  const days = planWeekDays(start);
 
   return (
     <div className="flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Day of the week">
-      {WEEKDAYS.map((day, index) => {
+      {days.map((day, index) => {
         const date = start ? addCalendarDays(start, index) : null;
         const isActive = day === selectedDay;
         return (

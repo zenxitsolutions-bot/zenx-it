@@ -12,11 +12,12 @@ import { TimezoneMismatchBanner } from '@/components/shared/TimezoneMismatchBann
 
 function PortalLive() {
   const { user } = useAuth();
-  const canMessage = user.role === 'client' || user.role === 'dietitian';
+  const canCareMessage = user.role === 'client' || user.role === 'dietitian';
+  const canLiveMessage = canCareMessage || user.role === 'admin';
   // Admin is excluded: their "own calls" query is intentionally unscoped (every call on the
   // platform), which would fire a reminder for every client's call, not just theirs.
-  useCallReminders(canMessage);
-  useMessageLive(canMessage);
+  useCallReminders(canCareMessage);
+  useMessageLive(canLiveMessage);
   return null;
 }
 

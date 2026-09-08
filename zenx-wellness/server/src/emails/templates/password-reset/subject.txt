@@ -1,1 +1,1 @@
-Reset your ZenX Dietitian password
+Reset your {{company_name}} password

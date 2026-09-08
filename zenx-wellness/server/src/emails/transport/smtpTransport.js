@@ -25,12 +25,16 @@ function getTransporter() {
   return transporter;
 }
 
-export async function sendViaSmtp({ to, subject, html, text, attachment }) {
-  // Unlike Resend's API (which wants base64), nodemailer takes the raw string and does its own
-  // encoding — passing base64 here would deliver a .ics the calendar client can't parse.
-  const attachments = attachment
-    ? [{ filename: attachment.filename, contentType: attachment.contentType, content: attachment.content }]
+export async function sendViaSmtp({ to, subject, html, text, attachments = [] }) {
+  // Unlike Resend's API (which wants base64), nodemailer takes the raw string or Buffer and does
+  // its own encoding — passing base64 here would deliver a .ics the calendar client can't parse.
+  const mailAttachments = attachments.length
+    ? attachments.map((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        content: attachment.content,
+      }))
     : undefined;
-  const info = await getTransporter().sendMail({ from: env.emailFrom, to, subject, html, text, attachments });
+  const info = await getTransporter().sendMail({ from: env.emailFrom, to, subject, html, text, attachments: mailAttachments });
   return { providerMessageId: info?.messageId ?? null };
 }

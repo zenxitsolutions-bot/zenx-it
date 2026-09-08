@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -10,12 +10,14 @@ import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients, useDietitians } from '@/hooks/useClients';
 import { useRecipes } from '@/hooks/useRecipes';
-import { useCreatePlan, usePlanForWeek, useUpdatePlan } from '@/hooks/usePlans';
-import { createBlankMeal, defaultWeekStart, endOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
+import { useClientPlans, useCreatePlan, useUpdatePlan } from '@/hooks/usePlans';
+import { createBlankMeal, defaultWeekStart, endOfWeek, findPublishedPlanForDate, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
+import { toLocalCalendarDate } from '@/lib/calendarDate';
 import { cn } from '@/lib/utils';
 import { ScheduleRow } from './ScheduleRow';
 import { RecipeRail } from './RecipeRail';
 import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
+import { PublishReuseDialog } from './PublishReuseDialog';
 
 const SAVE_LABEL = { idle: '', saving: 'Saving…', saved: 'Saved', error: "Couldn't save" };
 
@@ -23,6 +25,7 @@ export function PlanBuilderScreen() {
   const { user } = useAuth();
   const isAdmin = user.role === 'admin';
   const [searchParams] = useSearchParams();
+  const { companySlug } = useParams();
   const clientsQuery = useClients();
   const recipesQuery = useRecipes();
   const dietitiansQuery = useDietitians(isAdmin);
@@ -34,6 +37,7 @@ export function PlanBuilderScreen() {
   const [planId, setPlanId] = useState(null);
   const [dietitianId, setDietitianId] = useState('');
   const [saveState, setSaveState] = useState('idle');
+  const [publishOpen, setPublishOpen] = useState(false);
 
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef(null);
@@ -55,7 +59,16 @@ export function PlanBuilderScreen() {
   const didScrollHighlightRef = useRef(false);
   mealsRef.current = meals;
   titleRef.current = title;
-  const planQuery = usePlanForWeek(clientId || null, week);
+  const clientPlansQuery = useClientPlans(clientId || null);
+  const today = toLocalCalendarDate();
+  const isPastWeek = Boolean(week && week < today);
+  const visiblePlan = useMemo(() => {
+    const plans = clientPlansQuery.data ?? [];
+    if (!clientId || !week) return null;
+    if (isPastWeek) return findPublishedPlanForDate(plans, week);
+    return plans.find((plan) => plan.week === week) ?? null;
+  }, [clientPlansQuery.data, clientId, week, isPastWeek]);
+  const isHistorical = Boolean(isPastWeek && visiblePlan);
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
 
@@ -77,20 +90,21 @@ export function PlanBuilderScreen() {
     didScrollHighlightRef.current = false;
   }, [searchParams]);
 
-  // Default to the first client once the list loads. Depends on clientsQuery.data (a stable
-  // reference from React Query) rather than the `clients` fallback array, which is a fresh `[]`
-  // literal every render while loading and would otherwise re-trigger this on every render.
-  useEffect(() => {
-    if (searchParams.get('client')) return;
-    if (!clientId && clientsQuery.data?.length > 0) setClientId(clientsQuery.data[0]._id);
-  }, [clientId, clientsQuery.data, searchParams]);
-
   // Hydrate local editable state whenever the loaded plan (or selected client/week) changes.
   // A background refetch of the SAME client/week (triggered by the save mutation's own
   // invalidateQueries) must never clobber edits made since the last successful save — only a
   // genuine switch to a different client/week re-seeds while dirty/in-flight.
   useEffect(() => {
-    if (planQuery.isLoading || !clientId) return;
+    if (!clientId) {
+      setPlanId(null);
+      planIdRef.current = null;
+      lastHydratedKeyRef.current = null;
+      setMeals([]);
+      mealsRef.current = [];
+      setSaveState('idle');
+      return;
+    }
+    if (clientPlansQuery.isLoading) return;
     const selectionKey = `${clientId}|${week}`;
     const isSameSelection = lastHydratedKeyRef.current === selectionKey;
     if (isSameSelection && (dirtyRef.current || saveInFlightRef.current)) return;
@@ -99,11 +113,11 @@ export function PlanBuilderScreen() {
 
     let nextTitle;
     let nextMeals;
-    if (planQuery.plan) {
-      setPlanId(planQuery.plan._id);
-      planIdRef.current = planQuery.plan._id;
-      nextTitle = planQuery.plan.title;
-      nextMeals = planQuery.plan.meals.map((meal) => {
+    if (visiblePlan) {
+      setPlanId(visiblePlan._id);
+      planIdRef.current = visiblePlan._id;
+      nextTitle = visiblePlan.title;
+      nextMeals = visiblePlan.meals.map((meal) => {
         const local = toLocalMeal(meal);
         if (!isSameSelection) return local;
         const prev = mealsRef.current.find((m) => m.day === meal.day && m.time === meal.time);
@@ -117,12 +131,13 @@ export function PlanBuilderScreen() {
       });
       setTitle(nextTitle);
       setMeals(nextMeals);
-      setDietitianId(planQuery.plan.dietitian ?? '');
+      setDietitianId(visiblePlan.dietitian ?? '');
+      if (isPastWeek && visiblePlan.week && visiblePlan.week !== week) setWeek(visiblePlan.week);
     } else {
       setPlanId(null);
       planIdRef.current = null;
-      nextTitle = selectedClient ? `${selectedClient.name}'s weekly nourish plan` : 'Weekly nourish plan';
-      nextMeals = [createBlankMeal()];
+      nextTitle = titleRef.current.trim();
+      nextMeals = [];
       setTitle(nextTitle);
       setMeals(nextMeals);
       // Default to the client's own assigned dietitian, if they have one — admin can still change it.
@@ -131,14 +146,19 @@ export function PlanBuilderScreen() {
     lastSavedRef.current = { title: nextTitle, meals: nextMeals };
     setSaveState('idle');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planQuery.plan, clientId, week]);
+  }, [visiblePlan, clientId, week, clientPlansQuery.isLoading]);
 
   // Serialized, awaited autosave: at most one PATCH/POST is ever in flight. An edit that arrives
   // while a save is already outstanding is queued (pendingSaveRef) and re-sent — with the latest
   // meals/title, read via refs — the moment the in-flight one finishes, instead of firing a second
   // overlapping request that could land at the DB out of order and silently overwrite the newer edit.
   async function save(extra = {}) {
-    if (!clientId) return false;
+    if (!clientId || isHistorical) return false;
+    if (!titleRef.current.trim()) {
+      toast.error('Give this plan a title first.');
+      setSaveState('error');
+      return false;
+    }
     clearTimeout(saveTimerRef.current);
 
     if (saveInFlightRef.current) {
@@ -148,7 +168,7 @@ export function PlanBuilderScreen() {
 
     saveInFlightRef.current = true;
     setSaveState('saving');
-    const payload = { title: titleRef.current, meals: mealsRef.current.map(toApiMeal), ...extra };
+    const payload = { title: titleRef.current.trim(), meals: mealsRef.current.map(toApiMeal), ...extra };
 
     try {
       if (planIdRef.current) {
@@ -193,7 +213,7 @@ export function PlanBuilderScreen() {
   // Autosave: debounce 800ms after the last edit. Skipped (silently, not an error toast) while
   // admin hasn't picked a dietitian yet for a brand-new plan — save() would 400 without one.
   useEffect(() => {
-    if (!dirtyRef.current || needsDietitianChoice) return;
+    if (!dirtyRef.current || needsDietitianChoice || isHistorical) return;
     saveTimerRef.current = setTimeout(() => save(), 800);
     return () => clearTimeout(saveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -236,6 +256,7 @@ export function PlanBuilderScreen() {
   }
 
   function handleDragEnd(event) {
+    if (isHistorical) return;
     const { active, over } = event;
     if (!over) return;
     const recipe = active.data.current?.recipe;
@@ -260,7 +281,9 @@ export function PlanBuilderScreen() {
         <div>
           <p className="text-muted-foreground">Weekly diet schedule</p>
           <h1 className="mt-1 text-3xl text-forest">Assign a weekly diet</h1>
-          <p className="mt-1 text-muted-foreground">Set the client, timing, and meals — then drag recipes from the library into the plan.</p>
+          <p className="mt-1 text-muted-foreground">
+            Set the client, timing, and meals — then drag recipes from the library into the plan.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           {saveState !== 'idle' && (
@@ -268,25 +291,37 @@ export function PlanBuilderScreen() {
               {SAVE_LABEL[saveState]}
             </span>
           )}
-          <DownloadPlanPdfButton planId={planId} />
-          <Button
-            onClick={() => {
-              if (meals.length === 0) {
-                toast.error('Add at least one meal first.');
-                return;
-              }
-              if (needsDietitianChoice) {
-                toast.error('Choose a dietitian for this plan first.');
-                return;
-              }
-              save({ published: true });
-              toast.success("Weekly plan published — your client can now see it.");
-            }}
-            disabled={!clientId || meals.length === 0 || needsDietitianChoice}
-            className="rounded-full bg-coral text-white hover:bg-coral/90"
-          >
-            Publish weekly plan →
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/${companySlug}/app/saved-plans`}>Saved weekly plans</Link>
           </Button>
+          <DownloadPlanPdfButton planId={planId} />
+          {!isHistorical && (
+            <Button
+              onClick={() => {
+                if (!clientId) {
+                  toast.error('Select a client first.');
+                  return;
+                }
+                if (meals.length === 0) {
+                  toast.error('Add at least one meal first.');
+                  return;
+                }
+                if (needsDietitianChoice) {
+                  toast.error('Choose a dietitian for this plan first.');
+                  return;
+                }
+                if (!titleRef.current.trim()) {
+                  toast.error('Give this plan a title first.');
+                  return;
+                }
+                setPublishOpen(true);
+              }}
+              disabled={!clientId || meals.length === 0 || needsDietitianChoice}
+              className="rounded-full bg-coral text-white hover:bg-coral/90"
+            >
+              Publish weekly plan →
+            </Button>
+          )}
         </div>
       </div>
 
@@ -301,9 +336,9 @@ export function PlanBuilderScreen() {
               <div className={cn('grid grid-cols-1 gap-3 border-b border-line pb-5 min-[650px]:grid-cols-4', isAdmin && 'min-[900px]:grid-cols-5')}>
                 <label className="block text-xs font-bold text-muted-foreground">
                   Client
-                  <Select value={clientId} onValueChange={setClientId}>
+                  <Select value={clientId || undefined} onValueChange={setClientId}>
                     <SelectTrigger className="mt-1.5 w-full">
-                      <SelectValue />
+                      <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
                     <SelectContent>
                       {clients.map((c) => (
@@ -344,10 +379,13 @@ export function PlanBuilderScreen() {
                   <Input
                     value={title}
                     onChange={(e) => {
+                      if (isHistorical) return;
                       dirtyRef.current = true;
                       setTitle(e.target.value);
                     }}
+                    readOnly={isHistorical}
                     className="mt-1.5"
+                    placeholder="e.g. High-protein week"
                   />
                 </label>
               </div>
@@ -356,16 +394,31 @@ export function PlanBuilderScreen() {
                 <div>
                   <h2 className="text-xl">Meal schedule</h2>
                   <p className="text-xs text-muted-foreground">
-                    Drag a recipe onto any meal slot, choose one from the dropdown, or set the meal type to Custom to type your own.
+                    {isHistorical
+                      ? 'This published week is view-only. Reuse a schedule from Saved weekly plans.'
+                      : 'Drag a recipe onto any meal slot, choose one from the dropdown, or set the meal type to Custom to type your own.'}
                   </p>
                 </div>
-                <button type="button" onClick={addMeal} className="text-sm font-semibold text-forest hover:underline">
-                  + Add meal
-                </button>
+                {!isHistorical && (
+                  <button
+                    type="button"
+                    onClick={addMeal}
+                    disabled={!clientId}
+                    className="text-sm font-semibold text-forest hover:underline disabled:text-dim disabled:no-underline"
+                  >
+                    + Add meal
+                  </button>
+                )}
               </div>
 
-              {planQuery.isLoading ? (
+              {!clientId ? (
+                <p className="py-10 text-center text-sm text-dim">Select a client to start the meal schedule.</p>
+              ) : clientPlansQuery.isLoading ? (
                 <Skeleton className="h-40 w-full" />
+              ) : isPastWeek && !visiblePlan ? (
+                <p className="py-10 text-center text-sm text-dim">No published diet for this week.</p>
+              ) : meals.length === 0 ? (
+                <p className="py-10 text-center text-sm text-dim">No meals yet. Add a meal to start this week.</p>
               ) : (
                 <div className="grid gap-2">
                   {meals.map((meal) => {
@@ -384,6 +437,7 @@ export function PlanBuilderScreen() {
                         onRemove={() => removeMeal(meal.localId)}
                         onNotifySwap={() => notifySwap(meal.localId)}
                         notifyPending={updatePlan.isPending}
+                        readOnly={isHistorical}
                       />
                     );
                   })}
@@ -391,10 +445,26 @@ export function PlanBuilderScreen() {
               )}
             </section>
 
-            <RecipeRail recipes={recipes} />
+            {!isHistorical && <RecipeRail recipes={recipes} />}
           </div>
         </DndContext>
       )}
+
+      <PublishReuseDialog
+        open={publishOpen}
+        onOpenChange={setPublishOpen}
+        pending={saveState === 'saving'}
+        onChoose={async (reusable) => {
+          const saved = await save({ published: true, reusable });
+          if (!saved) return;
+          setPublishOpen(false);
+          toast.success(
+            reusable
+              ? 'Weekly plan published and saved for reuse.'
+              : 'Weekly plan published — your client can now see it.'
+          );
+        }}
+      />
     </div>
   );
 }

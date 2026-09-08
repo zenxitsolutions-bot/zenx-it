@@ -87,4 +87,7 @@ export const env = {
   // under the smallest CALL_REMINDER_OPTIONS value (10 minutes) so the due-window query never skips
   // a call between ticks.
   reminderSchedulerIntervalMs: Number(process.env.REMINDER_SCHEDULER_INTERVAL_MS || 60 * 1000),
+  // Deactivate clients whose program plan duration has elapsed (services/planExpiryJob.js).
+  // Default 1h so a plan ending today is picked up the same day without a daily-only wait.
+  planExpiryJobIntervalMs: Number(process.env.PLAN_EXPIRY_JOB_INTERVAL_MS || 60 * 60 * 1000),
 };

@@ -22,6 +22,14 @@ export function endOfWeek(weekStart) {
   return ymd ? addCalendarDays(ymd, 6) : '';
 }
 
+// A published week whose 7-day window contains `date` (the dietitian may pick any day in that
+// week, not only the original start). Used to reopen an old published diet after a back-dated pick.
+export function findPublishedPlanForDate(plans, date) {
+  const ymd = toCalendarDate(date);
+  if (!ymd || !plans?.length) return null;
+  return plans.find((plan) => plan.published && plan.week && plan.weekEnd && plan.week <= ymd && ymd <= plan.weekEnd) ?? null;
+}
+
 let localId = 0;
 export function createBlankMeal(day = WEEKDAYS[0]) {
   return {

@@ -7,6 +7,8 @@ export const createPlanRequest = (payload) => axiosClient.post('/plans', payload
 
 export const updatePlanRequest = (planId, payload) => axiosClient.patch(`/plans/${planId}`, payload).then((r) => r.data);
 
+export const deletePlanRequest = (planId) => axiosClient.delete(`/plans/${planId}`);
+
 export const updateMealStatusRequest = (planId, mealIndex, payload) =>
   axiosClient.patch(`/plans/${planId}/meals/${mealIndex}`, payload).then((r) => r.data);
 

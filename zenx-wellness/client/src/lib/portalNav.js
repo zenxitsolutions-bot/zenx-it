@@ -24,6 +24,8 @@ export const NAV_BY_ROLE = {
   admin: [
     { to: '/app/overview', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/app/enquiries', label: 'Enquiry pipeline', icon: Inbox },
+    { to: '/app/calls', label: 'Calls', icon: Phone },
+    { to: '/app/messages', label: 'Messages', icon: MessageCircle },
     { to: '/app/clients', label: 'Clients', icon: Users },
     { to: '/app/users', label: 'Manage users', icon: UserCog },
     { to: '/app/plans', label: 'Plans', icon: ClipboardList },
@@ -39,7 +41,7 @@ export const NAV_BY_ROLE = {
   ],
 };
 
-// { overview: ['client','dietitian','admin'], meals: ['client'], calls: ['client','dietitian'], ... }
+// { overview: ['client','dietitian','admin'], meals: ['client'], calls: ['client','dietitian','admin'], ... }
 export const ROUTE_ROLES = Object.entries(NAV_BY_ROLE).reduce((acc, [role, items]) => {
   for (const { to } of items) {
     const path = to.replace('/app/', '');

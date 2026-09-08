@@ -6,17 +6,22 @@ import { fileURLToPath } from 'node:url';
 // transport: writes the rendered email to disk instead of sending it anywhere.
 const outDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '.local', 'emails');
 
-export async function sendViaConsole({ to, subject, html, text, attachment }) {
+function writeAttachment(base, attachment) {
+  const path = `${base}-${attachment.filename}`;
+  if (Buffer.isBuffer(attachment.content)) writeFileSync(path, attachment.content);
+  else writeFileSync(path, attachment.content, 'utf8');
+}
+
+export async function sendViaConsole({ to, subject, html, text, attachments = [] }) {
   mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const base = join(outDir, `${stamp}-${to.replace(/[^a-z0-9@.-]/gi, '_')}`);
   writeFileSync(`${base}.html`, html, 'utf8');
   writeFileSync(`${base}.txt`, `Subject: ${subject}\n\n${text}`, 'utf8');
-  let suffix = '';
-  if (attachment) {
-    writeFileSync(`${base}-${attachment.filename}`, attachment.content, 'utf8');
-    suffix = `, attachment ${attachment.filename} (${attachment.contentType})`;
-  }
+  for (const attachment of attachments) writeAttachment(base, attachment);
+  const suffix = attachments.length
+    ? `, ${attachments.map((a) => `${a.filename} (${a.contentType})`).join(', ')}`
+    : '';
   console.log(`[email:console] "${subject}" → ${to} written to ${base}.{html,txt}${suffix}`);
   return { providerMessageId: null };
 }

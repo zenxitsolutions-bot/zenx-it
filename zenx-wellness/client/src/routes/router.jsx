@@ -33,12 +33,14 @@ const ClientProfilePage = lazyNamed(() => import('@/pages/app/ClientProfilePage'
 const UsersPage = lazyNamed(() => import('@/pages/app/UsersPage'), 'UsersPage');
 const DietitianProfilePage = lazyNamed(() => import('@/pages/app/DietitianProfilePage'), 'DietitianProfilePage');
 const PlanPage = lazyNamed(() => import('@/pages/app/PlanPage'), 'PlanPage');
+const SavedWeeklyPlansPage = lazyNamed(() => import('@/pages/app/SavedWeeklyPlansPage'), 'SavedWeeklyPlansPage');
 const PlansPage = lazyNamed(() => import('@/pages/app/PlansPage'), 'PlansPage');
 const RecipesPage = lazyNamed(() => import('@/pages/app/RecipesPage'), 'RecipesPage');
 const EnquiriesPage = lazyNamed(() => import('@/pages/app/EnquiriesPage'), 'EnquiriesPage');
 const InsightsPage = lazyNamed(() => import('@/pages/app/InsightsPage'), 'InsightsPage');
 const EmailLogPage = lazyNamed(() => import('@/pages/app/EmailLogPage'), 'EmailLogPage');
 const OrganisationPage = lazyNamed(() => import('@/pages/app/OrganisationPage'), 'OrganisationPage');
+const SupportPage = lazyNamed(() => import('@/pages/app/SupportPage'), 'SupportPage');
 
 // Wraps a single /app/<path> route in the RoleRoute guard for the roles that route belongs to
 // (sourced from ROUTE_ROLES, which is derived from the nav config — never hand-duplicated).
@@ -108,6 +110,10 @@ export const router = createBrowserRouter([
                       guarded('progress', <ProgressPage />),
                       guarded('calls', <CallsPage />),
                       guarded('messages', <MessagesPage />),
+                      {
+                        element: <RoleRoute roles={['dietitian']} />,
+                        children: [{ path: 'support', element: <SupportPage /> }],
+                      },
                       guarded('reports', <ReportsPage />),
                       guarded('clients', <ClientsPage />),
                       // Not a nav entry (reached by clicking a client, not the sidebar) but guarded by the
@@ -121,6 +127,10 @@ export const router = createBrowserRouter([
                         children: [{ path: 'users/dietitians/:id', element: <DietitianProfilePage /> }],
                       },
                       guarded('plan', <PlanPage />),
+                      {
+                        element: <RoleRoute roles={['dietitian', 'admin']} />,
+                        children: [{ path: 'saved-plans', element: <SavedWeeklyPlansPage /> }],
+                      },
                       guarded('plans', <PlansPage />),
                       guarded('recipes', <RecipesPage />),
                       guarded('enquiries', <EnquiriesPage />),

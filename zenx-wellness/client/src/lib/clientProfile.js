@@ -1,15 +1,16 @@
 // Read-model helpers for the dietitian/admin client profile page (spec §6) — kept out of
 // components per CLAUDE.md §3.
-import { WEEKDAYS, parseTimeToMinutes } from './clientPortal';
+import { civilDayForMeal, parseTimeToMinutes, planWeekDays } from './clientPortal';
 import { addCalendarDays, toCalendarDate } from './calendarDate';
 
-// A plan's `week` is the civil start date the dietitian picked (any weekday). A meal's calendar
-// date is that day plus its positional offset — not "Monday + weekday index."
+// A plan's `week` is the civil start date the dietitian picked (any weekday). Stored meal.day
+// is still a positional slot (Monday = day 0); map it onto that window so Wed-start plans
+// date Wednesday meals as the start day, not the following Friday.
 function dateForMeal(plan, day) {
-  const offset = WEEKDAYS.indexOf(day);
-  if (offset < 0) return null;
   const start = toCalendarDate(plan.week);
   if (!start) return null;
+  const offset = planWeekDays(start).indexOf(civilDayForMeal(start, day));
+  if (offset < 0) return null;
   return addCalendarDays(start, offset);
 }
 

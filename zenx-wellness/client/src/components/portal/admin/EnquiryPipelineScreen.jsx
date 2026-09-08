@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { DndContext, KeyboardSensor, PointerSensor, closestCenter, useSensor, useSensors } from '@dnd-kit/core';
 import { toast } from 'sonner';
-import { Inbox } from 'lucide-react';
+import { Inbox, Plus } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useEnquiries, useUpdateEnquiry } from '@/hooks/useEnquiries';
@@ -12,6 +14,7 @@ import { EnquiryContactedDialog } from './EnquiryContactedDialog';
 import { EnquiryClosedDialog } from './EnquiryClosedDialog';
 import { EnquiryFollowUpDialog } from './EnquiryFollowUpDialog';
 import { EnquiryConvertedDialog } from './EnquiryConvertedDialog';
+import { AddEnquiryDialog } from './AddEnquiryDialog';
 
 const COLUMNS = Object.keys(STATUS_LABEL).map((status) => ({ status, label: STATUS_LABEL[status] }));
 
@@ -36,6 +39,16 @@ export function EnquiryPipelineScreen() {
 
   const [pendingTransition, setPendingTransition] = useState(null); // { enquiry, status } | null
   const [detailEnquiry, setDetailEnquiry] = useState(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return;
+    setCreateOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('create');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const enquiries = data?.enquiries ?? [];
 
@@ -67,10 +80,16 @@ export function EnquiryPipelineScreen() {
 
   return (
     <div className="mx-auto max-w-6xl p-9">
-      <div className="mb-6">
-        <p className="text-muted-foreground">{enquiries.length} conversations in the pipeline</p>
-        <h1 className="mt-1 text-3xl text-forest">Enquiry pipeline</h1>
-        <p className="mt-1 text-muted-foreground">Drag a card — or use its dropdown — to keep every person feeling seen.</p>
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-muted-foreground">{enquiries.length} conversations in the pipeline</p>
+          <h1 className="mt-1 text-3xl text-forest">Enquiry pipeline</h1>
+          <p className="mt-1 text-muted-foreground">Drag a card — or use its dropdown — to keep every person feeling seen.</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+          <Plus className="size-4" aria-hidden="true" />
+          Add enquiry
+        </Button>
       </div>
 
       {isLoading ? (
@@ -86,7 +105,17 @@ export function EnquiryPipelineScreen() {
           }
         />
       ) : enquiries.length === 0 ? (
-        <EmptyState icon={Inbox} title="No enquiries yet" description="New consultation requests from the website will show up here." />
+        <EmptyState
+          icon={Inbox}
+          title="No enquiries yet"
+          description="New consultation requests from the website will show up here — or add one yourself."
+          action={
+            <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+              <Plus className="size-4" aria-hidden="true" />
+              Add enquiry
+            </Button>
+          }
+        />
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <div className="flex gap-3 overflow-x-auto pb-2">
@@ -114,6 +143,7 @@ export function EnquiryPipelineScreen() {
       )}
 
       <EnquiryDetailDrawer enquiry={detailEnquiry} onOpenChange={(open) => !open && setDetailEnquiry(null)} />
+      <AddEnquiryDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   );
 }

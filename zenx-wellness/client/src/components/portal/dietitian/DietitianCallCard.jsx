@@ -7,7 +7,7 @@ import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton'
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
-export function DietitianCallCard({ call, onReschedule }) {
+export function DietitianCallCard({ call, onReschedule, showAssignee = false }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const updateCall = useUpdateCall();
   const isScheduled = call.status === 'scheduled';
@@ -54,6 +54,9 @@ export function DietitianCallCard({ call, onReschedule }) {
       </div>
 
       {call.enquiry && <p className="mt-2 text-xs text-muted-foreground">{call.enquiry.phone} · {call.enquiry.email}</p>}
+      {showAssignee && call.dietitian?.name && (
+        <p className="mt-1 text-xs text-muted-foreground">Assigned to {call.dietitian.name}</p>
+      )}
 
       {call.notes && <p className="mt-2 text-sm text-forest">{call.notes}</p>}
 

@@ -138,7 +138,9 @@ export const companiesService = {
     const { data } = await apiClient.post<Company>(`/companies/${companyId}/logo`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return resolveAssetUrl(data.logo_url) ?? data.logo_url;
+    const url = resolveAssetUrl(data.logo_url);
+    if (!url) throw new Error("Logo upload did not return a URL.");
+    return url;
   },
 
   async listWellnessClients(companyId: string): Promise<{

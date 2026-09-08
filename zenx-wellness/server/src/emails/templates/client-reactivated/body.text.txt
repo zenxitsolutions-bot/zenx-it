@@ -1,0 +1,7 @@
+Welcome back, {{client_name}}
+
+Your account has been reactivated. You can sign in again with the password you already use.
+
+You're now enrolled in: {{plan_name}} — {{plan_duration}}
+
+Log in to {{company_name}}: {{login_url}}

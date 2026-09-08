@@ -65,7 +65,12 @@ export async function applyCallUpdate(callId, existingCall, patch, { force = fal
 
   let finalPatch = patch;
   if (isReschedule) {
-    finalPatch = { ...patch, rescheduledAt: new Date(), originalScheduledAt: existingCall.originalScheduledAt ?? existingCall.scheduledAt };
+    finalPatch = {
+      ...patch,
+      rescheduledAt: new Date(),
+      originalScheduledAt: existingCall.originalScheduledAt ?? existingCall.scheduledAt,
+      reminderSentAt: null,
+    };
   }
   if (isReschedule || isCancellation) {
     finalPatch = { ...finalPatch, icsSequence: existingCall.icsSequence + (isReschedule ? 1 : 0) + (isCancellation ? 1 : 0) };

@@ -35,6 +35,7 @@ import { SkeletonCards, SkeletonPanels } from "../components/ui/Skeleton";
 import { cn } from "../utils/cn";
 import type { EnquiryStatus } from "../types/domain";
 import { formatDateShort, formatTime, greeting, isOverdue } from "../utils/date";
+import { AddEnquiryModal } from "../components/enquiries/AddEnquiryModal";
 
 const RANGES = [
   { id: "7d", label: "Last 7 days", days: 7 },
@@ -57,6 +58,7 @@ export default function DashboardPage() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [range, setRange] = useState<RangeId>("6m");
+  const [addEnquiryOpen, setAddEnquiryOpen] = useState(false);
 
   // Audit logs drive the activity feed. The sidebar hides the Audit Logs page from Sales and
   // Support, so the feed follows the same rule — the API would serve them (it only checks
@@ -226,15 +228,29 @@ export default function DashboardPage() {
           {/* Quick actions */}
           <Card className="flex flex-wrap items-center gap-2 p-4">
             <span className="mr-1 text-[11px] font-semibold uppercase tracking-wider text-dim">Quick actions</span>
-            {actions.map((a) => (
-              <Link key={a.label} to={a.to}>
-                <Button variant="secondary" size="sm">
+            {actions.map((a) =>
+              a.label === "Add Enquiry" ? (
+                <Button key={a.label} variant="secondary" size="sm" onClick={() => setAddEnquiryOpen(true)}>
                   <a.icon size={14} />
                   {a.label}
                 </Button>
-              </Link>
-            ))}
+              ) : (
+                <Link key={a.label} to={a.to}>
+                  <Button variant="secondary" size="sm">
+                    <a.icon size={14} />
+                    {a.label}
+                  </Button>
+                </Link>
+              )
+            )}
           </Card>
+          <AddEnquiryModal
+            open={addEnquiryOpen}
+            onClose={(created) => {
+              setAddEnquiryOpen(false);
+              if (created) refresh();
+            }}
+          />
 
           {/* Analytics */}
           <div className="grid gap-5 xl:grid-cols-[1fr_1.35fr]">

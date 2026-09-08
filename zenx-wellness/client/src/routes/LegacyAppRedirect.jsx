@@ -9,7 +9,7 @@ export function LegacyAppRedirect() {
   const location = useLocation();
 
   if (isLoading) return null;
-  if (!user) return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   return <Navigate to={`/${user.companySlug}${location.pathname}${location.search}`} replace />;
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { PLAN_DURATIONS } from '../constants/planDurations.js';
+import { DIET_PREFERENCES } from '../constants/dietPreferences.js';
 
 export const createEnquirySchema = z.object({
   // Which company's funnel this lead came through — the slug from the public URL
@@ -47,6 +48,14 @@ export const updateEnquirySchema = z.discriminatedUnion('status', [
     planDuration: z.enum(PLAN_DURATIONS).optional(),
     password: z.string().min(8).optional(),
     assignedDietitian: z.string().min(1).nullable().optional(),
+    dietPreference: z.enum(DIET_PREFERENCES).nullable().optional(),
+    allergies: z
+      .string()
+      .trim()
+      .max(1000)
+      .optional()
+      .nullable()
+      .transform((value) => (value === '' ? null : value)),
   }),
 ]);
 

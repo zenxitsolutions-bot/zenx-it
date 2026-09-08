@@ -20,6 +20,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { toClientShape } from '../utils/serialize.js';
 import { env } from '../config/env.js';
+import { todayCalendarDate } from '../utils/calendarDate.js';
 
 // Duplicated from client/src/lib/enquiryStatus.js's STATUS_LABEL — this monorepo has no package
 // shared between client/ and server/ (see similar duplication comments elsewhere, e.g.
@@ -38,7 +39,7 @@ const STATUS_NOTE_LABEL = {
 // user.controller.js#createUser already uses (hash the temp password, force a change on first
 // login). Must run inside the caller's transaction (conn) so account creation and everything that
 // gets carried over onto it either all commit together or none do.
-async function createConvertedAccount(enquiry, { planId, planDuration, password, assignedDietitian }, conn) {
+async function createConvertedAccount(enquiry, { planId, planDuration, password, assignedDietitian, dietPreference, allergies }, conn) {
   if (!password || !planId || !planDuration) {
     throw ApiError.badRequest('password, planId, and planDuration are required to create the client account');
   }
@@ -67,6 +68,9 @@ async function createConvertedAccount(enquiry, { planId, planDuration, password,
       role: 'client',
       programPlan: planId,
       planDuration,
+      planStartedOn: planDuration || planId ? todayCalendarDate() : null,
+      dietPreference: dietPreference || null,
+      allergies: allergies || null,
       assignedDietitian: assignedDietitian || null,
       mustChangePassword: true,
       companyId: enquiry.companyId,
@@ -186,7 +190,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   }
 
   if (status === 'converted') {
-    const { planId, planDuration, password, assignedDietitian } = req.body;
+    const { planId, planDuration, password, assignedDietitian, dietPreference, allergies } = req.body;
     const alreadyConverted = Boolean(existing.convertedUserId);
     // Captured from inside the transaction, but only ever notified about after it commits (below)
     // — never from inside the transaction body itself, so a conversion that ends up rolling back
@@ -202,7 +206,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
       let convertedUserId = existing.convertedUserId;
 
       if (!alreadyConverted) {
-        const user = await createConvertedAccount(existing, { planId, planDuration, password, assignedDietitian }, conn);
+        const user = await createConvertedAccount(existing, { planId, planDuration, password, assignedDietitian, dietPreference, allergies }, conn);
         convertedUserId = user.id;
         newUser = user;
 
@@ -218,7 +222,16 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
         }
       } else {
         // Re-selecting Converted after a later Unsuccessful: restore the client that conversion created.
-        await updateUserRecord(existing.convertedUserId, { accountStatus: 'active' }, conn);
+        await updateUserRecord(
+          existing.convertedUserId,
+          {
+            accountStatus: 'active',
+            ...(planId ? { programPlan: planId } : {}),
+            ...(planDuration ? { planDuration } : {}),
+            ...((planId || planDuration) ? { planStartedOn: todayCalendarDate() } : {}),
+          },
+          conn
+        );
       }
 
       await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null }, conn);

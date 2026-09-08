@@ -27,8 +27,9 @@ export function PortalHeader({ onOpenMobileNav }) {
   const roleLabel = user.role[0].toUpperCase() + user.role.slice(1);
 
   async function handleLogout() {
+    const loginPath = user.companySlug ? `/${user.companySlug}/login` : '/login';
     await logout();
-    navigate('/', { replace: true });
+    navigate(loginPath, { replace: true, state: null });
   }
 
   return (

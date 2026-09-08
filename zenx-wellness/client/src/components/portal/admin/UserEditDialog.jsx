@@ -14,6 +14,9 @@ import { useDietitians } from '@/hooks/useClients';
 import { useProgramPlans } from '@/hooks/useProgramPlans';
 import { useUpdateUser } from '@/hooks/useUsers';
 import { PLAN_DURATIONS } from '@/lib/planDurations';
+import { ACCOUNT_STATUSES, ACCOUNT_STATUS_LABEL } from '@/lib/accountStatus';
+import { DIET_PREFERENCES } from '@/lib/dietPreferences';
+import { Textarea } from '@/components/ui/textarea';
 import { toE164OrEmpty } from '@/lib/phone';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { useAuth } from '@/hooks/useAuth';
@@ -32,6 +35,9 @@ const schema = z.object({
   assignedDietitian: z.string().optional(),
   programPlan: z.string().optional(),
   planDuration: z.string().optional(),
+  dietPreference: z.string().optional(),
+  allergies: z.string().max(1000, 'Keep allergies under 1000 characters').optional(),
+  accountStatus: z.enum(ACCOUNT_STATUSES).optional(),
 });
 
 function toFormValues(user) {
@@ -43,6 +49,9 @@ function toFormValues(user) {
     assignedDietitian: user.assignedDietitian ?? 'none',
     programPlan: user.programPlan?._id ?? user.programPlan ?? 'none',
     planDuration: user.planDuration ?? 'none',
+    dietPreference: user.dietPreference ?? 'none',
+    allergies: user.allergies ?? '',
+    accountStatus: user.accountStatus ?? 'active',
   };
 }
 
@@ -78,6 +87,9 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
         assignedDietitian: values.role === 'client' && values.assignedDietitian !== 'none' ? values.assignedDietitian : null,
         programPlan: values.role === 'client' && values.programPlan !== 'none' ? values.programPlan : null,
         planDuration: values.role === 'client' && values.planDuration !== 'none' ? values.planDuration : null,
+        dietPreference: values.role === 'client' && values.dietPreference !== 'none' ? values.dietPreference : null,
+        allergies: values.role === 'client' && values.allergies?.trim() ? values.allergies.trim() : null,
+        accountStatus: values.role === 'client' ? values.accountStatus : undefined,
       },
       {
         onSuccess: () => {
@@ -174,6 +186,36 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
 
             {role === 'client' && (
               <>
+                {user.accountStatus === 'inactive' && (
+                  <p className="rounded-lg bg-cream p-3 text-sm text-forest">
+                    This account is inactive because their plan ended. Assign or change their plan
+                    (or set status to Active) to let them sign in again.
+                  </p>
+                )}
+                <FormField
+                  control={form.control}
+                  name="accountStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account status</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {ACCOUNT_STATUSES.filter((status) => status !== 'suspended').map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {ACCOUNT_STATUS_LABEL[status]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="assignedDietitian"
@@ -245,6 +287,44 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dietPreference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diet preference</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Choose a preference" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Not specified</SelectItem>
+                          {DIET_PREFERENCES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="allergies"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allergies</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} placeholder="e.g. peanuts, lactose, gluten" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { useLiveQuery } from "../../hooks/useLiveQuery";
@@ -20,7 +20,7 @@ const PRIORITY_RANK: Record<string, number> = Object.fromEntries(
 );
 
 export default function EnquiriesListPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialStatus = (searchParams.get("status") as EnquiryStatus | null) ?? "ALL";
   // The topbar's global search sends the user here with ?q=…; seeding the filter from it is what
   // makes that search land on results rather than on an unfiltered list. Local edits to the search
@@ -31,6 +31,14 @@ export default function EnquiriesListPage() {
   // table rather than the pipeline board, where a hit in a collapsed column is easy to miss.
   const [view, setView] = useState<"pipeline" | "table">(initialSearch ? "table" : "pipeline");
   const [addOpen, setAddOpen] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("add") !== "1") return;
+    setAddOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete("add");
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [filters, setFilters] = useState<EnquiryFilterState>({
     search: initialSearch,
     status: initialStatus,

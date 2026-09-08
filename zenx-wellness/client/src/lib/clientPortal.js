@@ -1,6 +1,6 @@
 // Read-model helpers for the client portal screens (Overview/Meals/Progress/Calls) — kept out of
 // components per CLAUDE.md §3 ("no business logic in components").
-import { addCalendarDays, toCalendarDate, toLocalCalendarDate } from './calendarDate';
+import { addCalendarDays, planWeekDays, toCalendarDate, toLocalCalendarDate, weekdayNameFromYmd } from './calendarDate';
 
 export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -8,24 +8,27 @@ export function getTodayName() {
   return new Date().toLocaleDateString('en-US', { weekday: 'long' });
 }
 
-// Which of the 7 WEEKDAYS positional keys `date` falls on within a specific plan's week — the
-// correct replacement for "today's real weekday name" wherever a lookup is scoped to one plan's
-// meals (groupMealsByDay). WEEKDAYS is a set of 7 storage-positional keys, not a claim that
-// position 0 is a real Monday (see DayTabs.jsx's own comment on the same split) — once
-// weekStart can be any date (not just a real Monday), getTodayName() is only the right key when
-// today happens to fall on the plan's own day-0. `weekStart` is the dietitian's YYYY-MM-DD pick
-// (see calendarDate.js). Returns null if `date` falls outside this plan's 7-day window.
+export { planWeekDays, weekdayNameFromYmd } from './calendarDate';
+
+// Stored meal.day is a positional slot (Monday = day 0 of THIS plan). Map it to the civil
+// weekday that slot falls on so a Wednesday-start week keys meals as Wed…Tue.
+export function civilDayForMeal(weekStart, storedDay) {
+  const days = planWeekDays(weekStart);
+  const offset = WEEKDAYS.indexOf(storedDay);
+  return offset >= 0 ? days[offset] : storedDay;
+}
+
+// Civil weekday of `date` when it sits inside this plan's 7-day window (Wed-start → first
+// key is Wednesday). Null if `date` is outside the window.
 export function getDayKeyForDate(weekStart, date = new Date()) {
   if (!weekStart) return null;
   const start = toCalendarDate(weekStart);
   if (!start) return null;
-  // Dietitian-picked civil day vs the viewer's local "today" — both as YYYY-MM-DD digits, never
-  // as timezone-shifted instants. Offset 0 is the start date itself (which may be any weekday).
+  const ymd = toLocalCalendarDate(date);
   const [sy, sm, sd] = start.split('-').map(Number);
-  const startDayCount = Date.UTC(sy, sm - 1, sd);
-  const targetDayCount = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
-  const offset = Math.round((targetDayCount - startDayCount) / (24 * 60 * 60 * 1000));
-  return offset >= 0 && offset < 7 ? WEEKDAYS[offset] : null;
+  const [ty, tm, td] = ymd.split('-').map(Number);
+  const offset = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(sy, sm - 1, sd)) / (24 * 60 * 60 * 1000));
+  return offset >= 0 && offset < 7 ? weekdayNameFromYmd(ymd) : null;
 }
 
 // Exported so client/src/lib/clientProfile.js's meal-history sort can reuse the exact same
@@ -40,9 +43,11 @@ export function parseTimeToMinutes(time) {
 }
 
 export function groupMealsByDay(plan) {
-  const map = Object.fromEntries(WEEKDAYS.map((day) => [day, []]));
+  const days = planWeekDays(plan?.week);
+  const map = Object.fromEntries(days.map((day) => [day, []]));
   for (const meal of plan?.meals ?? []) {
-    (map[meal.day] ??= []).push(meal);
+    const day = civilDayForMeal(plan?.week, meal.day);
+    (map[day] ??= []).push(meal);
   }
   for (const day of Object.keys(map)) {
     map[day].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
@@ -62,7 +67,8 @@ export function getTodayHighlightMeal(plan, now = new Date()) {
 
   for (const meal of plan.meals ?? []) {
     if (meal.completed) continue;
-    const offset = WEEKDAYS.indexOf(meal.day);
+    const civil = civilDayForMeal(start, meal.day);
+    const offset = planWeekDays(start).indexOf(civil);
     if (offset < 0) continue;
     const date = addCalendarDays(start, offset);
     const minutes = parseTimeToMinutes(meal.time);
@@ -124,6 +130,22 @@ export function splitCalls(calls) {
 
 export function getNextCall(calls) {
   return splitCalls(calls).upcoming[0] ?? null;
+}
+
+function refId(value) {
+  return value?._id ?? value ?? null;
+}
+
+// personKey is 'dietitian' (admin page: host / dietitian) or 'client' (dietitian page).
+// from/to are YYYY-MM-DD civil days in the viewer's local calendar, inclusive.
+export function filterCalls(calls, { personId, personKey = 'dietitian', from, to } = {}) {
+  return (calls ?? []).filter((call) => {
+    if (personId && refId(call[personKey]) !== personId) return false;
+    const ymd = toLocalCalendarDate(new Date(call.scheduledAt));
+    if (from && ymd < from) return false;
+    if (to && ymd > to) return false;
+    return true;
+  });
 }
 
 /**

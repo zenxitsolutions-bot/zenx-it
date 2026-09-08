@@ -14,6 +14,7 @@ const CALL_COLUMNS = {
   meetingUrl: 'meeting_url',
   meetingProvider: 'meeting_provider',
   googleEventId: 'google_event_id',
+  reminderSentAt: 'reminder_sent_at',
 };
 
 // dietitianName/clientName/enquiryName etc. are only present when the caller asked for them via

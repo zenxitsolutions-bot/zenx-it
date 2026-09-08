@@ -5,6 +5,7 @@ import { assertEmailTransportConfigured, resolveTransportKind } from './src/emai
 import { startEmailWorker } from './src/emails/worker.js';
 import { startConsultationScheduleJob } from './src/services/consultationScheduleJob.js';
 import { startReminderScheduler } from './src/services/reminderScheduler.js';
+import { startPlanExpiryJob } from './src/services/planExpiryJob.js';
 
 async function main() {
   // Fails loudly here, before the server accepts any traffic, if EMAIL_TRANSPORT/RESEND_API_KEY
@@ -15,6 +16,7 @@ async function main() {
   startEmailWorker();
   startConsultationScheduleJob();
   startReminderScheduler();
+  startPlanExpiryJob();
   const server = app.listen(env.port, () => console.log(`[server] listening on http://localhost:${env.port}`));
 
   // Same reason as admin-server's identical block: Node drops an idle keep-alive socket after 5s,

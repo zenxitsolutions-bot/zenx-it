@@ -1,5 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { listPlansRequest, createPlanRequest, updatePlanRequest, updateMealStatusRequest, downloadPlanPdfRequest } from '../api/plans.api';
+import {
+  listPlansRequest,
+  createPlanRequest,
+  updatePlanRequest,
+  deletePlanRequest,
+  updateMealStatusRequest,
+  downloadPlanPdfRequest,
+} from '../api/plans.api';
 import { pickCurrentPlan } from '../lib/clientPortal';
 
 // Plans are returned sorted by week desc. pickCurrentPlan prefers the week that contains today
@@ -62,6 +69,26 @@ export function useUpdatePlan() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ planId, ...payload }) => updatePlanRequest(planId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      queryClient.invalidateQueries({ queryKey: ['insights'] });
+    },
+  });
+}
+
+// Every weekly plan this dietitian (or the admin's company) has saved — the builder's titled
+// library, so a week can be reused or reassigned without hunting by client/date.
+export function useSavedPlans() {
+  return useQuery({
+    queryKey: ['plans', 'library'],
+    queryFn: () => listPlansRequest({ reusable: true }),
+  });
+}
+
+export function useDeletePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (planId) => deletePlanRequest(planId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });

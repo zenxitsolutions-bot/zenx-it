@@ -59,6 +59,13 @@ CREATE TABLE IF NOT EXISTS users (
   -- client creation/edit time by an admin. See program_plans above.
   program_plan_id VARCHAR(36) NULL,
   plan_duration VARCHAR(50) NULL,
+  -- Civil day the client's current program plan started. Used with plan_duration to expire the
+  -- account (see planExpiryJob.js). Reset whenever an admin assigns or reassigns a plan.
+  plan_started_on DATE NULL,
+  -- Client-only diet notes, captured when the account is created (veg/vegan/allergies) so the
+  -- dietitian can plan meals without asking again.
+  diet_preference VARCHAR(32) NULL,
+  allergies TEXT NULL,
   -- IANA zone name (e.g. "Asia/Kolkata"). For role='dietitian' this is also the wall-clock frame
   -- `dietitian_weekly_hours`/exceptions/`consultation_schedules.preferred_time` are interpreted in
   -- (see availability.js's module comment); for any role it's simply "what zone to render this
@@ -176,6 +183,7 @@ CREATE TABLE IF NOT EXISTS plans (
   week DATE NOT NULL,
   week_end DATE NOT NULL,
   published BOOLEAN NOT NULL DEFAULT FALSE,
+  reusable BOOLEAN NOT NULL DEFAULT FALSE,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_plans_client (client_id),
@@ -431,6 +439,25 @@ CREATE TABLE IF NOT EXISTS messages (
   CONSTRAINT fk_messages_client FOREIGN KEY (client_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_messages_dietitian FOREIGN KEY (dietitian_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Dietitian <-> organisation-admin support inbox (sidebar "Need a hand?"). Distinct from the
+-- client<->dietitian `messages` table so the dietitian Messages page stays care-team chat with
+-- clients. Conversation identity is (company_id, dietitian_id): every admin in the company shares
+-- one thread with that dietitian. `read_at` is a shared-inbox stamp (any admin opening the thread
+-- marks the dietitian's messages read for the whole admin team).
+CREATE TABLE IF NOT EXISTS support_messages (
+  id VARCHAR(36) PRIMARY KEY,
+  company_id VARCHAR(36) NOT NULL,
+  dietitian_id VARCHAR(36) NOT NULL,
+  sender_id VARCHAR(36) NOT NULL,
+  body TEXT NOT NULL,
+  read_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_support_thread (company_id, dietitian_id, created_at),
+  KEY idx_support_dietitian_unread (dietitian_id, read_at),
+  CONSTRAINT fk_support_messages_dietitian FOREIGN KEY (dietitian_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_support_messages_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- id stays a real VARCHAR(36) (unlike plan_meals) because the client uses entry._id as a React

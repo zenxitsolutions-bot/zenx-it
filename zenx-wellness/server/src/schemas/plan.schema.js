@@ -36,34 +36,50 @@ export const createPlanSchema = z
     // A dietitian caller never sends this — the server derives it from the caller. Only an admin
     // assigning a plan on a dietitian's behalf supplies it explicitly.
     dietitian: z.string().min(1).optional(),
-    title: z.string().optional(),
+    title: z.string().trim().min(1).optional(),
     week: calendarDate,
     // The end of the diet week — always exactly 6 days after `week` (the client auto-computes and
     // locks this in the UI; this refine is the authoritative boundary check).
     weekEnd: calendarDate,
     meals: z.array(mealSlot).optional(),
+    reusable: z.boolean().optional(),
   })
   .refine((data) => data.weekEnd === addCalendarDays(data.week, 6), {
     message: 'Week end must be 6 days after week start',
     path: ['weekEnd'],
   });
 
-export const updatePlanSchema = z.object({
-  title: z.string().optional(),
-  meals: z.array(mealSlot).optional(),
-  published: z.boolean().optional(),
-  // Dietitian resolving a client's swap request — save the new recipe, then email the client.
-  notifySwaps: z.boolean().optional(),
-  swapResolutions: z
-    .array(
-      z.object({
-        day: z.string().min(1),
-        time: z.string().min(1),
-        previousMeal: z.string().min(1),
-      })
-    )
-    .optional(),
-});
+export const updatePlanSchema = z
+  .object({
+    title: z.string().trim().min(1).optional(),
+    // Reassign this saved week to another client, and/or move it to a different week. Both week
+    // dates travel together so the 6-day window stays intact (same refine as create).
+    client: z.string().min(1).optional(),
+    week: calendarDate.optional(),
+    weekEnd: calendarDate.optional(),
+    meals: z.array(mealSlot).optional(),
+    published: z.boolean().optional(),
+    reusable: z.boolean().optional(),
+    // Dietitian resolving a client's swap request — save the new recipe, then email the client.
+    notifySwaps: z.boolean().optional(),
+    swapResolutions: z
+      .array(
+        z.object({
+          day: z.string().min(1),
+          time: z.string().min(1),
+          previousMeal: z.string().min(1),
+        })
+      )
+      .optional(),
+  })
+  .refine((data) => Boolean(data.week) === Boolean(data.weekEnd), {
+    message: 'Week start and week end must be sent together',
+    path: ['weekEnd'],
+  })
+  .refine((data) => !data.week || !data.weekEnd || data.weekEnd === addCalendarDays(data.week, 6), {
+    message: 'Week end must be 6 days after week start',
+    path: ['weekEnd'],
+  });
 
 export const updateMealStatusSchema = z
   .object({

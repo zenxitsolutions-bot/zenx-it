@@ -15,6 +15,7 @@ import { NextCallCard } from './NextCallCard';
 import { ProgressSnapshotCard } from './ProgressSnapshotCard';
 import { QuickUploadCard } from './QuickUploadCard';
 import { DietitianCard } from './DietitianCard';
+import { ClientDetailsCard } from './ClientDetailsCard';
 
 export function ClientOverviewScreen() {
   const { user } = useAuth();
@@ -112,6 +113,8 @@ export function ClientOverviewScreen() {
         <NextCallCard call={nextCall} isLoading={callsQuery.isLoading} />
 
         <ProgressSnapshotCard stats={stats} isLoading={progressQuery.isLoading} />
+
+        <ClientDetailsCard />
 
         <DietitianCard />
 

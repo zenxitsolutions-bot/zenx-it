@@ -13,13 +13,15 @@ import { useDietitians } from '@/hooks/useClients';
 import { useUpdateEnquiry } from '@/hooks/useEnquiries';
 import { useSaveConsultationSchedule } from '@/hooks/useConsultationSchedule';
 import { PLAN_DURATIONS } from '@/lib/planDurations';
+import { DIET_PREFERENCES } from '@/lib/dietPreferences';
+import { Textarea } from '@/components/ui/textarea';
 import { defaultConsultationScheduleValues, toApiPayload } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from '@/components/portal/shared/ConsultationScheduleFields';
 
 // Only ever opened when the enquiry doesn't have a client account yet — see
 // EnquiryPipelineScreen.jsx's requestStatusChange, which skips this dialog (fires the mutation
 // immediately) once an account already exists from an earlier Follow-up.
-const EMPTY = { planId: '', planDuration: '', password: '', assignedDietitian: 'none', setUpSchedule: false, ...defaultConsultationScheduleValues() };
+const EMPTY = { planId: '', planDuration: '', password: '', assignedDietitian: 'none', dietPreference: 'none', allergies: '', setUpSchedule: false, ...defaultConsultationScheduleValues() };
 
 const schema = z
   .object({
@@ -27,6 +29,8 @@ const schema = z
     planDuration: z.string().min(1, 'Choose a duration'),
     password: z.string().min(8, 'At least 8 characters'),
     assignedDietitian: z.string().optional(),
+    dietPreference: z.string().optional(),
+    allergies: z.string().max(1000, 'Keep allergies under 1000 characters').optional(),
     setUpSchedule: z.boolean().optional(),
     frequencyPreset: z.enum(['7', '14', 'custom']).optional(),
     customFrequencyDays: z.string().optional(),
@@ -59,12 +63,14 @@ export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
   function onSubmit(values) {
     // Only planId/planDuration/password belong in the enquiry-conversion payload — the schedule
     // fields (used separately below, via toApiPayload(values)) are stripped out here.
-    const { planId, planDuration, password, assignedDietitian, setUpSchedule: shouldSetUpSchedule } = values;
+    const { planId, planDuration, password, assignedDietitian, dietPreference, allergies, setUpSchedule: shouldSetUpSchedule } = values;
     const enquiryValues = {
       planId,
       planDuration,
       password,
       assignedDietitian: assignedDietitian && assignedDietitian !== 'none' ? assignedDietitian : null,
+      dietPreference: dietPreference && dietPreference !== 'none' ? dietPreference : null,
+      allergies: allergies?.trim() ? allergies.trim() : null,
     };
     updateEnquiry.mutate(
       { enquiryId: enquiry._id, status: 'converted', ...enquiryValues },
@@ -142,6 +148,44 @@ export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dietPreference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Diet preference</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Not specified" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Not specified</SelectItem>
+                      {DIET_PREFERENCES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="allergies"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Allergies (optional)</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} placeholder="e.g. peanuts, lactose, gluten" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

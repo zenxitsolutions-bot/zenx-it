@@ -22,6 +22,9 @@ function mapUser(row) {
     mustChangePassword: !!row.must_change_password,
     programPlan: row.program_plan_id,
     planDuration: row.plan_duration,
+    planStartedOn: toCalendarDate(row.plan_started_on_ymd ?? (row.plan_started_on instanceof Date ? row.plan_started_on.toISOString().slice(0, 10) : row.plan_started_on)),
+    dietPreference: row.diet_preference,
+    allergies: row.allergies,
     timezone: row.timezone,
     country: row.country,
     dateFormat: row.date_format,
@@ -38,7 +41,7 @@ function mapUser(row) {
   return user;
 }
 
-const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, DATE_FORMAT(u.joined_on, '%Y-%m-%d') AS joined_on_ymd, pp.name AS program_plan_name FROM users u
+const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, DATE_FORMAT(u.joined_on, '%Y-%m-%d') AS joined_on_ymd, DATE_FORMAT(u.plan_started_on, '%Y-%m-%d') AS plan_started_on_ymd, pp.name AS program_plan_name FROM users u
    LEFT JOIN program_plans pp ON pp.id = u.program_plan_id`;
 
 export async function findUserByEmail(email) {
@@ -81,6 +84,9 @@ export async function createUser(
     mustChangePassword = false,
     programPlan = null,
     planDuration = null,
+    planStartedOn = null,
+    dietPreference = null,
+    allergies = null,
     // Optional — left unset relies on the column's own DB default ('UTC'), same as before this
     // field existed on createUserSchema at all.
     timezone,
@@ -92,8 +98,8 @@ export async function createUser(
 ) {
   if (!companyId) throw new Error('createUser: companyId is required');
   const id = newId();
-  const columns = ['id', 'name', 'email', 'password_hash', 'role', 'phone', 'address', 'qualifications', 'joined_on', 'assigned_dietitian_id', 'must_change_password', 'program_plan_id', 'plan_duration', 'zenx_user_id', 'company_id', 'company_slug'];
-  const values = [id, name, email, passwordHash, role, phone, address, qualifications, joinedOn, assignedDietitian, mustChangePassword, programPlan, planDuration, zenxUserId, companyId, companySlug];
+  const columns = ['id', 'name', 'email', 'password_hash', 'role', 'phone', 'address', 'qualifications', 'joined_on', 'assigned_dietitian_id', 'must_change_password', 'program_plan_id', 'plan_duration', 'plan_started_on', 'diet_preference', 'allergies', 'zenx_user_id', 'company_id', 'company_slug'];
+  const values = [id, name, email, passwordHash, role, phone, address, qualifications, joinedOn, assignedDietitian, mustChangePassword, programPlan, planDuration, planStartedOn, dietPreference, allergies, zenxUserId, companyId, companySlug];
   if (timezone !== undefined) {
     columns.push('timezone');
     values.push(timezone);
@@ -134,7 +140,7 @@ export async function listUsers(filter = {}) {
 }
 
 // patch may include: name, email, phone, address, qualifications, joinedOn, accountStatus, role,
-// assignedDietitian, programPlan, planDuration, timezone
+// assignedDietitian, programPlan, planDuration, dietPreference, allergies, timezone
 export async function updateUser(id, patch, conn = pool) {
   const columns = {
     name: 'name',
@@ -148,6 +154,9 @@ export async function updateUser(id, patch, conn = pool) {
     assignedDietitian: 'assigned_dietitian_id',
     programPlan: 'program_plan_id',
     planDuration: 'plan_duration',
+    planStartedOn: 'plan_started_on',
+    dietPreference: 'diet_preference',
+    allergies: 'allergies',
     timezone: 'timezone',
     country: 'country',
     dateFormat: 'date_format',
@@ -181,6 +190,13 @@ export async function setPassword(id, { passwordHash, mustChangePassword }) {
 
 // Invalidates every refresh token issued before the call (see utils/jwt.js#verifyRefreshToken /
 // auth.controller.js#refresh, which reject a token whose tokenVersion doesn't match this column).
+export async function listActiveClientsWithPlans() {
+  const [rows] = await pool.query(
+    `${SELECT_WITH_PROGRAM_PLAN} WHERE u.role = 'client' AND u.account_status = 'active' AND u.plan_duration IS NOT NULL AND u.plan_started_on IS NOT NULL`
+  );
+  return rows.map(mapUser);
+}
+
 export async function bumpRefreshTokenVersion(id) {
   await pool.query('UPDATE users SET refresh_token_version = refresh_token_version + 1 WHERE id = ?', [id]);
 }

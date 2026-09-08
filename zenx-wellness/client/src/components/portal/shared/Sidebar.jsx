@@ -1,8 +1,8 @@
 import { Link, NavLink } from 'react-router-dom';
 import { ExternalLink, MessageCircle } from 'lucide-react';
-import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnreadMessageCount } from '@/hooks/useMessages';
+import { useSupportUnreadCount } from '@/hooks/useSupportMessages';
 import { useMyCompany } from '@/hooks/useCompany';
 import { NAV_BY_ROLE } from '@/lib/portalNav';
 
@@ -18,10 +18,19 @@ function formatWebsiteLabel(website) {
 export function Sidebar({ onNavigate }) {
   const { user } = useAuth();
   const items = NAV_BY_ROLE[user.role] ?? [];
-  // Admin isn't a party to any conversation (spec §1.5) — messaging is client <-> dietitian only.
-  const canMessage = user.role === 'client' || user.role === 'dietitian';
-  const { data: unread } = useUnreadMessageCount(canMessage);
+  const canCareMessage = user.role === 'client' || user.role === 'dietitian';
+  const canSupportMessage = user.role === 'dietitian' || user.role === 'admin';
+  const { data: unread } = useUnreadMessageCount(canCareMessage);
+  const { data: supportUnread } = useSupportUnreadCount(canSupportMessage);
   const unreadCount = unread?.count ?? 0;
+  const supportUnreadCount = supportUnread?.count ?? 0;
+  const widgetTo =
+    user.role === 'dietitian'
+      ? `/${user.companySlug}/app/support`
+      : user.role === 'admin'
+        ? `/${user.companySlug}/app/messages`
+        : `/${user.companySlug}/app/messages`;
+  const widgetUnread = user.role === 'client' ? unreadCount : supportUnreadCount;
   // Mirrored from ZenX on SSO handoff (server: models/Company.js). Undefined while loading and
   // null for an account whose company was never mirrored — both fall back to ZenX Dietitian's own
   // branding rather than flashing an empty header.
@@ -75,13 +84,17 @@ export function Sidebar({ onNavigate }) {
               <>
                 <Icon className="size-4.5 shrink-0" aria-hidden="true" />
                 <span className="truncate">{label}</span>
-                {to === '/app/messages' && unreadCount > 0 && (
+                {to === '/app/messages' && (user.role === 'admin' ? supportUnreadCount : unreadCount) > 0 && (
                   <span
                     className={`ml-auto grid size-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
                       isActive ? 'bg-white/25 text-white' : 'bg-white/10 text-sidebar-text'
                     }`}
                   >
-                    {unreadCount > 9 ? '9+' : unreadCount}
+                    {(user.role === 'admin' ? supportUnreadCount : unreadCount) > 9
+                      ? '9+'
+                      : user.role === 'admin'
+                        ? supportUnreadCount
+                        : unreadCount}
                   </span>
                 )}
               </>
@@ -101,23 +114,18 @@ export function Sidebar({ onNavigate }) {
           </span>
           <p className="font-semibold text-white">Need a hand?</p>
           <p className="mt-1 text-xs text-sidebar-text/75">Your care team is here.</p>
-          {canMessage ? (
-            <Link
-              to={`/${user.companySlug}/app/messages`}
-              onClick={onNavigate}
-              className="mt-3 block w-full rounded-lg bg-coral py-2 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-strong"
-            >
-              Message us
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => toast('Messaging is client <-> dietitian only.')}
-              className="mt-3 w-full rounded-lg bg-coral py-2 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-strong"
-            >
-              Message us
-            </button>
-          )}
+          <Link
+            to={widgetTo}
+            onClick={onNavigate}
+            className="relative mt-3 block w-full rounded-full bg-coral py-2 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-strong"
+          >
+            Message us
+            {widgetUnread > 0 && (
+              <span className="absolute top-1/2 right-3 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-white/25 text-[10px] font-bold">
+                {widgetUnread > 9 ? '9+' : widgetUnread}
+              </span>
+            )}
+          </Link>
         </div>
       </div>
     </div>

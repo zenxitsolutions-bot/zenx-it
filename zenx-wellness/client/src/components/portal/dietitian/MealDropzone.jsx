@@ -5,12 +5,12 @@ import { cn } from '@/lib/utils';
 // Two ways to assign a recipe, on the same element: drag a card from the rail (dnd-kit
 // draggable/droppable, mouse or keyboard), or pick from the dropdown directly — a full,
 // independent keyboard/screen-reader path that doesn't depend on spatial drag navigation at all.
-export function MealDropzone({ id, recipe, recipes, onAssign }) {
-  const { isOver, setNodeRef } = useDroppable({ id });
+export function MealDropzone({ id, recipe, recipes, onAssign, readOnly = false }) {
+  const { isOver, setNodeRef } = useDroppable({ id, disabled: readOnly });
 
   return (
     <div ref={setNodeRef} className="min-w-0">
-      <Select value={recipe?._id ?? ''} onValueChange={onAssign}>
+      <Select value={recipe?._id ?? ''} onValueChange={onAssign} disabled={readOnly}>
         <SelectTrigger
           className={cn(
             'h-auto min-h-[37px] w-full justify-between rounded-lg border px-2.5 py-2 text-left text-xs font-normal transition-colors',

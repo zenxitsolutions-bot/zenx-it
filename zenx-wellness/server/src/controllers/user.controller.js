@@ -11,8 +11,9 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { hashPassword } from '../utils/password.js';
 import { toClientShape } from '../utils/serialize.js';
-import { notifyClientAccountCreated } from '../services/accountNotifications.js';
+import { notifyClientAccountCreated, notifyClientReactivated } from '../services/accountNotifications.js';
 import { upsertDeviceToken, deleteToken } from '../models/DeviceToken.js';
+import { todayCalendarDate } from '../utils/calendarDate.js';
 
 // A blank controlled-form field arrives as '' (see the optionalPhone/optionalAddress union in
 // user.schema.js) — treated as "clear this field," not "set it to the literal empty string."
@@ -31,7 +32,7 @@ async function assertEmailAvailable(email, excludeUserId = null) {
 export const listUsers = asyncHandler(async (req, res) => {
   const filter = { companyId: req.user.companyId };
   if (req.query.role) filter.role = req.query.role;
-  if (req.user.role === 'dietitian') filter.assignedDietitian = req.user.id;
+  if (req.user.role === 'dietitian' && req.query.role !== 'admin') filter.assignedDietitian = req.user.id;
   else if (req.user.role === 'client') filter.role = 'dietitian'; // clients may only browse their own org's dietitian directory
   else if (req.query.assignedDietitian) filter.assignedDietitian = req.query.assignedDietitian;
 
@@ -53,7 +54,8 @@ export const getUser = asyncHandler(async (req, res) => {
 });
 
 export const updateMe = asyncHandler(async (req, res) => {
-  const { assignedDietitian } = req.body;
+  const patch = { ...req.body };
+  const { assignedDietitian } = patch;
   if (assignedDietitian !== undefined) {
     if (req.user.role !== 'client') throw ApiError.forbidden('Only clients can choose a dietitian');
     if (assignedDietitian !== null) {
@@ -64,7 +66,14 @@ export const updateMe = asyncHandler(async (req, res) => {
     }
   }
 
-  const user = await updateUserRecord(req.user.id, req.body);
+  if (req.user.role !== 'client') {
+    delete patch.dietPreference;
+    delete patch.allergies;
+  }
+  if (patch.phone !== undefined) patch.phone = nullifyEmpty(patch.phone);
+  if (patch.allergies !== undefined) patch.allergies = nullifyEmpty(patch.allergies);
+
+  const user = await updateUserRecord(req.user.id, patch);
   res.json(toClientShape(user, ['passwordHash']));
 });
 
@@ -85,12 +94,13 @@ export const updateUser = asyncHandler(async (req, res) => {
     // dietitian/admin to view and update the client's timezone when appropriate") — a dietitian
     // booking a call with their own client needs to be able to set that client's zone, not just an
     // admin.
-    const allowedKeys = new Set(['email', 'phone', 'timezone', 'country', 'dateFormat', 'timeFormat']);
+    const allowedKeys = new Set(['email', 'phone', 'timezone', 'country', 'dateFormat', 'timeFormat', 'dietPreference', 'allergies']);
     if (Object.keys(patch).some((key) => !allowedKeys.has(key))) {
-      throw ApiError.forbidden('Dietitians may only edit a client’s email, phone, and timezone preferences');
+      throw ApiError.forbidden('Dietitians may only edit a client’s contact details and diet notes');
     }
   }
 
+  const wasInactiveClient = target.role === 'client' && target.accountStatus === 'inactive';
   const { assignedDietitian, role, email, phone, address } = patch;
   if (assignedDietitian) {
     const dietitian = await findUserById(assignedDietitian);
@@ -107,16 +117,41 @@ export const updateUser = asyncHandler(async (req, res) => {
   if (phone !== undefined) patch.phone = nullifyEmpty(phone);
   if (address !== undefined) patch.address = nullifyEmpty(address);
 
+  // Deactivating or suspending a dietitian is only about that dietitian's own login. Assigned
+  // clients keep their account_status and assignment — they must stay able to sign in.
+  if (target.role === 'dietitian') {
+    delete patch.assignedDietitian;
+  }
+
   // programPlan/planDuration only ever apply to a client — same conditional-apply convention as
   // assignedDietitian above. Only cleared when this patch explicitly changes the role away from
   // client; otherwise passed through as given (or omitted, leaving them untouched).
   if (role !== undefined && role !== 'client') {
     patch.programPlan = null;
     patch.planDuration = null;
+    patch.planStartedOn = null;
+    patch.dietPreference = null;
+    patch.allergies = null;
+  } else if ((target.role === 'client' || patch.role === 'client') && req.user.role === 'admin') {
+    const currentPlanId = target.programPlan?._id ?? target.programPlan ?? null;
+    const nextPlan = patch.programPlan !== undefined ? patch.programPlan : currentPlanId;
+    const nextDuration = patch.planDuration !== undefined ? patch.planDuration : target.planDuration;
+    const planChanged =
+      (patch.programPlan !== undefined && String(patch.programPlan ?? '') !== String(currentPlanId ?? '')) ||
+      (patch.planDuration !== undefined && (patch.planDuration ?? null) !== (target.planDuration ?? null));
+    if (planChanged && (nextPlan || nextDuration)) {
+      patch.accountStatus = 'active';
+      patch.planStartedOn = todayCalendarDate();
+    } else if (patch.accountStatus === 'active' && wasInactiveClient && (nextPlan || nextDuration)) {
+      patch.planStartedOn = todayCalendarDate();
+    }
   }
 
   const user = await updateUserRecord(req.params.id, patch);
   if (!user) throw ApiError.notFound('User not found');
+  if (wasInactiveClient && user.accountStatus === 'active') {
+    await notifyClientReactivated(user);
+  }
   res.json(toClientShape(user, ['passwordHash']));
 });
 
@@ -133,6 +168,8 @@ export const createUser = asyncHandler(async (req, res) => {
     assignedDietitian = null,
     programPlan = null,
     planDuration = null,
+    dietPreference = null,
+    allergies = null,
     timezone,
   } = req.body;
   await assertEmailAvailable(email);
@@ -156,6 +193,9 @@ export const createUser = asyncHandler(async (req, res) => {
     assignedDietitian: role === 'client' ? assignedDietitian : null,
     programPlan: role === 'client' ? programPlan : null,
     planDuration: role === 'client' ? planDuration : null,
+    planStartedOn: role === 'client' && (programPlan || planDuration) ? todayCalendarDate() : null,
+    dietPreference: role === 'client' ? dietPreference : null,
+    allergies: role === 'client' ? allergies : null,
     timezone,
     // Every account is admin-created now (self-registration is gone) — the person who set this
     // password is never the one who'll use it, so force a change on first login.

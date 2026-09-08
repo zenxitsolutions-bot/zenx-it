@@ -1,6 +1,7 @@
 import { claimBatch, reclaimStuckSendingRows, markEmailSent, markEmailRetryOrFailed } from '../models/EmailLog.js';
 import { renderTemplate } from './renderTemplate.js';
 import { buildIcsAttachment } from './ics.js';
+import { buildPdfAttachment } from './pdf.js';
 import { sendViaTransport } from './transport/index.js';
 import { nextAttemptDelayMs } from './backoff.js';
 import { env } from '../config/env.js';
@@ -8,8 +9,11 @@ import { env } from '../config/env.js';
 async function processOne(row) {
   try {
     const { subject, html, text } = renderTemplate(row.templateKey, row.params);
-    const attachment = buildIcsAttachment(row.templateKey, row.params);
-    const { providerMessageId } = await sendViaTransport({ to: row.to, subject, html, text, attachment });
+    const attachments = [
+      buildIcsAttachment(row.templateKey, row.params),
+      await buildPdfAttachment(row.templateKey, row.params),
+    ].filter(Boolean);
+    const { providerMessageId } = await sendViaTransport({ to: row.to, subject, html, text, attachments });
     await markEmailSent(row.id, providerMessageId);
   } catch (err) {
     const attempts = row.attempts + 1;

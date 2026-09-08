@@ -8,7 +8,7 @@ import { MEAL_TIME_OPTIONS, normalizeMealTime } from '@/lib/planBuilder';
 import { cn } from '@/lib/utils';
 import { MealDropzone } from './MealDropzone';
 
-export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, onRemove, onNotifySwap, notifyPending, ref }) {
+export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, onRemove, onNotifySwap, notifyPending, readOnly = false, ref }) {
   const recipe = recipes.find((r) => r._id === meal.recipeId) ?? null;
   const isCustom = meal.mealType === 'Custom';
   // Prefer the canonical spelling so a legacy "9:30 pM" lands on the real "9:30 PM" option.
@@ -24,7 +24,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
       )}
     >
       <div className="grid grid-cols-[1fr_1fr_1fr_1.6fr_28px] items-center gap-2">
-        <Select value={meal.day} onValueChange={(day) => onChange({ day })}>
+        <Select value={meal.day} onValueChange={(day) => onChange({ day })} disabled={readOnly}>
           <SelectTrigger className="w-full" aria-label="Day">
             <SelectValue />
           </SelectTrigger>
@@ -46,7 +46,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
         {/* A saved time that predates this dropdown (or that normalizeMealTime can't parse) is
             offered as its own first option, so opening an old plan can never silently replace the
             dietitian's time with the nearest listed one. */}
-        <Select value={timeValue} onValueChange={(time) => onChange({ time })}>
+        <Select value={timeValue} onValueChange={(time) => onChange({ time })} disabled={readOnly}>
           <SelectTrigger className="w-full" aria-label="Time">
             <SelectValue placeholder="Time" />
           </SelectTrigger>
@@ -62,7 +62,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
           </SelectContent>
         </Select>
 
-        <Select value={meal.mealType} onValueChange={(mealType) => onChange({ mealType })}>
+        <Select value={meal.mealType} onValueChange={(mealType) => onChange({ mealType })} disabled={readOnly}>
           <SelectTrigger className="w-full" aria-label="Meal type">
             <SelectValue />
           </SelectTrigger>
@@ -81,6 +81,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
             value={meal.customTitle ?? ''}
             onChange={(e) => onChange({ customTitle: e.target.value })}
             placeholder="Type the recipe/food name"
+            disabled={readOnly}
           />
         ) : (
           <MealDropzone
@@ -88,6 +89,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
             recipe={recipe}
             recipes={recipes}
             onAssign={(recipeId) => onChange({ recipeId })}
+            readOnly={readOnly}
           />
         )}
 
@@ -95,7 +97,8 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
           type="button"
           onClick={onRemove}
           aria-label="Remove meal"
-          className="grid size-7 place-items-center rounded-lg bg-sage/70 text-coral hover:bg-coral/20"
+          disabled={readOnly}
+          className="grid size-7 place-items-center rounded-lg bg-sage/70 text-coral hover:bg-coral/20 disabled:opacity-30"
         >
           <X className="size-4" aria-hidden="true" />
         </button>
@@ -108,6 +111,7 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
           onChange={(e) => onChange({ customMealType: e.target.value })}
           placeholder="Name this meal type (e.g. Pre-workout snack)"
           className="mt-2"
+          disabled={readOnly}
         />
       )}
 
@@ -117,9 +121,10 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
         onChange={(e) => onChange({ notes: e.target.value })}
         placeholder="Add a note for this meal (optional) — shown on the client profile"
         className="mt-2 border-none bg-transparent px-1 text-xs shadow-none focus-visible:ring-0"
+        disabled={readOnly}
       />
 
-      {meal.swapRequested && (
+      {meal.swapRequested && !readOnly && (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2">
           <p className="text-xs text-status-followup-ink">
             Client asked to swap this meal. Choose a new recipe, then notify them.

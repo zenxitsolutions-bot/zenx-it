@@ -261,7 +261,8 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     // "Hi Ava", not "Hi Ava Admin". Falls back to "there" inside sendPasswordResetEmail for a user
     // whose name was never captured, rather than rendering an empty "Hi ,".
     const greetingName = user.name?.trim().split(/\s+/)[0] || undefined;
-    await sendPasswordResetEmail(user.email, resetUrl, greetingName).catch((err) => {
+    const company = user.companyId ? await findCompanyById(user.companyId) : null;
+    await sendPasswordResetEmail(user.email, resetUrl, greetingName, company?.name?.trim() || undefined).catch((err) => {
       console.error('[forgotPassword] failed to send reset email', err);
     });
   }

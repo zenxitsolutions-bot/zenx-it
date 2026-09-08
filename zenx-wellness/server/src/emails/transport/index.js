@@ -45,5 +45,9 @@ export function assertEmailTransportConfigured() {
 
 export async function sendViaTransport(message) {
   const kind = resolveTransportKind();
-  return TRANSPORTS[kind](message);
+  const attachments = [
+    ...(message.attachment ? [message.attachment] : []),
+    ...(Array.isArray(message.attachments) ? message.attachments : []),
+  ];
+  return TRANSPORTS[kind]({ ...message, attachments });
 }

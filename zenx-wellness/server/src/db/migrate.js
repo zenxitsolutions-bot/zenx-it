@@ -142,6 +142,14 @@ const ALTERS = [
   'ALTER TABLE users ADD COLUMN last_login DATETIME(3) NULL AFTER updated_at',
   // Dietitian date of joining — civil day only. See schema.sql's joined_on comment.
   'ALTER TABLE users ADD COLUMN joined_on DATE NULL AFTER qualifications',
+  // Saved weekly plans (reuse library): a plan is only offered for reassignment when the dietitian
+  // chose "Save for reuse" on publish. Autosaved drafts stay assigned to one client and stay out
+  // of that list.
+  'ALTER TABLE plans ADD COLUMN reusable BOOLEAN NOT NULL DEFAULT FALSE AFTER published',
+  'ALTER TABLE users ADD COLUMN diet_preference VARCHAR(32) NULL AFTER plan_duration',
+  'ALTER TABLE users ADD COLUMN allergies TEXT NULL AFTER diet_preference',
+  'ALTER TABLE users ADD COLUMN plan_started_on DATE NULL AFTER plan_duration',
+  "UPDATE users SET plan_started_on = DATE(created_at) WHERE role = 'client' AND plan_duration IS NOT NULL AND plan_started_on IS NULL",
 ];
 
 // admin-server (ZenX) is the source of truth for company identity; this is only the local mirror

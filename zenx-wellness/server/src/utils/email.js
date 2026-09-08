@@ -16,7 +16,7 @@ import { sendViaTransport } from '../emails/transport/index.js';
 //
 // Still a direct send, not an email_log/worker enqueue: a password reset is worthless if it
 // arrives on a later poll tick, and the caller already treats a send failure as non-fatal.
-export async function sendPasswordResetEmail(to, resetUrl, clientName = 'there') {
+export async function sendPasswordResetEmail(to, resetUrl, clientName = 'there', companyName = 'ZenX Dietitian') {
   const minutes = env.passwordResetTokenTtlMinutes;
   // "1 hour" reads better than "60 minutes" for the common case; anything not a whole number of
   // hours stays in minutes rather than rounding the user's window up or down.
@@ -25,6 +25,7 @@ export async function sendPasswordResetEmail(to, resetUrl, clientName = 'there')
 
   const { subject, html, text } = renderTemplate('password-reset', {
     client_name: clientName,
+    company_name: companyName,
     reset_url: resetUrl,
     expiry_label: expiryLabel,
   });

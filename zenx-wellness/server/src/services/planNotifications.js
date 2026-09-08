@@ -24,6 +24,7 @@ export async function notifyPlanPublished(plan) {
         plan_name: plan.title,
         week_range: `${formatCalendarDate(plan.week)} – ${formatCalendarDate(plan.weekEnd)}`,
         login_url: portalPathUrl(client, '/app/meals'),
+        planId: plan.id,
       },
       // No revision counter (unlike calls' icsSequence) — an un-publish/re-publish of the same
       // plan isn't a supported flow today (there's no "Unpublish" action in the UI), so keying

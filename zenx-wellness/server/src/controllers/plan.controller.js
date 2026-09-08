@@ -40,6 +40,7 @@ export const listPlans = asyncHandler(async (req, res) => {
   const filter = scopeToOwner(req, { companyId: req.user.companyId });
   if (req.query.client && req.user.role !== 'client') filter.client = req.query.client;
   if (req.query.week) filter.week = String(req.query.week).slice(0, 10);
+  if (req.query.reusable === 'true' || req.query.reusable === '1') filter.reusable = true;
   const plans = await queryPlans(filter);
   res.json(plans.map((p) => toClientShape(p)));
 });
@@ -103,6 +104,11 @@ export const updatePlan = asyncHandler(async (req, res) => {
   // an already-published plan. See docs/API.md for why this is what "published" means here.
   const isPublishing = req.body.published === true && !existing.published;
   const { notifySwaps, swapResolutions, ...patch } = req.body;
+
+  if (patch.client && String(patch.client) !== String(existing.client)) {
+    if (req.user.role === 'dietitian') await assertDietitianOwnsClient(req, patch.client);
+    else await assertUserInCompany(req, patch.client);
+  }
 
   const plan = await updatePlanById(req.params.id, patch);
   if (isPublishing) await notifyPlanPublished(plan);

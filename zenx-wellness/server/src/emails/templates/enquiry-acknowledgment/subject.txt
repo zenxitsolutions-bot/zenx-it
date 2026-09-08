@@ -1,1 +1,1 @@
-Thanks for reaching out to ZenX Dietitian
+Thanks for reaching out to {{company_name}}

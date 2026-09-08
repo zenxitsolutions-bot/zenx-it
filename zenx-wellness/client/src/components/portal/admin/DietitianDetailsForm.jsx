@@ -181,9 +181,8 @@ export function DietitianDetailsForm({ dietitian, onSaved }) {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Suspended blocks login immediately, for everyone already signed in too. Inactive doesn't affect
-                  login. Neither ever cancels, hides, or reassigns any of this dietitian's existing clients or
-                  appointments — those stay exactly as they are.
+                  Suspended blocks this dietitian's login. Inactive does not. Assigned clients stay active and
+                  can still sign in — their accounts and assignment are not changed.
                 </p>
                 <FormMessage />
               </FormItem>

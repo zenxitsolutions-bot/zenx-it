@@ -26,6 +26,22 @@ export function addCalendarDays(ymd, days) {
   return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
+const WEEKDAY_FROM_SUNDAY = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+export function weekdayNameFromYmd(ymd) {
+  const date = toCalendarDate(ymd);
+  if (!date) return null;
+  const [year, month, day] = date.split('-').map(Number);
+  return WEEKDAY_FROM_SUNDAY[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+// Civil weekdays in plan order — Wednesday-start → Wed…Tue, not a fixed Mon–Sun strip.
+export function planWeekDays(weekStart) {
+  const start = toCalendarDate(weekStart);
+  if (!start) return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  return Array.from({ length: 7 }, (_, index) => weekdayNameFromYmd(addCalendarDays(start, index)));
+}
+
 export function formatCalendarDate(value, opts) {
   const ymd = toCalendarDate(value);
   if (!ymd) return '';

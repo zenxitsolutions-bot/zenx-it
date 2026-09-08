@@ -2,6 +2,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { sendEmail } from '../emails/sendEmail.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
+import { companyDisplayName } from '../utils/companyBrand.js';
 
 function formatDate(date, timezone) {
   return formatInTimeZone(date, timezone, 'd MMM yyyy');
@@ -36,11 +37,12 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
   }
 
   const gapNotice = newGaps.length > 0 ? `Note: ${newGaps.length} occurrence(s) couldn't be scheduled and need your attention.` : '';
+  const companyName = await companyDisplayName(dietitian.companyId || client.companyId);
   if (canNotifyUser(dietitian)) try {
     await sendEmail(
       dietitian.email,
       'consultation-schedule-generated-dietitian',
-      { client_name: client.name, dietitian_name: dietitian.name, count: String(createdCalls.length), date_range: dateRange, login_url: loginUrl, gap_notice: gapNotice },
+      { client_name: client.name, dietitian_name: dietitian.name, count: String(createdCalls.length), date_range: dateRange, login_url: loginUrl, gap_notice: gapNotice, company_name: companyName },
       { idempotencyKey: `consultation-schedule-generated:${batchKey}:dietitian`, relatedEntity: { type: 'client', id: client.id } }
     );
   } catch (err) {

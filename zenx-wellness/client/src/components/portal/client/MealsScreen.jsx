@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useCurrentPlan, useUpdateMealStatus } from '@/hooks/usePlans';
-import { getTodayName, getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
+import { getTodayName, getDayKeyForDate, groupMealsByDay, computeMealCompletion, planWeekDays } from '@/lib/clientPortal';
 import { formatCalendarDate } from '@/lib/calendarDate';
 import { DayTabs } from './DayTabs';
 import { MealCard } from './MealCard';
@@ -12,10 +12,8 @@ import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPd
 import { Utensils } from 'lucide-react';
 
 export function MealsScreen() {
-  // getTodayName() is only a placeholder here, before `plan` (and therefore its actual week start)
-  // has loaded — the effect below immediately corrects it to today's real position within THIS
-  // plan's week via getDayKeyForDate, which is what actually matters once a week doesn't
-  // necessarily start on a Monday (see DayTabs.jsx/clientPortal.js's own comments on this split).
+  // Placeholder until the plan loads. The effect then selects today when it sits inside this
+  // plan's window, or the plan's first civil day (Wednesday on a Wed–Tue week).
   const [selectedDay, setSelectedDay] = useState(getTodayName());
   const { plan, isLoading, isError, refetch } = useCurrentPlan();
   const updateMeal = useUpdateMealStatus();
@@ -28,7 +26,7 @@ export function MealsScreen() {
     if (!plan?.week || defaultedForWeekRef.current === plan.week) return;
     defaultedForWeekRef.current = plan.week;
     const todayKey = getDayKeyForDate(plan.week);
-    if (todayKey) setSelectedDay(todayKey);
+    setSelectedDay(todayKey ?? planWeekDays(plan.week)[0]);
   }, [plan?.week]);
 
   const mealsByDay = groupMealsByDay(plan);

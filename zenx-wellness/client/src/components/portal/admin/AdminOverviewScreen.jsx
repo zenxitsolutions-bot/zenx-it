@@ -4,6 +4,7 @@ import {
   Inbox,
   Sparkles,
   CalendarClock,
+  Phone,
   Trophy,
   TrendingUp,
   XCircle,
@@ -76,9 +77,10 @@ export function AdminOverviewScreen() {
   const prev = months.length > 1 ? months[months.length - 2] : undefined;
 
   const actions = [
-    { label: 'Add Enquiry', to: `${base}/enquiries`, icon: Plus },
+    { label: 'Add Enquiry', to: `${base}/enquiries?create=1`, icon: Plus },
     { label: 'Add User', to: `${base}/users?create=1`, icon: UserPlus },
     { label: 'Schedule Follow-up', to: `${base}/enquiries`, icon: CalendarClock },
+    { label: 'Enquiry calls', to: `${base}/calls`, icon: Phone },
     { label: 'Add Recipes', to: `${base}/recipes?create=1`, icon: UtensilsCrossed },
     { label: 'Create Plan', to: `${base}/plans?create=1`, icon: ClipboardList },
   ];

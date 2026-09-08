@@ -9,9 +9,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { useUpdateUser } from '@/hooks/useUsers';
 import { toE164OrEmpty } from '@/lib/phone';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
+import { DIET_PREFERENCES } from '@/lib/dietPreferences';
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -19,7 +22,19 @@ const schema = z.object({
   // as the server (server/src/schemas/user.schema.js).
   phone: z.string().refine((v) => !v || isValidPhoneNumber(v), 'Enter a valid phone number'),
   timezone: z.string().optional(),
+  dietPreference: z.string().optional(),
+  allergies: z.string().max(1000, 'Keep allergies under 1000 characters').optional(),
 });
+
+function toFormValues(client) {
+  return {
+    email: client.email,
+    phone: toE164OrEmpty(client.phone),
+    timezone: client.timezone || 'UTC',
+    dietPreference: client.dietPreference ?? 'none',
+    allergies: client.allergies ?? '',
+  };
+}
 
 // Spec §2026-round2-fixes item 3: "Edit Client, both admin and dietitian portals." Spec item 8
 // (timezone rollout) added timezone to the same allowlist — user.controller.js#updateUser
@@ -30,16 +45,23 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
   const updateUser = useUpdateUser();
   const form = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { email: client.email, phone: toE164OrEmpty(client.phone), timezone: client.timezone || 'UTC' },
+    defaultValues: toFormValues(client),
   });
 
   useEffect(() => {
-    if (open) form.reset({ email: client.email, phone: toE164OrEmpty(client.phone), timezone: client.timezone || 'UTC' });
+    if (open) form.reset(toFormValues(client));
   }, [open, client, form]);
 
   function onSubmit(values) {
     updateUser.mutate(
-      { userId: client._id, email: values.email, phone: values.phone, timezone: values.timezone },
+      {
+        userId: client._id,
+        email: values.email,
+        phone: values.phone,
+        timezone: values.timezone,
+        dietPreference: values.dietPreference !== 'none' ? values.dietPreference : null,
+        allergies: values.allergies?.trim() ? values.allergies.trim() : null,
+      },
       {
         onSuccess: () => {
           toast.success('Contact info updated.');
@@ -60,8 +82,8 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Edit contact info</DialogTitle>
-          <DialogDescription>Updates {client.name}'s email, phone, and timezone. They can still log in right away.</DialogDescription>
+          <DialogTitle>Edit client info</DialogTitle>
+          <DialogDescription>Updates {client.name}'s contact details and diet notes. They can still log in right away.</DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
@@ -105,6 +127,44 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
                   <FormLabel>Timezone</FormLabel>
                   <FormControl>
                     <TimezoneSelect id="client-timezone" value={field.value} onChange={field.onChange} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dietPreference"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Diet preference</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose a preference" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="none">Not specified</SelectItem>
+                      {DIET_PREFERENCES.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="allergies"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Allergies</FormLabel>
+                  <FormControl>
+                    <Textarea rows={2} placeholder="e.g. peanuts, lactose, gluten" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

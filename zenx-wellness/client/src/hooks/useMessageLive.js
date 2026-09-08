@@ -7,9 +7,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/context/PresenceContext';
 
 function appendMessage(old, message) {
-  if (!old) return old;
-  if (old.some((item) => item._id === message._id)) return old;
-  return [...old, message];
+  const list = old ?? [];
+  if (list.some((item) => item._id === message._id)) return list;
+  return [...list, message];
 }
 
 async function ensureAccessToken() {
@@ -43,6 +43,12 @@ export function useMessageLive(enabled) {
       if (event.type !== 'message' || !event.message) return;
 
       const message = event.message;
+      if (message.channel === 'support') {
+        const threadKey = user.role === 'dietitian' ? 'mine' : message.dietitian;
+        queryClient.setQueryData(['support-messages', threadKey], (old) => appendMessage(old, message));
+        queryClient.invalidateQueries({ queryKey: ['support-messages'] });
+        return;
+      }
       const threadKey = user.role === 'client' ? 'mine' : message.client;
       queryClient.setQueryData(['messages', threadKey], (old) => appendMessage(old, message));
       queryClient.invalidateQueries({ queryKey: ['messages', 'unread-count'] });

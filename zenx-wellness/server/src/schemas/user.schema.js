@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { PLAN_DURATIONS } from '../constants/planDurations.js';
+import { DIET_PREFERENCES } from '../constants/dietPreferences.js';
 import { isValidTimezone } from '../services/timezoneService.js';
 import { toCalendarDate } from '../utils/calendarDate.js';
 
@@ -8,6 +9,14 @@ import { toCalendarDate } from '../utils/calendarDate.js';
 // as assignedDietitian.
 const programPlan = z.string().min(1).nullable().optional();
 const planDuration = z.enum(PLAN_DURATIONS).nullable().optional();
+const dietPreference = z.enum(DIET_PREFERENCES).nullable().optional();
+const allergies = z
+  .string()
+  .trim()
+  .max(1000)
+  .optional()
+  .nullable()
+  .transform((value) => (value === '' ? null : value));
 
 // The client's PhoneInput (client/src/components/ui/phone-input.jsx) always sends E.164 (e.g.
 // "+14155550123") — a real, dialable number for a real country, not just "looks phone-shaped".
@@ -72,6 +81,10 @@ export const updateMeSchema = z.object({
   name: z.string().min(1).optional(),
   phone: optionalPhone,
   assignedDietitian: z.string().min(1).nullable().optional(),
+  // Client-only diet notes — updateMe strips these for any other role so a dietitian/admin
+  // cannot accidentally write them onto their own row via My account.
+  dietPreference,
+  allergies,
   timezone,
   country,
   dateFormat,
@@ -96,6 +109,8 @@ export const updateUserSchema = z.object({
   accountStatus,
   programPlan,
   planDuration,
+  dietPreference,
+  allergies,
   timezone,
   country,
   dateFormat,
@@ -119,6 +134,8 @@ export const createUserSchema = z
     assignedDietitian: z.string().min(1).nullable().optional(),
     programPlan,
     planDuration,
+    dietPreference,
+    allergies,
     // Optional at creation — an admin can set it up front instead of relying on the DB's 'UTC'
     // default + a later PATCH, but nothing requires it (spec item 1 only requires phone/address
     // for a dietitian, not timezone).

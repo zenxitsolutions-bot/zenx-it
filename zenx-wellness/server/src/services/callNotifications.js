@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { formatInZone, effectiveTimezone } from './timezoneService.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
+import { companyDisplayName } from '../utils/companyBrand.js';
 import { notifyUserPush } from './pushNotifications.js';
 
 // Every user (client or dietitian) can now have their own timezone (see users.timezone's comment
@@ -75,7 +76,8 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   // Named after whichever provider actually created the room, not the currently-configured one —
   // a call booked before the setting changed still carries a working link from the old provider,
   // and labelling it with the new one would send people looking for the wrong app.
-  const joinLabel = call.meetingUrl ? providerJoinLabel(call.meetingProvider) : 'View in ZenX Dietitian';
+  const companyName = await companyDisplayName(dietitian.companyId || attendee?.companyId);
+  const joinLabel = call.meetingUrl ? providerJoinLabel(call.meetingProvider) : `View in ${companyName}`;
   // Two independently-correct renderings of the SAME UTC instant — the client's email uses the
   // client's (or lead's, defaulting to UTC) zone, the dietitian's email uses the dietitian's.
   const dietitianMeetingTime = formatMeetingTime(call.scheduledAt, dietitian);
@@ -86,15 +88,15 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   const icsBase = {
     callId: call.id,
     sequence: call.icsSequence,
-    summary: `ZenX Dietitian call with ${dietitian.name}`,
+    summary: `${companyName} call with ${dietitian.name}`,
     // The join link goes in the description as well as `url`: calendar clients differ in which
     // one they surface, and Google Calendar in particular renders the description body but not
     // every event URL field.
     description: call.meetingUrl
-      ? `Your call with ${dietitian.name} via ZenX Dietitian.
+      ? `Your call with ${dietitian.name} via ${companyName}.
 
 Join: ${call.meetingUrl}`
-      : `Your call with ${dietitian.name} via ZenX Dietitian.`,
+      : `Your call with ${dietitian.name} via ${companyName}.`,
     url: joinUrl,
     start: call.scheduledAt,
     organizer: { name: dietitian.name, email: dietitian.email },

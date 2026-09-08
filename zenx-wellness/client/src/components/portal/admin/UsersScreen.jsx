@@ -126,7 +126,7 @@ export function UsersScreen() {
                   <Badge variant={ROLE_TONE[u.role]} className="capitalize">
                     {u.role}
                   </Badge>
-                  {u.role === 'dietitian' && u.accountStatus && u.accountStatus !== 'active' && (
+                  {u.accountStatus && u.accountStatus !== 'active' && (
                     <Badge variant={ACCOUNT_STATUS_BADGE_VARIANT[u.accountStatus]} className="capitalize">
                       {ACCOUNT_STATUS_LABEL[u.accountStatus]}
                     </Badge>

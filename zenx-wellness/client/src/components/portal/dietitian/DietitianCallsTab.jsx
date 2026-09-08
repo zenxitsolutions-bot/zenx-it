@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { CallTabs } from '@/components/portal/shared/CallTabs';
+import { CallListFilters } from '@/components/portal/shared/CallListFilters';
 import { useCalls } from '@/hooks/useCalls';
-import { groupCallsByTab } from '@/lib/clientPortal';
+import { useClients } from '@/hooks/useClients';
+import { filterCalls, groupCallsByTab } from '@/lib/clientPortal';
 import { DietitianCallCard } from './DietitianCallCard';
 import { DietitianCallFormDialog } from './DietitianCallFormDialog';
 
@@ -18,11 +20,20 @@ const EMPTY = {
 
 export function DietitianCallsTab() {
   const { data, isLoading, isError, refetch } = useCalls();
-  const [dialog, setDialog] = useState(null); // { mode: 'schedule' | 'reschedule', call? }
+  const { data: clients } = useClients();
+  const [dialog, setDialog] = useState(null);
   const [tab, setTab] = useState('upcoming');
+  const [clientId, setClientId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
 
-  const groups = groupCallsByTab(data);
+  const scoped = useMemo(
+    () => filterCalls(data, { personId: clientId, personKey: 'client', from, to }),
+    [data, clientId, from, to]
+  );
+  const groups = groupCallsByTab(scoped);
   const calls = groups[tab] ?? [];
+  const filtersActive = Boolean(clientId || from || to);
 
   return (
     <div>
@@ -31,6 +42,22 @@ export function DietitianCallsTab() {
           + Schedule a call
         </Button>
       </div>
+
+      <CallListFilters
+        personLabel="Client"
+        personValue={clientId}
+        onPersonChange={setClientId}
+        people={clients}
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
+        onClear={() => {
+          setClientId('');
+          setFrom('');
+          setTo('');
+        }}
+      />
 
       {isLoading ? (
         <div className="grid gap-3">
@@ -53,15 +80,18 @@ export function DietitianCallsTab() {
 
           <div className="mt-5 grid gap-3">
             {calls.length === 0 ? (
-              <EmptyState icon={PhoneOff} title={EMPTY[tab].title} description={EMPTY[tab].description} />
+              <EmptyState
+                icon={PhoneOff}
+                title={filtersActive ? 'No calls match these filters' : EMPTY[tab].title}
+                description={
+                  filtersActive ? 'Try another client or a wider date range.' : EMPTY[tab].description
+                }
+              />
             ) : (
               calls.map((call) => (
                 <DietitianCallCard
                   key={call._id}
                   call={call}
-                  // Rescheduling only makes sense for a call that is still going to happen —
-                  // offering it on a cancelled or finished one would open a dialog whose save the
-                  // server rejects.
                   onReschedule={
                     call.status === 'scheduled' && new Date(call.scheduledAt).getTime() >= Date.now()
                       ? () => setDialog({ mode: 'reschedule', call })
