@@ -179,12 +179,14 @@ CREATE TABLE IF NOT EXISTS recipes (
   -- creator's own practice. Login already rejects INACTIVE companies, so shared rows never
   -- leak to a deactivated tenant.
   visibility ENUM('company', 'shared') NOT NULL DEFAULT 'company',
-  created_by VARCHAR(36) NOT NULL,
+  -- Shared catalog recipes are platform data and have no customer user owner. Custom recipes
+  -- retain their creator id and remain company-scoped through the users join in Recipe.js.
+  created_by VARCHAR(36) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_recipes_meal_type (meal_type),
   KEY idx_recipes_visibility (visibility),
-  CONSTRAINT fk_recipes_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_recipes_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS recipe_favorites (

@@ -46,6 +46,12 @@ const ALTERS = [
   // comment on this column in schema.sql. A MODIFY COLUMN re-applying an already-matching
   // definition is a harmless no-op in MySQL (no error to swallow), unlike ADD/DROP above.
   'ALTER TABLE recipes MODIFY COLUMN meal_type VARCHAR(50) NOT NULL',
+  // Shared catalog rows are platform-owned, not owned by a seeded/demo dietitian. Making the
+  // creator nullable lets production deployments populate the catalog before any customer user
+  // exists and prevents deleting one user from deleting all shared recipes.
+  'ALTER TABLE recipes DROP FOREIGN KEY fk_recipes_created_by',
+  'ALTER TABLE recipes MODIFY COLUMN created_by VARCHAR(36) NULL',
+  'ALTER TABLE recipes ADD CONSTRAINT fk_recipes_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL',
   // Enquiry history / Follow-up / Converted (2026-08-22): enquiry_history itself is a brand-new
   // table, created via schema.sql's own CREATE TABLE IF NOT EXISTS — only this new enquiries
   // column needs backfilling here.
@@ -270,7 +276,7 @@ async function migrate() {
   const sql = readFileSync(schemaPath, 'utf8');
   // multipleStatements is only turned on for this one-off DDL run, never for the app's pool.
   const conn = await mysql.createConnection({ uri: env.mysqlUrl, multipleStatements: true });
-  console.log(`[migrate] connected → ${env.mysqlUrl}`);
+  console.log('[migrate] database connected');
   await conn.query(sql);
   console.log('[migrate] schema applied');
 
