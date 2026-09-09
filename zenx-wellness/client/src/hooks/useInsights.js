@@ -12,5 +12,6 @@ export function useDietitianOverview() {
     queryKey: ['insights', 'dietitian'],
     queryFn: getDietitianOverviewRequest,
     enabled: user?.role === 'dietitian',
+    refetchInterval: 15_000,
   });
 }

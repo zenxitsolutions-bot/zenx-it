@@ -44,6 +44,7 @@ export function planWeekDays(weekStart) {
 }
 
 export function dateForWeekdaySlot(week, day) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
   const start = toCalendarDate(week);
   if (!start) return null;
   const slotOffset = WEEKDAY_SLOTS.indexOf(day);
@@ -51,6 +52,31 @@ export function dateForWeekdaySlot(week, day) {
   // Already a civil weekday on a mid-week plan (e.g. "Wednesday" when the week starts Wednesday).
   const civilOffset = planWeekDays(start).indexOf(day);
   return civilOffset >= 0 ? addCalendarDays(start, civilOffset) : null;
+}
+
+export const MAX_PLAN_DAYS = 90;
+
+export function calendarDaySpan(start, end) {
+  const from = toCalendarDate(start);
+  const to = toCalendarDate(end);
+  if (!from || !to) return null;
+  const [sy, sm, sd] = from.split('-').map(Number);
+  const [ey, em, ed] = to.split('-').map(Number);
+  return Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000) + 1;
+}
+
+export function planRangeDates(weekStart, weekEnd) {
+  const start = toCalendarDate(weekStart);
+  if (!start) return [];
+  const end = toCalendarDate(weekEnd) || addCalendarDays(start, 6);
+  const last = end < start ? start : end;
+  const dates = [];
+  let cursor = start;
+  while (dates.length < MAX_PLAN_DAYS && cursor <= last) {
+    dates.push(cursor);
+    cursor = addCalendarDays(cursor, 1);
+  }
+  return dates;
 }
 
 export function formatCalendarDate(value, pattern = { day: 'numeric', month: 'short', year: 'numeric' }) {

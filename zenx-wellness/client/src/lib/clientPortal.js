@@ -1,6 +1,6 @@
 // Read-model helpers for the client portal screens (Overview/Meals/Progress/Calls) — kept out of
 // components per CLAUDE.md §3 ("no business logic in components").
-import { addCalendarDays, planWeekDays, toCalendarDate, toLocalCalendarDate, weekdayNameFromYmd } from './calendarDate';
+import { addCalendarDays, dateForMealDay, planRangeDates, planWeekDays, toCalendarDate, toLocalCalendarDate, weekdayNameFromYmd } from './calendarDate';
 
 export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -20,15 +20,13 @@ export function civilDayForMeal(weekStart, storedDay) {
 
 // Civil weekday of `date` when it sits inside this plan's 7-day window (Wed-start → first
 // key is Wednesday). Null if `date` is outside the window.
-export function getDayKeyForDate(weekStart, date = new Date()) {
+export function getDayKeyForDate(weekStart, date = new Date(), weekEnd) {
   if (!weekStart) return null;
   const start = toCalendarDate(weekStart);
   if (!start) return null;
   const ymd = toLocalCalendarDate(date);
-  const [sy, sm, sd] = start.split('-').map(Number);
-  const [ty, tm, td] = ymd.split('-').map(Number);
-  const offset = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(sy, sm - 1, sd)) / (24 * 60 * 60 * 1000));
-  return offset >= 0 && offset < 7 ? weekdayNameFromYmd(ymd) : null;
+  const end = toCalendarDate(weekEnd) || addCalendarDays(start, 6);
+  return ymd >= start && ymd <= end ? ymd : null;
 }
 
 // Exported so client/src/lib/clientProfile.js's meal-history sort can reuse the exact same
@@ -43,11 +41,12 @@ export function parseTimeToMinutes(time) {
 }
 
 export function groupMealsByDay(plan) {
-  const days = planWeekDays(plan?.week);
-  const map = Object.fromEntries(days.map((day) => [day, []]));
+  const dates = planRangeDates(plan?.week, plan?.weekEnd);
+  const map = Object.fromEntries(dates.map((date) => [date, []]));
   for (const meal of plan?.meals ?? []) {
-    const day = civilDayForMeal(plan?.week, meal.day);
-    (map[day] ??= []).push(meal);
+    const date = dateForMealDay(plan?.week, meal.day);
+    if (!date) continue;
+    (map[date] ??= []).push(meal);
   }
   for (const day of Object.keys(map)) {
     map[day].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
@@ -67,10 +66,10 @@ export function getTodayHighlightMeal(plan, now = new Date()) {
 
   for (const meal of plan.meals ?? []) {
     if (meal.completed) continue;
-    const civil = civilDayForMeal(start, meal.day);
-    const offset = planWeekDays(start).indexOf(civil);
-    if (offset < 0) continue;
-    const date = addCalendarDays(start, offset);
+    const date = dateForMealDay(start, meal.day);
+    if (!date) continue;
+    const end = toCalendarDate(plan.weekEnd) || addCalendarDays(start, 6);
+    if (date > end) continue;
     const minutes = parseTimeToMinutes(meal.time);
     if (date < today || (date === today && minutes < nowMinutes)) continue;
     upcoming.push({ meal, date, minutes });
@@ -101,17 +100,25 @@ function planCoversDate(plan, today) {
   return today >= start && today <= end;
 }
 
-// "This week's plan" is the one whose 7-day window contains today — not merely the newest row.
-// A future draft (week DESC first) was hiding the published week clients actually need.
+function planRecency(plan) {
+  const time = new Date(plan?.updatedAt ?? plan?.updated_at ?? 0).getTime();
+  return Number.isFinite(time) ? time : 0;
+}
+
+function newestPlan(plans) {
+  return [...plans].sort((a, b) => planRecency(b) - planRecency(a))[0] ?? null;
+}
+
+// Prefer the covering plan the dietitian updated most recently. An older published week that
+// still overlaps today must not hide a swap that was just saved on a newer plan.
 export function pickCurrentPlan(plans, today = toLocalCalendarDate()) {
   const list = Array.isArray(plans) ? plans : [];
   const covering = list.filter((p) => planCoversDate(p, today));
   return (
-    covering.find((p) => p.published) ||
-    covering[0] ||
-    list.find((p) => p.published) ||
-    list[0] ||
-    null
+    newestPlan(covering.filter((p) => p.published)) ||
+    newestPlan(covering) ||
+    newestPlan(list.filter((p) => p.published)) ||
+    newestPlan(list)
   );
 }
 
@@ -264,6 +271,6 @@ export function recipeIngredientList(text) {
 export function recipeInstructionSteps(text) {
   const raw = String(text ?? '').trim();
   if (!raw) return [];
-  if (/\r?\n/.test(raw)) return raw.split(/\r?\n/).map((step) => step.trim()).filter(Boolean);
-  return [raw];
+  const lines = /\r?\n/.test(raw) ? raw.split(/\r?\n/) : [raw];
+  return lines.map((step) => step.replace(/^\d+[.)]\s*/, '').trim()).filter(Boolean);
 }

@@ -2,12 +2,22 @@ import { useState } from 'react';
 import { Check, ChevronDown, Repeat } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RecipeDetails } from './RecipeDetails';
+import { RecipeMedia } from '@/components/portal/dietitian/RecipeMedia';
+import { nutritionSummary } from '@/lib/recipeNutrition';
 
 export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
   const [open, setOpen] = useState(false);
   const recipe = meal.recipe;
   const title = recipe?.title ?? meal.customTitle ?? `${meal.mealType} — recipe TBD`;
-  const hasDetails = Boolean(recipe?.ingredients || recipe?.instructions || recipe?.kcal || recipe?.protein || recipe?.prepTime || meal.notes);
+  const hasDetails = Boolean(
+    recipe?.ingredients ||
+      recipe?.instructions ||
+      recipe?.kcal ||
+      recipe?.protein ||
+      recipe?.prepTime ||
+      recipe?.imageUrl ||
+      meal.notes
+  );
 
   return (
     <article className="card-hover rounded-card border border-line bg-white p-4 shadow-soft">
@@ -15,9 +25,13 @@ export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
         <span className="hidden w-20 shrink-0 text-xs font-semibold tracking-wide text-brand-strong uppercase min-[520px]:block">
           {meal.mealType}
         </span>
-        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-cream text-xl">
-          {recipe?.emoji ?? '🍽️'}
-        </div>
+        {recipe ? (
+          <RecipeMedia recipe={recipe} className="size-12 shrink-0 rounded-2xl" />
+        ) : (
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-cream text-xl">
+            🍽️
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <span className="text-xs text-muted-foreground">
             <span className="font-semibold text-brand-strong uppercase min-[520px]:hidden">{meal.mealType} · </span>
@@ -27,9 +41,8 @@ export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
           <h3 className="text-sm font-semibold text-forest">{title}</h3>
           {(recipe?.kcal || recipe?.protein) && (
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {recipe.kcal ? `${recipe.kcal} kcal` : ''}
-              {recipe.kcal && recipe.protein ? ' · ' : ''}
-              {recipe.protein ? `${recipe.protein}g protein` : ''}
+              {nutritionSummary(recipe, meal.servings).slice(0, 2).join(' · ')}
+              {meal.servings && meal.servings !== 1 ? ` · ${meal.servings} servings` : ''}
             </p>
           )}
           {recipe?.tags?.length > 0 && (
@@ -85,7 +98,7 @@ export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
         </button>
       </div>
 
-      {open && <RecipeDetails recipe={recipe} notes={meal.notes} />}
+      {open && <RecipeDetails recipe={recipe} notes={meal.notes} servings={meal.servings} />}
     </article>
   );
 }

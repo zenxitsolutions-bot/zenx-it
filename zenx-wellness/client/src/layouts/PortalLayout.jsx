@@ -6,6 +6,7 @@ import { PortalHeader } from '@/components/portal/shared/PortalHeader';
 import { MobileNav } from '@/components/portal/shared/MobileNav';
 import { useAuth } from '@/hooks/useAuth';
 import { useCallReminders } from '@/hooks/useCallReminders';
+import { useInAppNotificationToasts } from '@/hooks/useNotifications';
 import { useMessageLive } from '@/hooks/useMessageLive';
 import { PresenceProvider } from '@/context/PresenceContext';
 import { TimezoneMismatchBanner } from '@/components/shared/TimezoneMismatchBanner';
@@ -17,6 +18,7 @@ function PortalLive() {
   // Admin is excluded: their "own calls" query is intentionally unscoped (every call on the
   // platform), which would fire a reminder for every client's call, not just theirs.
   useCallReminders(canCareMessage);
+  useInAppNotificationToasts(Boolean(user));
   useMessageLive(canLiveMessage);
   return null;
 }

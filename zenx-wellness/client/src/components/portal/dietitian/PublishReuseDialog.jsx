@@ -8,7 +8,7 @@ export function PublishReuseDialog({ open, onOpenChange, pending, onChoose }) {
         <DialogHeader>
           <DialogTitle>Save this meal schedule for reuse?</DialogTitle>
           <DialogDescription>
-            Saving keeps it in your saved weekly plans so you can assign the same meals to another client later.
+            Saving keeps it in your saved weekly plans so you can reuse the same meals for any client later.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">

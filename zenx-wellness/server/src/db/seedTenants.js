@@ -102,8 +102,8 @@ async function seedTenantData(tenant, companyId, byEmail, log) {
       prepTime: '5 min',
       ingredients: `${tenant.name} ingredients`,
       instructions: `${tenant.name} instructions`,
-      // Recipes carry no company of their own in listRecipes' filter — it scopes by the creating
-      // user's company (`u.company_id`), so the dietitian is what places this row in the tenant.
+      // Custom recipes stay on the creating user's company. The shared Healthy Indian catalog
+      // is listed for every tenant on top of that, so this marker is what isolation checks use.
       createdBy: dietitian?.id ?? null,
     });
     log(`[seed:tenants]   + recipe "${marker}"`);

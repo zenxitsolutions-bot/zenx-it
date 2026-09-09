@@ -26,6 +26,7 @@ import { emailLogRouter } from './routes/emailLog.routes.js';
 import { consultationScheduleRouter } from './routes/consultationSchedule.routes.js';
 import { companyRouter } from './routes/company.routes.js';
 import { integrationsRouter } from './routes/integrations.routes.js';
+import { notificationRouter } from './routes/notification.routes.js';
 
 export const app = express();
 
@@ -78,6 +79,7 @@ app.use('/api/emails', emailLogRouter);
 app.use('/api/consultation-schedule', consultationScheduleRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/integrations', integrationsRouter);
+app.use('/api/notifications', notificationRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

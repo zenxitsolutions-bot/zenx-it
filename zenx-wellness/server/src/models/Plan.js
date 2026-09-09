@@ -4,6 +4,7 @@ import { buildSetClause } from '../db/helpers.js';
 import { mapRecipeRow, tagsByRecipeIds } from './Recipe.js';
 import { toClientShape } from '../utils/serialize.js';
 import { dateForWeekdaySlot } from '../utils/calendarDate.js';
+import { mergeRecipeWithOverride, parseRecipeOverride } from '../lib/planMealRecipe.js';
 
 const PLAN_COLUMNS = {
   title: 'title',
@@ -36,15 +37,18 @@ function mapPlan(row) {
 }
 
 function mapMeal(row, recipe) {
+  const recipeOverride = parseRecipeOverride(row.recipe_override);
   return {
     day: row.day,
     time: row.time,
     mealType: row.meal_type,
-    recipe,
+    recipe: mergeRecipeWithOverride(recipe, recipeOverride),
     customTitle: row.custom_title,
     completed: !!row.completed,
     swapRequested: !!row.swap_requested,
     notes: row.notes,
+    servings: row.meal_servings != null ? Number(row.meal_servings) : 1,
+    recipeOverride,
   };
 }
 
@@ -53,9 +57,14 @@ function mapMeal(row, recipe) {
 async function getMealsForPlans(planIds) {
   if (planIds.length === 0) return new Map();
   const [rows] = await pool.query(
-    `SELECT pm.*,
+    `SELECT pm.*, pm.servings AS meal_servings,
        r.id AS r_id, r.title AS r_title, r.emoji AS r_emoji, r.meal_type AS r_meal_type,
-       r.prep_time AS r_prep_time, r.kcal AS r_kcal, r.protein AS r_protein,
+       r.prep_time AS r_prep_time, r.cook_time AS r_cook_time, r.total_time AS r_total_time,
+       r.cuisine AS r_cuisine, r.diet_type AS r_diet_type, r.servings AS r_servings,
+       r.kcal AS r_kcal, r.protein AS r_protein, r.carbs AS r_carbs, r.fat AS r_fat,
+       r.fiber AS r_fiber, r.sugar AS r_sugar, r.portion_size AS r_portion_size,
+       r.allergens AS r_allergens, r.suitable_meal_type AS r_suitable_meal_type,
+       r.image_url AS r_image_url, r.health_notes AS r_health_notes,
        r.ingredients AS r_ingredients, r.instructions AS r_instructions,
        r.created_by AS r_created_by, r.created_at AS r_created_at, r.updated_at AS r_updated_at
      FROM plan_meals pm
@@ -81,8 +90,22 @@ async function getMealsForPlans(planIds) {
               emoji: row.r_emoji,
               meal_type: row.r_meal_type,
               prep_time: row.r_prep_time,
+              cook_time: row.r_cook_time,
+              total_time: row.r_total_time,
+              cuisine: row.r_cuisine,
+              diet_type: row.r_diet_type,
+              servings: row.r_servings,
               kcal: row.r_kcal,
               protein: row.r_protein,
+              carbs: row.r_carbs,
+              fat: row.r_fat,
+              fiber: row.r_fiber,
+              sugar: row.r_sugar,
+              portion_size: row.r_portion_size,
+              allergens: row.r_allergens,
+              suitable_meal_type: row.r_suitable_meal_type,
+              image_url: row.r_image_url,
+              health_notes: row.r_health_notes,
               ingredients: row.r_ingredients,
               instructions: row.r_instructions,
               created_by: row.r_created_by,
@@ -149,6 +172,7 @@ async function insertMeals(conn, planId, meals) {
   if (!meals.length) return;
   const values = [];
   meals.forEach((meal, idx) => {
+    const override = parseRecipeOverride(meal.recipeOverride);
     values.push(
       planId,
       idx,
@@ -159,12 +183,14 @@ async function insertMeals(conn, planId, meals) {
       meal.customTitle ?? null,
       meal.completed ?? false,
       meal.swapRequested ?? false,
-      meal.notes ?? null
+      meal.notes ?? null,
+      meal.servings ?? 1,
+      override ? JSON.stringify(override) : null
     );
   });
-  const placeholders = meals.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+  const placeholders = meals.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
   await conn.query(
-    `INSERT INTO plan_meals (plan_id, idx, day, time, meal_type, recipe_id, custom_title, completed, swap_requested, notes) VALUES ${placeholders}`,
+    `INSERT INTO plan_meals (plan_id, idx, day, time, meal_type, recipe_id, custom_title, completed, swap_requested, notes, servings, recipe_override) VALUES ${placeholders}`,
     values
   );
 }
@@ -250,6 +276,40 @@ export async function updatePlanMealByIndex(planId, index, patch) {
     await pool.query(`UPDATE plan_meals SET ${sets.join(', ')} WHERE id = ?`, [...params, target.id]);
   }
   return findPlanById(planId);
+}
+
+export async function clearResolvedSwapRequests({ clientId, plan, resolutions = [] }) {
+  if (!clientId) return;
+  const [rows] = await pool.query(
+    `SELECT pm.id, pm.day, pm.time, DATE_FORMAT(p.week, '%Y-%m-%d') AS week
+     FROM plan_meals pm
+     JOIN plans p ON p.id = pm.plan_id
+     WHERE p.client_id = ? AND pm.swap_requested = 1`,
+    [clientId]
+  );
+  if (!rows.length) return;
+
+  const resolved = new Set();
+  for (const note of resolutions) {
+    if (!note) continue;
+    resolved.add(`${note.day}|${note.time}`);
+    const date = dateForWeekdaySlot(plan?.week, note.day);
+    if (date) resolved.add(`${date}|${note.time}`);
+  }
+
+  const ids = rows
+    .filter((row) => {
+      if (!resolved.size) return plan?.week && row.week === plan.week;
+      const date = dateForWeekdaySlot(row.week, row.day);
+      return resolved.has(`${row.day}|${row.time}`) || (date && resolved.has(`${date}|${row.time}`));
+    })
+    .map((row) => row.id);
+
+  if (!ids.length) return;
+  await pool.query(
+    `UPDATE plan_meals SET swap_requested = 0 WHERE id IN (${ids.map(() => '?').join(',')})`,
+    ids
+  );
 }
 
 export async function listSwapRequestsForDietitian(dietitianId) {

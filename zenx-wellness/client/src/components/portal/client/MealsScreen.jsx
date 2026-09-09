@@ -4,8 +4,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useCurrentPlan, useUpdateMealStatus } from '@/hooks/usePlans';
-import { getTodayName, getDayKeyForDate, groupMealsByDay, computeMealCompletion, planWeekDays } from '@/lib/clientPortal';
-import { formatCalendarDate } from '@/lib/calendarDate';
+import { getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
+import { formatCalendarDate, planRangeDates } from '@/lib/calendarDate';
 import { DayTabs } from './DayTabs';
 import { MealCard } from './MealCard';
 import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
@@ -14,7 +14,7 @@ import { Utensils } from 'lucide-react';
 export function MealsScreen() {
   // Placeholder until the plan loads. The effect then selects today when it sits inside this
   // plan's window, or the plan's first civil day (Wednesday on a Wed–Tue week).
-  const [selectedDay, setSelectedDay] = useState(getTodayName());
+  const [selectedDay, setSelectedDay] = useState('');
   const { plan, isLoading, isError, refetch } = useCurrentPlan();
   const updateMeal = useUpdateMealStatus();
 
@@ -25,9 +25,9 @@ export function MealsScreen() {
   useEffect(() => {
     if (!plan?.week || defaultedForWeekRef.current === plan.week) return;
     defaultedForWeekRef.current = plan.week;
-    const todayKey = getDayKeyForDate(plan.week);
-    setSelectedDay(todayKey ?? planWeekDays(plan.week)[0]);
-  }, [plan?.week]);
+    const todayKey = getDayKeyForDate(plan.week, new Date(), plan.weekEnd);
+    setSelectedDay(todayKey ?? planRangeDates(plan.week, plan.weekEnd)[0]);
+  }, [plan?.week, plan?.weekEnd]);
 
   const mealsByDay = groupMealsByDay(plan);
   const dayMeals = mealsByDay[selectedDay] ?? [];
@@ -90,7 +90,7 @@ export function MealsScreen() {
       ) : (
         <div className="grid gap-5 min-[900px]:grid-cols-[1fr_260px]">
           <section>
-            <DayTabs weekStart={plan.week} selectedDay={selectedDay} onSelect={setSelectedDay} />
+            <DayTabs weekStart={plan.week} weekEnd={plan.weekEnd} selectedDay={selectedDay} onSelect={setSelectedDay} />
             <div className="mt-4 grid gap-3">
               {dayMeals.length === 0 ? (
                 <EmptyState title="No meals planned for this day" />

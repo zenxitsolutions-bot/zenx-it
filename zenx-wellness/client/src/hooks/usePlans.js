@@ -16,6 +16,7 @@ export function useCurrentPlan(clientId) {
     queryKey: ['plans', clientId ?? 'me'],
     queryFn: () => listPlansRequest(clientId ? { client: clientId } : undefined),
     enabled: clientId !== null,
+    refetchInterval: 15_000,
   });
   return { ...query, plan: pickCurrentPlan(query.data) };
 }
@@ -72,6 +73,7 @@ export function useUpdatePlan() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
       queryClient.invalidateQueries({ queryKey: ['insights'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }

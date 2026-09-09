@@ -35,11 +35,49 @@ export function weekdayNameFromYmd(ymd) {
   return WEEKDAY_FROM_SUNDAY[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
 }
 
+const WEEKDAY_SLOTS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+export const MAX_PLAN_DAYS = 90;
+
 // Civil weekdays in plan order — Wednesday-start → Wed…Tue, not a fixed Mon–Sun strip.
 export function planWeekDays(weekStart) {
   const start = toCalendarDate(weekStart);
-  if (!start) return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  if (!start) return WEEKDAY_SLOTS;
   return Array.from({ length: 7 }, (_, index) => weekdayNameFromYmd(addCalendarDays(start, index)));
+}
+
+export function planRangeDates(weekStart, weekEnd) {
+  const start = toCalendarDate(weekStart);
+  if (!start) return [];
+  const end = toCalendarDate(weekEnd) || addCalendarDays(start, 6);
+  const last = end < start ? start : end;
+  const dates = [];
+  let cursor = start;
+  while (dates.length < MAX_PLAN_DAYS && cursor <= last) {
+    dates.push(cursor);
+    cursor = addCalendarDays(cursor, 1);
+  }
+  return dates;
+}
+
+export function dateForMealDay(weekStart, day) {
+  const start = toCalendarDate(weekStart);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+  if (!start) return null;
+  const slotOffset = WEEKDAY_SLOTS.indexOf(day);
+  if (slotOffset >= 0) return addCalendarDays(start, slotOffset);
+  const civilOffset = planWeekDays(start).indexOf(day);
+  return civilOffset >= 0 ? addCalendarDays(start, civilOffset) : null;
+}
+
+export function planDayOptions(weekStart, weekEnd) {
+  return planRangeDates(weekStart, weekEnd).map((ymd, index) => ({
+    value: index < 7 ? WEEKDAY_SLOTS[index] : ymd,
+    ymd,
+  }));
+}
+
+export function dayValueForDate(weekStart, weekEnd, ymd) {
+  return planDayOptions(weekStart, weekEnd).find((option) => option.ymd === ymd)?.value ?? ymd;
 }
 
 export function formatCalendarDate(value, opts) {

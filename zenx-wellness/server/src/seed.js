@@ -1,6 +1,7 @@
 import { pool } from './db/pool.js';
 import { findUserByEmail, createUser, updateUser } from './models/User.js';
-import { findRecipesByTitles, createRecipe } from './models/Recipe.js';
+import { findRecipesByTitles, createRecipe, markRecipesSharedByTitles, syncCatalogRecipes } from './models/Recipe.js';
+import { HEALTHY_INDIAN_RECIPES } from './data/healthyIndianRecipes.js';
 import { findPlanByClient, createPlan } from './models/Plan.js';
 import { createProgress } from './models/Progress.js';
 import { createCall, updateCallById } from './models/Call.js';
@@ -85,6 +86,14 @@ function endOfWeek(weekStart) {
   return new Date(Date.UTC(year, month - 1, day + 6)).toISOString().slice(0, 10);
 }
 
+async function seedHealthyIndianCatalog(dietitian) {
+  const { created, updated } = await syncCatalogRecipes(HEALTHY_INDIAN_RECIPES, dietitian.id);
+  await markRecipesSharedByTitles(HEALTHY_INDIAN_RECIPES.map((recipe) => recipe.title));
+  console.log(
+    `[seed] healthy Indian recipes: catalog ${HEALTHY_INDIAN_RECIPES.length}, created ${created}, updated ${updated}`
+  );
+}
+
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -102,6 +111,8 @@ async function seedDemoData(dietitian, client) {
   } else {
     console.log('[seed] demo recipes already exist, skipped');
   }
+
+  await seedHealthyIndianCatalog(dietitian);
 
   const existingPlan = await findPlanByClient(client.id);
   if (existingPlan) {

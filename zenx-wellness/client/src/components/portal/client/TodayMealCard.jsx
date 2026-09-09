@@ -2,19 +2,32 @@ import { useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RecipeDetails } from './RecipeDetails';
+import { RecipeMedia } from '@/components/portal/dietitian/RecipeMedia';
 
 export function TodayMealCard({ meal, whenLabel, onMarkEaten, isPending }) {
   const [open, setOpen] = useState(false);
   const recipe = meal.recipe;
   const title = recipe?.title ?? meal.customTitle ?? `${meal.mealType} — recipe TBD`;
-  const hasDetails = Boolean(recipe?.ingredients || recipe?.instructions || recipe?.kcal || recipe?.protein || recipe?.prepTime || meal.notes);
+  const hasDetails = Boolean(
+    recipe?.ingredients ||
+      recipe?.instructions ||
+      recipe?.kcal ||
+      recipe?.protein ||
+      recipe?.prepTime ||
+      recipe?.imageUrl ||
+      meal.notes
+  );
 
   return (
     <div className="mt-4 rounded-card border border-sage bg-cream p-4">
       <div className="flex items-center gap-4">
-        <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-2xl shadow-soft">
-          {recipe?.emoji ?? '🍽️'}
-        </div>
+        {recipe ? (
+          <RecipeMedia recipe={recipe} className="size-14 shrink-0 rounded-2xl shadow-soft" />
+        ) : (
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-2xl shadow-soft">
+            🍽️
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <span className="text-xs font-semibold tracking-wide text-brand-strong uppercase">
             {meal.completed ? 'Already logged' : 'Up next'}
@@ -63,7 +76,7 @@ export function TodayMealCard({ meal, whenLabel, onMarkEaten, isPending }) {
           <Check className="size-4.5" aria-hidden="true" />
         </button>
       </div>
-      {open && <RecipeDetails recipe={recipe} notes={meal.notes} />}
+      {open && <RecipeDetails recipe={recipe} notes={meal.notes} servings={meal.servings} />}
     </div>
   );
 }

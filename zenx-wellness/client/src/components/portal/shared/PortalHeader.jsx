@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, ChevronDown, Menu } from 'lucide-react';
-import { toast } from 'sonner';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { NAV_BY_ROLE } from '@/lib/portalNav';
 import { PreferencesDialog } from './PreferencesDialog';
 import { useDietitianOverview } from '@/hooks/useInsights';
+import { useMarkAllNotificationsRead, useMarkNotificationRead, useNotifications } from '@/hooks/useNotifications';
 
 export function PortalHeader({ onOpenMobileNav }) {
   const { user, logout } = useAuth();
@@ -21,7 +21,12 @@ export function PortalHeader({ onOpenMobileNav }) {
   const navigate = useNavigate();
   const [preferencesOpen, setPreferencesOpen] = useState(false);
   const { data: overview } = useDietitianOverview();
+  const { data: inbox = [] } = useNotifications();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
   const attentionItems = user.role === 'dietitian' ? (overview?.attentionItems ?? []) : [];
+  const unreadInbox = inbox.filter((item) => !item.readAt);
+  const hasUnread = unreadInbox.length > 0 || attentionItems.length > 0;
 
   const current = (NAV_BY_ROLE[user.role] ?? []).find((item) => item.to === location.pathname);
   const roleLabel = user.role[0].toUpperCase() + user.role.slice(1);
@@ -59,26 +64,62 @@ export function PortalHeader({ onOpenMobileNav }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => {
-            if (user.role === 'dietitian' && attentionItems.length > 0) {
-              navigate(`/${user.companySlug}/app/overview`);
-              return;
-            }
-            toast(attentionItems.length ? `${attentionItems.length} swap request${attentionItems.length === 1 ? '' : 's'} waiting.` : 'No new notifications yet.');
-          }}
-          className="relative grid size-10 place-items-center rounded-full text-forest transition-colors hover:bg-cream"
-          aria-label="Notifications"
-        >
-          <Bell className="size-4.5" aria-hidden="true" />
-          {attentionItems.length > 0 && (
-            <span
-              className="absolute top-2.5 right-2.5 size-2 rounded-full bg-negative ring-2 ring-white"
-              aria-hidden="true"
-            />
-          )}
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            className="relative grid size-10 place-items-center rounded-full text-forest transition-colors hover:bg-cream"
+            aria-label="Notifications"
+          >
+            <Bell className="size-4.5" aria-hidden="true" />
+            {hasUnread && (
+              <span className="absolute top-2.5 right-2.5 size-2 rounded-full bg-negative ring-2 ring-white" aria-hidden="true" />
+            )}
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel className="flex items-center justify-between font-normal">
+              <span className="text-sm font-semibold text-forest">Notifications</span>
+              {unreadInbox.length > 0 && (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-coral hover:underline"
+                  onClick={() => markAllRead.mutate()}
+                >
+                  Mark all read
+                </button>
+              )}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {attentionItems.map((item) => (
+              <DropdownMenuItem
+                key={`attention-${item.planId ?? item.clientId}-${item.day}-${item.time}`}
+                onSelect={() => navigate(`/${user.companySlug}/app/overview`)}
+              >
+                <div className="grid gap-0.5">
+                  <p className="text-sm font-semibold text-forest">Meal swap requested</p>
+                  <p className="text-xs text-muted-foreground">
+                    {item.clientName ?? 'A client'} · {item.mealTitle ?? item.mealType ?? 'meal'}
+                  </p>
+                </div>
+              </DropdownMenuItem>
+            ))}
+            {inbox.slice(0, 12).map((item) => (
+              <DropdownMenuItem
+                key={item._id}
+                onSelect={() => {
+                  if (!item.readAt) markRead.mutate(item._id);
+                  if (item.url) navigate(`/${user.companySlug}${item.url}`);
+                }}
+              >
+                <div className="grid gap-0.5">
+                  <p className={`text-sm ${item.readAt ? 'text-muted-foreground' : 'font-semibold text-forest'}`}>{item.title}</p>
+                  {item.body ? <p className="text-xs text-muted-foreground">{item.body}</p> : null}
+                </div>
+              </DropdownMenuItem>
+            ))}
+            {inbox.length === 0 && attentionItems.length === 0 && (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">No new notifications yet.</p>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg border border-transparent py-1 pr-2.5 pl-1 text-sm transition-colors hover:border-line hover:bg-cream">

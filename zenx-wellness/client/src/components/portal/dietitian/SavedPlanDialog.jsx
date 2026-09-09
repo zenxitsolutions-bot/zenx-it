@@ -5,16 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
+import { listPlansRequest } from '@/api/plans.api';
 import { useCreatePlan, useDeletePlan, useUpdatePlan } from '@/hooks/usePlans';
-import { endOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
-import { formatCalendarDate } from '@/lib/calendarDate';
+import { endDateFromTemplate, remapMealDay, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
+import { addCalendarDays, formatCalendarDate, MAX_PLAN_DAYS } from '@/lib/calendarDate';
 
 function mealsForCopy(meals) {
   return (meals ?? []).map((meal) => toApiMeal(toLocalMeal({ ...meal, completed: false, swapRequested: false })));
 }
 
-// Click a saved weekly plan title to rename it, move the week, assign it to a client, copy it
-// onto someone else (leaving the original), or delete it.
+// Apply a saved week onto any client you manage. The original reusable plan stays in the library.
 export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, onDeleted }) {
   const { user } = useAuth();
   const isAdmin = user.role === 'admin';
@@ -24,13 +24,15 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
   const [week, setWeek] = useState('');
+  const [weekEnd, setWeekEnd] = useState('');
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (!open || !plan) return;
     setTitle(plan.title ?? '');
-    setClientId(plan.client ?? '');
-    setWeek(plan.week ?? '');
+    setClientId('');
+    setWeek('');
+    setWeekEnd('');
     setConfirmingDelete(false);
   }, [open, plan]);
 
@@ -40,54 +42,52 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
   const busy = updatePlan.isPending || createPlan.isPending || deletePlan.isPending;
   const clientName = clients.find((c) => c._id === plan.client)?.name;
 
-  async function handleReassign() {
-    if (!trimmedTitle) {
-      toast.error('Give this plan a title first.');
-      return;
-    }
-    if (!clientId || !week) {
-      toast.error('Choose a client and week start date.');
-      return;
-    }
-    try {
-      await updatePlan.mutateAsync({
-        planId: plan._id,
-        title: trimmedTitle,
-        client: clientId,
-        week,
-        weekEnd: endOfWeek(week),
-      });
-      toast.success('Plan assigned.');
-      onApplied?.({ clientId, week, planId: plan._id });
-      onOpenChange(false);
-    } catch (error) {
-      toast.error(error.response?.data?.error || "We couldn't update that plan.");
-    }
-  }
-
   async function handleReuse() {
     if (!trimmedTitle) {
       toast.error('Give this plan a title first.');
       return;
     }
-    if (!clientId || !week) {
-      toast.error('Choose a client and week start date.');
+    if (!clientId || !week || !weekEnd) {
+      toast.error('Choose a client, start date, and end date.');
       return;
     }
+    if (weekEnd < week) {
+      toast.error('End date cannot be before the start date.');
+      return;
+    }
+    const target = clients.find((c) => c._id === clientId);
+    const meals = mealsForCopy(plan.meals).map((meal) => ({
+      ...meal,
+      day: remapMealDay(meal.day, plan.week, week),
+    }));
     try {
-      const created = await createPlan.mutateAsync({
-        client: clientId,
-        week,
-        weekEnd: endOfWeek(week),
-        title: trimmedTitle,
-        meals: mealsForCopy(plan.meals),
-        dietitian: isAdmin ? plan.dietitian : undefined,
-      });
-      toast.success('Plan copied to this client.');
-      onApplied?.({ clientId, week, planId: created._id });
+      const existing = await listPlansRequest({ client: clientId, week });
+      const current = existing?.[0];
+      if (current) {
+        await updatePlan.mutateAsync({
+          planId: current._id,
+          title: trimmedTitle,
+          meals,
+          week,
+          weekEnd,
+        });
+        toast.success('Saved week applied to this client.');
+        onApplied?.({ clientId, week, planId: current._id });
+      } else {
+        const created = await createPlan.mutateAsync({
+          client: clientId,
+          week,
+          weekEnd,
+          title: trimmedTitle,
+          meals,
+          dietitian: isAdmin ? (target?.assignedDietitian || plan.dietitian) : undefined,
+        });
+        toast.success('Saved week copied to this client.');
+        onApplied?.({ clientId, week, planId: created._id });
+      }
       onOpenChange(false);
     } catch (error) {
-      toast.error(error.response?.data?.error || "We couldn't copy that plan.");
+      toast.error(error.response?.data?.error || "We couldn't reuse that plan for this client.");
     }
   }
 
@@ -106,9 +106,10 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Assign this weekly plan</DialogTitle>
+          <DialogTitle>Reuse this weekly plan</DialogTitle>
           <DialogDescription>
-            {clientName ? `Saved for ${clientName}` : 'Saved weekly plan'}
+            Apply these meals to any client. The saved plan stays available for the next person.
+            {clientName ? ` Originally used for ${clientName}` : ''}
             {plan.week ? ` · week of ${formatCalendarDate(plan.week)}` : ''}
           </DialogDescription>
         </DialogHeader>
@@ -134,27 +135,38 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
             </Select>
           </label>
           <label className="block text-xs font-bold text-muted-foreground">
-            Week start date
-            <Input type="date" value={week} onChange={(e) => setWeek(e.target.value)} className="mt-1.5" />
+            Start date
+            <Input
+              type="date"
+              value={week}
+              onChange={(e) => {
+                const next = e.target.value;
+                setWeek(next);
+                setWeekEnd(next ? endDateFromTemplate(next, plan) : '');
+              }}
+              className="mt-1.5"
+            />
           </label>
           <label className="block text-xs font-bold text-muted-foreground">
-            Week end date
-            <Input type="date" value={week ? endOfWeek(week) : ''} disabled className="mt-1.5" />
+            End date
+            <Input
+              type="date"
+              value={weekEnd}
+              min={week || undefined}
+              max={week ? addCalendarDays(week, MAX_PLAN_DAYS - 1) : undefined}
+              onChange={(e) => setWeekEnd(e.target.value)}
+              className="mt-1.5"
+            />
           </label>
 
-          <div className="grid gap-2">
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={handleReassign}
-              className="rounded-full bg-coral text-white hover:bg-coral/90"
-            >
-              {updatePlan.isPending ? 'Saving…' : 'Save & assign'}
-            </Button>
-            <Button type="button" variant="outline" disabled={busy} onClick={handleReuse}>
-              {createPlan.isPending ? 'Copying…' : 'Reuse as a new plan'}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            disabled={busy}
+            onClick={handleReuse}
+            className="rounded-full bg-coral text-white hover:bg-coral/90"
+          >
+            {busy ? 'Applying…' : 'Reuse for this client'}
+          </Button>
 
           {confirmingDelete ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">

@@ -150,6 +150,27 @@ const ALTERS = [
   'ALTER TABLE users ADD COLUMN allergies TEXT NULL AFTER diet_preference',
   'ALTER TABLE users ADD COLUMN plan_started_on DATE NULL AFTER plan_duration',
   "UPDATE users SET plan_started_on = DATE(created_at) WHERE role = 'client' AND plan_duration IS NOT NULL AND plan_started_on IS NULL",
+  "ALTER TABLE recipes ADD COLUMN cook_time VARCHAR(100) NULL AFTER prep_time",
+  "ALTER TABLE recipes ADD COLUMN total_time VARCHAR(100) NULL AFTER cook_time",
+  "ALTER TABLE recipes ADD COLUMN cuisine VARCHAR(80) NOT NULL DEFAULT 'Indian' AFTER total_time",
+  "ALTER TABLE recipes ADD COLUMN diet_type VARCHAR(32) NOT NULL DEFAULT 'Vegetarian' AFTER cuisine",
+  "ALTER TABLE recipes ADD COLUMN servings DECIMAL(6, 2) NOT NULL DEFAULT 1 AFTER diet_type",
+  "ALTER TABLE recipes ADD COLUMN carbs INT NULL AFTER protein",
+  "ALTER TABLE recipes ADD COLUMN fat INT NULL AFTER carbs",
+  "ALTER TABLE recipes ADD COLUMN fiber INT NULL AFTER fat",
+  "ALTER TABLE recipes ADD COLUMN sugar INT NULL AFTER fiber",
+  "ALTER TABLE recipes ADD COLUMN portion_size VARCHAR(100) NULL AFTER sugar",
+  "ALTER TABLE recipes ADD COLUMN allergens TEXT NULL AFTER portion_size",
+  "ALTER TABLE recipes ADD COLUMN suitable_meal_type VARCHAR(50) NULL AFTER allergens",
+  "ALTER TABLE recipes ADD COLUMN image_url VARCHAR(1024) NULL AFTER suitable_meal_type",
+  "ALTER TABLE recipes ADD COLUMN health_notes TEXT NULL AFTER image_url",
+  "ALTER TABLE plan_meals ADD COLUMN servings DECIMAL(6, 2) NOT NULL DEFAULT 1 AFTER notes",
+  // Shared Healthy Indian catalog: visible to every ACTIVE ZenX customer, not only the
+  // practice that first seeded the rows. Custom recipes stay company-scoped (default).
+  "ALTER TABLE recipes ADD COLUMN visibility ENUM('company', 'shared') NOT NULL DEFAULT 'company' AFTER instructions",
+  "ALTER TABLE recipes ADD KEY idx_recipes_visibility (visibility)",
+  // Dietitian can tweak a catalog recipe for one client meal without mutating the shared library.
+  'ALTER TABLE plan_meals ADD COLUMN recipe_override JSON NULL AFTER servings',
 ];
 
 // admin-server (ZenX) is the source of truth for company identity; this is only the local mirror
@@ -227,6 +248,24 @@ async function backfillLegacyCompany(conn) {
   }
 }
 
+async function backfillSharedCatalog(conn) {
+  const { HEALTHY_INDIAN_RECIPES } = await import('../data/healthyIndianRecipes.js');
+  const titles = HEALTHY_INDIAN_RECIPES.map((recipe) => recipe.title);
+  if (titles.length === 0) return;
+  let affected = 0;
+  for (let i = 0; i < titles.length; i += 200) {
+    const chunk = titles.slice(i, i + 200);
+    const [result] = await conn.query(
+      `UPDATE recipes SET visibility = 'shared' WHERE visibility = 'company' AND title IN (${chunk.map(() => '?').join(',')})`,
+      chunk
+    );
+    affected += result.affectedRows;
+  }
+  if (affected) {
+    console.log(`[migrate] marked ${affected} Healthy Indian catalog recipe(s) as shared`);
+  }
+}
+
 async function migrate() {
   const sql = readFileSync(schemaPath, 'utf8');
   // multipleStatements is only turned on for this one-off DDL run, never for the app's pool.
@@ -265,6 +304,7 @@ async function migrate() {
   }
 
   await backfillLegacyCompany(conn);
+  await backfillSharedCatalog(conn);
 
   await conn.end();
 }

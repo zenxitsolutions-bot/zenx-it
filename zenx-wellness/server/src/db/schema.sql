@@ -156,15 +156,45 @@ CREATE TABLE IF NOT EXISTS recipes (
   -- enum below, an independent concept — see the plan_meals comment).
   meal_type VARCHAR(50) NOT NULL,
   prep_time VARCHAR(100) NOT NULL,
+  cook_time VARCHAR(100) NULL,
+  total_time VARCHAR(100) NULL,
+  cuisine VARCHAR(80) NOT NULL DEFAULT 'Indian',
+  diet_type VARCHAR(32) NOT NULL DEFAULT 'Vegetarian',
+  servings DECIMAL(6, 2) NOT NULL DEFAULT 1,
   kcal INT NULL,
   protein INT NULL,
+  carbs INT NULL,
+  fat INT NULL,
+  fiber INT NULL,
+  sugar INT NULL,
+  portion_size VARCHAR(100) NULL,
+  allergens TEXT NULL,
+  suitable_meal_type VARCHAR(50) NULL,
+  image_url VARCHAR(1024) NULL,
+  health_notes TEXT NULL,
   ingredients TEXT NOT NULL,
   instructions TEXT NOT NULL,
+  -- 'shared' = Healthy Indian catalog, visible to every ACTIVE ZenX customer (dietitians,
+  -- practice admins, and their clients). 'company' = a custom recipe that stays on the
+  -- creator's own practice. Login already rejects INACTIVE companies, so shared rows never
+  -- leak to a deactivated tenant.
+  visibility ENUM('company', 'shared') NOT NULL DEFAULT 'company',
   created_by VARCHAR(36) NOT NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   KEY idx_recipes_meal_type (meal_type),
+  KEY idx_recipes_visibility (visibility),
   CONSTRAINT fk_recipes_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS recipe_favorites (
+  user_id VARCHAR(36) NOT NULL,
+  recipe_id VARCHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (user_id, recipe_id),
+  KEY idx_recipe_favorites_recipe (recipe_id),
+  CONSTRAINT fk_recipe_favorites_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_recipe_favorites_recipe FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS recipe_tags (
@@ -220,6 +250,10 @@ CREATE TABLE IF NOT EXISTS plan_meals (
   completed BOOLEAN NOT NULL DEFAULT FALSE,
   swap_requested BOOLEAN NOT NULL DEFAULT FALSE,
   notes TEXT NULL,
+  servings DECIMAL(6, 2) NOT NULL DEFAULT 1,
+  -- Per-plan snapshot of a catalog recipe edited while assigning it to a client.
+  -- Lives on this meal (and copies into a saved weekly plan). Never writes back to `recipes`.
+  recipe_override JSON NULL,
   KEY idx_plan_meals_plan (plan_id, idx),
   KEY idx_plan_meals_recipe (recipe_id),
   CONSTRAINT fk_plan_meals_plan FOREIGN KEY (plan_id) REFERENCES plans(id) ON DELETE CASCADE,
@@ -574,4 +608,19 @@ CREATE TABLE IF NOT EXISTS google_oauth_tokens (
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_google_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- In-app inbox (bell). Email still goes through email_logs; this is what the portal shows.
+CREATE TABLE IF NOT EXISTS notifications (
+  id VARCHAR(36) PRIMARY KEY,
+  user_id VARCHAR(36) NOT NULL,
+  type VARCHAR(50) NOT NULL DEFAULT 'info',
+  title VARCHAR(255) NOT NULL,
+  body VARCHAR(1000) NULL,
+  url VARCHAR(512) NULL,
+  read_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_notifications_user_created (user_id, created_at),
+  KEY idx_notifications_user_unread (user_id, read_at),
+  CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

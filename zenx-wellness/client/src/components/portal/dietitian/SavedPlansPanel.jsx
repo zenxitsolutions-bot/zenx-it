@@ -1,4 +1,3 @@
-import { formatCalendarDate } from '@/lib/calendarDate';
 import { cn } from '@/lib/utils';
 
 export function SavedPlansPanel({ plans, clients, activePlanId, onSelectTitle }) {
@@ -15,10 +14,10 @@ export function SavedPlansPanel({ plans, clients, activePlanId, onSelectTitle })
   return (
     <section className="rounded-card bg-white p-5 shadow-soft">
       <h2 className="text-xl text-forest">Saved weekly plans</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Saved weeks you can assign again.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Saved weeks you can reuse for any client.</p>
       <ul className="mt-4 grid gap-2">
         {plans.map((plan) => {
-          const clientName = clients.find((c) => c._id === plan.client)?.name ?? 'Unassigned client';
+          const clientName = clients.find((c) => c._id === plan.client)?.name;
           return (
             <li key={plan._id}>
               <button
@@ -31,9 +30,8 @@ export function SavedPlansPanel({ plans, clients, activePlanId, onSelectTitle })
               >
                 <strong className="block text-sm text-forest underline-offset-2 hover:underline">{plan.title}</strong>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  {clientName}
-                  {plan.week ? ` · ${formatCalendarDate(plan.week)} – ${formatCalendarDate(plan.weekEnd)}` : ''}
-                  {` · ${plan.published ? 'Published' : 'Draft'}`}
+                  Reusable for any client
+                  {clientName ? ` · originally ${clientName}` : ''}
                   {` · ${plan.meals?.length ?? 0} meal${plan.meals?.length === 1 ? '' : 's'}`}
                 </span>
               </button>

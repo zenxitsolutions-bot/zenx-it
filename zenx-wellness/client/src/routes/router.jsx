@@ -36,6 +36,7 @@ const PlanPage = lazyNamed(() => import('@/pages/app/PlanPage'), 'PlanPage');
 const SavedWeeklyPlansPage = lazyNamed(() => import('@/pages/app/SavedWeeklyPlansPage'), 'SavedWeeklyPlansPage');
 const PlansPage = lazyNamed(() => import('@/pages/app/PlansPage'), 'PlansPage');
 const RecipesPage = lazyNamed(() => import('@/pages/app/RecipesPage'), 'RecipesPage');
+const RecipeDetailPage = lazyNamed(() => import('@/pages/app/RecipeDetailPage'), 'RecipeDetailPage');
 const EnquiriesPage = lazyNamed(() => import('@/pages/app/EnquiriesPage'), 'EnquiriesPage');
 const InsightsPage = lazyNamed(() => import('@/pages/app/InsightsPage'), 'InsightsPage');
 const EmailLogPage = lazyNamed(() => import('@/pages/app/EmailLogPage'), 'EmailLogPage');
@@ -133,6 +134,10 @@ export const router = createBrowserRouter([
                       },
                       guarded('plans', <PlansPage />),
                       guarded('recipes', <RecipesPage />),
+                      {
+                        element: <RoleRoute roles={ROUTE_ROLES.recipes} />,
+                        children: [{ path: 'recipes/:recipeId', element: <RecipeDetailPage /> }],
+                      },
                       guarded('enquiries', <EnquiriesPage />),
                       guarded('insights', <InsightsPage />),
                       guarded('email-log', <EmailLogPage />),

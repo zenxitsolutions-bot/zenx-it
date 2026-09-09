@@ -17,3 +17,7 @@ dist
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Local browser-test artifacts
+tmp-live-test.mjs
+tmp-live-test-out/

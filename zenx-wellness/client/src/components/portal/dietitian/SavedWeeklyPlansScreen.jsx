@@ -21,7 +21,7 @@ export function SavedWeeklyPlansScreen() {
       <div className="mb-6">
         <p className="text-muted-foreground">Reusable meal schedules</p>
         <h1 className="mt-1 text-3xl text-forest">Saved weekly plans</h1>
-        <p className="mt-1 text-muted-foreground">Click a title to change dates, assign it, reuse it, or delete it.</p>
+        <p className="mt-1 text-muted-foreground">Click a title to reuse these meals for any client, or delete the saved week.</p>
         <Link to={`/${companySlug}/app/plan`} className="mt-3 inline-block text-sm font-semibold text-coral hover:underline">
           ← Back to weekly plan
         </Link>

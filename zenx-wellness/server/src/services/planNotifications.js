@@ -4,6 +4,28 @@ import { sendEmail } from '../emails/sendEmail.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
 import { notifyUserPush } from './pushNotifications.js';
+import { channels } from '../notifications/channels/index.js';
+import { ApiError } from '../utils/ApiError.js';
+
+export function requestedSwapResolutions(meals = [], resolutions) {
+  const requestedMeals = meals.filter((meal) => meal.swapRequested);
+  if (!requestedMeals.length) {
+    throw ApiError.badRequest('A client swap request is required before notifying the client');
+  }
+
+  const requestedSlots = new Set(requestedMeals.map((meal) => `${meal.day}|${meal.time}`));
+  const selected =
+    resolutions?.length
+      ? resolutions
+      : requestedMeals.map((meal) => ({ day: meal.day, time: meal.time }));
+  const invalidResolution = selected.find(
+    (note) => !requestedSlots.has(`${note.day}|${note.time}`)
+  );
+  if (invalidResolution) {
+    throw ApiError.badRequest('The selected meal does not have an active client swap request');
+  }
+  return selected;
+}
 
 // `plan.title` here is the weekly/monthly diet Plan's own name (e.g. "Weekly nourish plan") — a
 // different entity from accountNotifications.js's `plan_name` (the client's programPlan, e.g.
@@ -64,11 +86,16 @@ export async function notifyMealSwapRequested(plan, mealIndex) {
       { idempotencyKey: `meal-swap:${plan.id}:${mealIndex}:${Date.now()}`, relatedEntity: { type: 'client', id: clientId } }
     );
 
-    await notifyUserPush(dietitian.id, {
-      title: `${client?.name ?? 'A client'} requested a meal swap`,
-      body: `${mealTitle} (${mealWhen})`,
-      url: loginUrl,
+    const title = `${client?.name ?? 'A client'} requested a meal swap`;
+    const body = `${mealTitle} (${mealWhen})`;
+    await channels.inApp.send({
+      userId: dietitian.id,
+      type: 'meal-swap-requested',
+      title,
+      body,
+      url: `/app/clients/${clientId}`,
     });
+    await notifyUserPush(dietitian.id, { title, body, url: loginUrl });
   } catch (err) {
     console.error(`[notifications] failed to queue meal-swap-requested email for plan ${plan.id}:`, err);
   }
@@ -91,11 +118,16 @@ function sameSlot(a, b) {
 }
 
 export async function notifyResolvedSwaps(before, after, resolutions = []) {
-  const resolved = (before.meals ?? []).filter((meal) => meal.swapRequested);
-  for (const previous of resolved) {
-    const next = (after.meals ?? []).find((meal) => sameSlot(meal, previous)) ?? previous;
-    const note = resolutions.find((r) => r.day === previous.day && r.time === previous.time);
-    await notifyMealSwapFulfilled(after, previous, next, note?.previousMeal);
+  const notes = (resolutions ?? []).length
+    ? resolutions
+    : (before.meals ?? [])
+        .filter((meal) => meal.swapRequested)
+        .map((meal) => ({ day: meal.day, time: meal.time, previousMeal: mealTitle(meal) }));
+
+  for (const note of notes) {
+    const previous = (before.meals ?? []).find((meal) => sameSlot(meal, note)) ?? note;
+    const next = (after.meals ?? []).find((meal) => sameSlot(meal, note)) ?? previous;
+    await notifyMealSwapFulfilled(after, previous, next, note.previousMeal);
   }
 }
 
@@ -124,11 +156,16 @@ export async function notifyMealSwapFulfilled(plan, previousMeal, nextMeal, prev
       { idempotencyKey: `meal-swap-fulfilled:${plan.id}:${previousMeal.day}:${previousMeal.time}:${Date.now()}`, relatedEntity: { type: 'client', id: client.id } }
     );
 
-    await notifyUserPush(client.id, {
-      title: 'Your meal has been swapped',
-      body: `${previousTitle} is now ${newTitle} (${when})`,
-      url: loginUrl,
+    const title = 'Your meal has been swapped';
+    const body = `${previousTitle} is now ${newTitle} (${when})`;
+    await channels.inApp.send({
+      userId: client.id,
+      type: 'meal-swap',
+      title,
+      body,
+      url: '/app/meals',
     });
+    await notifyUserPush(client.id, { title, body, url: loginUrl });
   } catch (err) {
     console.error(`[notifications] failed to queue meal-swap-fulfilled email for plan ${plan.id}:`, err);
   }

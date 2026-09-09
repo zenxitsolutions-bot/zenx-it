@@ -1,5 +1,5 @@
 import { WEEKDAYS } from './clientPortal';
-import { addCalendarDays, toCalendarDate, toLocalCalendarDate } from './calendarDate';
+import { addCalendarDays, dateForMealDay, toCalendarDate, toLocalCalendarDate } from './calendarDate';
 import { FIXED_MEAL_SLOT_TYPES } from './mealSlotTypes';
 
 // The plan week now starts on the day the dietitian is building it, not the Monday of the
@@ -15,11 +15,37 @@ export function defaultWeekStart() {
   return toLocalCalendarDate();
 }
 
-// The diet week's end date — always exactly 6 days after its start. Same UTC-safe math as
-// startOfWeek, so the two stay consistent regardless of the caller's local timezone.
+// Default end date is 6 days after start (a 7-day window). Dietitians can pick a later end.
 export function endOfWeek(weekStart) {
   const ymd = toCalendarDate(weekStart);
   return ymd ? addCalendarDays(ymd, 6) : '';
+}
+
+export function remapMealDay(day, fromWeek, toWeek) {
+  const fromStart = toCalendarDate(fromWeek);
+  const toStart = toCalendarDate(toWeek);
+  const date = dateForMealDay(fromStart, day);
+  if (!date || !fromStart || !toStart) return day;
+  const [sy, sm, sd] = fromStart.split('-').map(Number);
+  const [ty, tm, td] = date.split('-').map(Number);
+  const offset = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+  if (offset <= 0) return WEEKDAYS[0];
+  if (offset < 7) return WEEKDAYS[offset];
+  return addCalendarDays(toStart, offset);
+}
+
+export function endDateFromTemplate(weekStart, template) {
+  const start = toCalendarDate(weekStart);
+  if (!start) return '';
+  const from = toCalendarDate(template?.week);
+  const to = toCalendarDate(template?.weekEnd);
+  if (from && to && to >= from) {
+    const [sy, sm, sd] = from.split('-').map(Number);
+    const [ey, em, ed] = to.split('-').map(Number);
+    const extraDays = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+    return addCalendarDays(start, Math.max(0, extraDays));
+  }
+  return endOfWeek(start);
 }
 
 // A published week whose 7-day window contains `date` (the dietitian may pick any day in that
@@ -41,8 +67,11 @@ export function createBlankMeal(day = WEEKDAYS[0]) {
     recipeId: null,
     customTitle: '',
     notes: '',
+    servings: 1,
     completed: false,
     swapRequested: false,
+    pendingNotify: false,
+    recipeOverride: null,
   };
 }
 
@@ -63,8 +92,11 @@ export function toLocalMeal(meal) {
     recipeId: meal.recipe?._id ?? meal.recipe ?? null,
     customTitle: meal.customTitle ?? '',
     notes: meal.notes ?? '',
+    servings: Number(meal.servings) > 0 ? Number(meal.servings) : 1,
     completed: !!meal.completed,
     swapRequested: !!meal.swapRequested,
+    pendingNotify: false,
+    recipeOverride: meal.recipeOverride ?? null,
     // Frozen at first load of a swap request — autosave must not rewrite these, or "notify"
     // thinks the replacement is the original.
     swapOriginalRecipeId: meal.swapRequested ? (meal.recipe?._id ?? meal.recipe ?? null) : undefined,
@@ -81,7 +113,7 @@ export function toLocalMeal(meal) {
 // holds for the custom buffers once a fixed type is picked. A blank custom meal-type name falls
 // back to the literal "Custom" rather than blocking autosave mid-edit, the same tolerant-of-an-
 // incomplete-slot spirit as an empty recipe already rendering as "<type> — recipe TBD" elsewhere.
-export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes, completed, swapRequested }) {
+export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes, completed, swapRequested, servings, recipeOverride }) {
   const isCustom = mealType === 'Custom';
   return {
     day,
@@ -92,6 +124,8 @@ export function toApiMeal({ mealType, customMealType, day, time, recipeId, custo
     notes: notes || null,
     completed: !!completed,
     swapRequested: !!swapRequested,
+    servings: Number(servings) > 0 ? Number(servings) : 1,
+    recipeOverride: isCustom ? null : recipeOverride || null,
   };
 }
 

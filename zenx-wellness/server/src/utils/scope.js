@@ -30,3 +30,15 @@ export async function assertUserInCompany(req, userId) {
 export function assertSameCompany(req, otherCompanyId) {
   if (otherCompanyId !== req.user.companyId) throw ApiError.notFound();
 }
+
+export async function assertCanViewRecipe(req, recipe) {
+  if (recipe?.visibility === 'shared') return;
+  await assertUserInCompany(req, recipe.createdBy);
+}
+
+export async function assertCanMutateRecipe(req, recipe) {
+  if (recipe?.visibility === 'shared') {
+    throw ApiError.forbidden('This catalog recipe is shared with every active practice. Duplicate it to make your own copy.');
+  }
+  await assertUserInCompany(req, recipe.createdBy);
+}

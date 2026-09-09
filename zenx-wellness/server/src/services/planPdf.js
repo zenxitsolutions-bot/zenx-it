@@ -1,7 +1,6 @@
 import PDFDocument from 'pdfkit';
-import { addCalendarDays, formatCalendarDate, planWeekDays, toCalendarDate } from '../utils/calendarDate.js';
+import { addCalendarDays, dateForWeekdaySlot, formatCalendarDate, planRangeDates, toCalendarDate } from '../utils/calendarDate.js';
 
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const FOREST = '#1b2b42';
 const BRAND = '#3478d8';
 const MUTED = '#5a6b80';
@@ -44,12 +43,12 @@ function mealTitle(meal) {
 }
 
 function groupMealsByDay(plan) {
-  const days = planWeekDays(plan.week);
-  const map = Object.fromEntries(days.map((day) => [day, []]));
+  const dates = planRangeDates(plan.week, plan.weekEnd);
+  const map = Object.fromEntries(dates.map((date) => [date, []]));
   for (const meal of plan.meals ?? []) {
-    const offset = WEEKDAYS.indexOf(meal.day);
-    const day = offset >= 0 ? days[offset] : meal.day;
-    (map[day] ??= []).push(meal);
+    const date = dateForWeekdaySlot(plan.week, meal.day);
+    if (!date) continue;
+    (map[date] ??= []).push(meal);
   }
   for (const day of Object.keys(map)) {
     map[day].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
@@ -58,15 +57,13 @@ function groupMealsByDay(plan) {
 }
 
 function orderedDays(plan, mealsByDay) {
-  const days = planWeekDays(plan.week);
-  const extra = Object.keys(mealsByDay).filter((day) => !days.includes(day));
-  return [...days, ...extra];
+  const dates = planRangeDates(plan.week, plan.weekEnd);
+  const extra = Object.keys(mealsByDay).filter((day) => !dates.includes(day));
+  return [...dates, ...extra];
 }
 
 function dayLabel(week, day) {
-  const start = toCalendarDate(week);
-  const index = planWeekDays(week).indexOf(day);
-  const date = start && index >= 0 ? addCalendarDays(start, index) : null;
+  const date = dateForWeekdaySlot(week, day) || toCalendarDate(day);
   if (!date) return day;
   return `${formatCalendarDate(date, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}`;
 }

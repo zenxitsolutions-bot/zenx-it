@@ -38,13 +38,13 @@ export function Sidebar({ onNavigate }) {
 
   return (
     <div className="flex h-full flex-col overflow-hidden border-r border-sidebar-line bg-sidebar-bg p-5 text-sidebar-text">
-      <div className="mb-8 flex flex-col items-center text-center">
+      <div className="mb-4 flex flex-col items-center text-center">
         <Link to="/" className="flex w-full flex-col items-center font-display tracking-wide text-white">
           {company?.logoUrl ? (
             <img
               src={company.logoUrl}
               alt={company?.name || "Home"}
-              className="h-40 w-full max-w-[200px] object-contain"
+              className="h-24 w-full max-w-[160px] object-contain"
             />
           ) : (
             <span className="text-base font-semibold leading-snug text-white">

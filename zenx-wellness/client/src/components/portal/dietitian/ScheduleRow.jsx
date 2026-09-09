@@ -1,18 +1,47 @@
-import { X } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { WEEKDAYS } from '@/lib/clientPortal';
-import { addCalendarDays, formatCalendarDate, toCalendarDate } from '@/lib/calendarDate';
+import { dateForMealDay, formatCalendarDate, planDayOptions } from '@/lib/calendarDate';
 import { MEAL_SLOT_TYPES } from '@/lib/mealSlotTypes';
 import { MEAL_TIME_OPTIONS, normalizeMealTime } from '@/lib/planBuilder';
+import { mergeRecipeWithOverride } from '@/lib/planMealRecipe';
+import { nutritionSummary } from '@/lib/recipeNutrition';
 import { cn } from '@/lib/utils';
 import { MealDropzone } from './MealDropzone';
 
-export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, onRemove, onNotifySwap, notifyPending, readOnly = false, ref }) {
-  const recipe = recipes.find((r) => r._id === meal.recipeId) ?? null;
+export function ScheduleRow({
+  meal,
+  recipes,
+  weekStart,
+  weekEnd,
+  highlighted,
+  onChange,
+  onRemove,
+  onNotifySwap,
+  onEditRecipe,
+  notifyPending,
+  readOnly = false,
+  dayLocked = false,
+  ref,
+}) {
+  const catalog = recipes.find((r) => r._id === meal.recipeId) ?? null;
+  const recipe = mergeRecipeWithOverride(catalog, meal.recipeOverride) ?? catalog;
   const isCustom = meal.mealType === 'Custom';
+  const customized = Boolean(meal.recipeOverride && recipe);
+  const swappedRecipe =
+    String(meal.recipeId ?? '') !== String(meal.swapOriginalRecipeId ?? '') ||
+    (meal.customTitle ?? '') !== (meal.swapOriginalCustomTitle ?? '');
+  const canNotify =
+    !readOnly &&
+    Boolean(meal.recipeId || (meal.customTitle ?? '').trim()) &&
+    meal.swapRequested &&
+    swappedRecipe;
   // Prefer the canonical spelling so a legacy "9:30 pM" lands on the real "9:30 PM" option.
   const timeValue = normalizeMealTime(meal.time) ?? meal.time ?? '';
+  const dayOptions = planDayOptions(weekStart, weekEnd);
+  if (meal.day && !dayOptions.some((option) => option.value === meal.day)) {
+    dayOptions.unshift({ value: meal.day, ymd: dateForMealDay(weekStart, meal.day) || meal.day });
+  }
 
   return (
     <div
@@ -23,25 +52,26 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
         highlighted && 'ring-2 ring-coral ring-offset-2'
       )}
     >
-      <div className="grid grid-cols-[1fr_1fr_1fr_1.6fr_28px] items-center gap-2">
-        <Select value={meal.day} onValueChange={(day) => onChange({ day })} disabled={readOnly}>
-          <SelectTrigger className="w-full" aria-label="Day">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {WEEKDAYS.map((day, index) => {
-              const start = toCalendarDate(weekStart);
-              const label = start
-                ? formatCalendarDate(addCalendarDays(start, index), { weekday: 'short', month: 'short', day: 'numeric' })
-                : day;
-              return (
-                <SelectItem key={day} value={day}>
-                  {label}
+      <div
+        className={cn(
+          'grid items-center gap-2',
+          dayLocked ? 'grid-cols-[1fr_1fr_1.6fr_72px_28px]' : 'grid-cols-[1fr_1fr_1fr_1.6fr_72px_28px]'
+        )}
+      >
+        {dayLocked ? null : (
+          <Select value={meal.day} onValueChange={(day) => onChange({ day })} disabled={readOnly}>
+            <SelectTrigger className="w-full" aria-label="Day">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {dayOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {formatCalendarDate(option.ymd, { weekday: 'short', month: 'short', day: 'numeric' }) || option.value}
                 </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {/* A saved time that predates this dropdown (or that normalizeMealTime can't parse) is
             offered as its own first option, so opening an old plan can never silently replace the
@@ -88,10 +118,22 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
             id={`row-${meal.localId}`}
             recipe={recipe}
             recipes={recipes}
-            onAssign={(recipeId) => onChange({ recipeId })}
+            onAssign={(recipeId) => onChange({ recipeId, recipeOverride: null })}
             readOnly={readOnly}
           />
         )}
+
+        <Input
+          aria-label="Servings"
+          type="number"
+          min="0.5"
+          step="0.5"
+          value={meal.servings ?? 1}
+          onChange={(e) => onChange({ servings: Number(e.target.value) || 1 })}
+          disabled={readOnly || isCustom}
+          className="h-9 px-2 text-xs"
+          title="Servings"
+        />
 
         <button
           type="button"
@@ -103,6 +145,25 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
           <X className="size-4" aria-hidden="true" />
         </button>
       </div>
+
+      {recipe && (
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
+          <p className="text-[11px] font-semibold text-forest">
+            {nutritionSummary(recipe, meal.servings).join(' · ') || 'Nutrition updates with servings'}
+            {customized ? ' · Customized for this client' : ''}
+          </p>
+          {!readOnly ? (
+            <button
+              type="button"
+              onClick={onEditRecipe}
+              className="inline-flex items-center gap-1 text-[11px] font-semibold text-coral hover:underline"
+            >
+              <Pencil className="size-3" aria-hidden="true" />
+              Edit for this client
+            </button>
+          ) : null}
+        </div>
+      )}
 
       {isCustom && (
         <Input
@@ -127,12 +188,14 @@ export function ScheduleRow({ meal, recipes, weekStart, highlighted, onChange, o
       {meal.swapRequested && !readOnly && (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2">
           <p className="text-xs text-status-followup-ink">
-            Client asked to swap this meal. Choose a new recipe, then notify them.
+            {!swappedRecipe
+              ? 'Client asked to swap this meal. Choose a new recipe, then notify them.'
+              : 'Replacement is ready. Notify the client by email and in the app.'}
           </p>
           <button
             type="button"
             onClick={onNotifySwap}
-            disabled={notifyPending}
+            disabled={notifyPending || !canNotify}
             className="rounded-full bg-coral px-3 py-1 text-xs font-semibold text-white hover:bg-coral/90 disabled:opacity-60"
           >
             {notifyPending ? 'Sending…' : 'Notify client of swap'}
