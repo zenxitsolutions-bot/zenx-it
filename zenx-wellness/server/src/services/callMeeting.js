@@ -51,7 +51,7 @@ async function resolveAttendee(call) {
  * Creates the Meet room for a freshly booked call and persists it. Returns the call — updated with
  * meetingUrl when one was created, or unchanged when it wasn't.
  */
-export async function attachMeetingToCall(call) {
+export async function attachMeetingToCall(call, { inviteAttendee = true } = {}) {
   try {
     const dietitianId = idOf(call.dietitian);
     if (!dietitianId || call.status !== 'scheduled') return call;
@@ -59,6 +59,7 @@ export async function attachMeetingToCall(call) {
 
     const [dietitian, attendee] = await Promise.all([findUserById(dietitianId), resolveAttendee(call)]);
     const who = attendee.name ?? 'client';
+    const attendeeEmails = inviteAttendee && attendee.email ? [attendee.email] : [];
 
     // Jitsi: the room itself needs no grant, no lookup and no network call — it is just an
     // unguessable URL, and it is created first so the link exists even if everything Google-side
@@ -79,7 +80,7 @@ export async function attachMeetingToCall(call) {
           .trim(),
         startsAt: call.scheduledAt,
         endsAt: endOf(call.scheduledAt),
-        attendeeEmails: [attendee.email],
+        attendeeEmails,
         meetingUrl,
       });
       // googleEventId stays null when Google isn't configured or the dietitian never connected —
@@ -104,7 +105,7 @@ export async function attachMeetingToCall(call) {
       startsAt: call.scheduledAt,
       endsAt: endOf(call.scheduledAt),
       // The dietitian is the organiser (it is their calendar), so only the other party is invited.
-      attendeeEmails: [attendee.email],
+      attendeeEmails,
     });
     if (!meeting) return call;
 

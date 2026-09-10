@@ -111,6 +111,7 @@ export const SAMPLE_DATA = {
     dietitian_name: 'Dr. Asha Rao',
     count: '8',
     date_range: '26 Aug 2026 – 21 Oct 2026',
+    schedule_list: '• Wednesday, 26 Aug 2026, 10:00 AM (Asia/Kolkata)\n• Wednesday, 2 Sep 2026, 10:00 AM (Asia/Kolkata)',
     login_url: 'http://localhost:5173/app/calls',
   },
   'consultation-schedule-generated-dietitian': {
@@ -118,6 +119,7 @@ export const SAMPLE_DATA = {
     dietitian_name: 'Dr. Asha Rao',
     count: '8',
     date_range: '26 Aug 2026 – 21 Oct 2026',
+    schedule_list: '• Wednesday, 26 Aug 2026, 10:00 AM (Asia/Kolkata)\n• Wednesday, 2 Sep 2026, 10:00 AM (Asia/Kolkata)',
     login_url: 'http://localhost:5173/app/calls',
     gap_notice: "Note: 1 occurrence couldn't be scheduled and needs your attention.",
     company_name: 'Nourishly',

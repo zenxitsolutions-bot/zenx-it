@@ -1,7 +1,11 @@
 Hi {{dietitian_name}}
 
-Based on {{client_name}}'s consultation schedule, {{count}} upcoming calls have been booked, from
-{{date_range}}.
+{{client_name}}'s consultation schedule is set. {{count}} upcoming calls have been booked from
+{{date_range}}:
+
+{{schedule_list}}
+
+Each person will receive a separate email with the video-call link and time 3 days before each call.
 
 {{gap_notice}}
 

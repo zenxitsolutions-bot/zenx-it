@@ -1,18 +1,14 @@
 import { Utensils } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useClientPlans } from '@/hooks/usePlans';
-import { getRecentMeals } from '@/lib/clientProfile';
 import { formatCalendarDate } from '@/lib/calendarDate';
 
-const RECENT_DAYS = 15;
-
-// Spec §6 item 3: last 15 days of meal plans — date, meal name/type, scheduled time, assigned
-// food/recipe, meal notes. Can span more than one weekly plan document, hence useClientPlans
-// (every plan) rather than useCurrentPlan (most recent only).
 export function ClientMealsTab({ clientId }) {
+  const { companySlug } = useParams();
   const { data, isLoading, isError, refetch } = useClientPlans(clientId);
-  const meals = getRecentMeals(data, RECENT_DAYS);
+  const plans = data ?? [];
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
   if (isError) {
@@ -28,57 +24,58 @@ export function ClientMealsTab({ clientId }) {
       />
     );
   }
-  if (meals.length === 0) {
+  if (plans.length === 0) {
     return (
       <EmptyState
         icon={Utensils}
-        title="No meals in the last 15 days"
-        description="Meals from this client's weekly plans will show up here once assigned."
+        title="No weekly plans"
+        description="This client's weekly plans will show up here once they are created."
       />
     );
   }
 
   return (
     <section className="rounded-card bg-white p-6 shadow-soft">
-      <h2 className="text-xl">Last {RECENT_DAYS} days</h2>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[720px] text-left text-sm">
-          <thead>
-            <tr className="border-b border-line text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              <th className="py-2 pr-4">Date</th>
-              <th className="py-2 pr-4">Meal</th>
-              <th className="py-2 pr-4">Time</th>
-              <th className="py-2 pr-4">Recipe</th>
-              <th className="py-2 pr-4">Swap</th>
-              <th className="py-2 pr-4">Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {meals.map((meal, i) => (
-              <tr key={`${meal.planId}-${meal.date}-${i}`} className="border-b border-line/60 last:border-0">
-                <td className="py-2 pr-4 font-medium whitespace-nowrap text-forest">
-                  {formatCalendarDate(meal.date, { weekday: 'short', day: 'numeric', month: 'short' })}
-                </td>
-                <td className="py-2 pr-4">{meal.mealType}</td>
-                <td className="py-2 pr-4 whitespace-nowrap text-muted-foreground">{meal.time}</td>
-                <td className="py-2 pr-4">
-                  {meal.recipe ? `${meal.recipe.emoji ?? ''} ${meal.recipe.title}`.trim() : (meal.customTitle ?? '—')}
-                </td>
-                <td className="py-2 pr-4">
-                  {meal.swapRequested ? (
-                    <span className="rounded-full bg-calories-tint px-2 py-0.5 text-xs font-semibold text-status-followup-ink">
-                      Requested
-                    </span>
-                  ) : (
-                    '—'
-                  )}
-                </td>
-                <td className="py-2 pr-4 text-muted-foreground">{meal.notes || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <h2 className="text-xl">Weekly meal plans</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Select a plan name to open its complete meal schedule.</p>
+      <ul className="mt-4 grid gap-3">
+        {plans.map((plan) => {
+          const weekEnd = plan.weekEnd || plan.week;
+          const params = new URLSearchParams({
+            plan: plan._id,
+            client: clientId,
+            week: plan.week,
+            weekEnd,
+          });
+          return (
+            <li
+              key={plan._id}
+              className="flex flex-col gap-3 rounded-card border border-line p-4 min-[600px]:flex-row min-[600px]:items-center min-[600px]:justify-between"
+            >
+              <div className="min-w-0">
+                <Link
+                  to={`/${companySlug}/app/plan?${params.toString()}`}
+                  className="font-semibold text-forest hover:text-coral hover:underline"
+                >
+                  {plan.title || 'Untitled weekly plan'}
+                </Link>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {formatCalendarDate(plan.week)} – {formatCalendarDate(weekEnd)}
+                </p>
+              </div>
+              <span
+                className={
+                  plan.published
+                    ? 'w-fit rounded-full bg-sage px-2.5 py-1 text-xs font-semibold text-forest'
+                    : 'w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground'
+                }
+              >
+                {plan.published ? 'Published' : 'Draft'}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

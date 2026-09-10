@@ -1,24 +1,33 @@
-import { formatInTimeZone } from 'date-fns-tz';
 import { sendEmail } from '../emails/sendEmail.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
 import { companyDisplayName } from '../utils/companyBrand.js';
+import { formatInZone, effectiveTimezone } from './timezoneService.js';
 
 function formatDate(date, timezone) {
-  return formatInTimeZone(date, timezone, 'd MMM yyyy');
+  return formatInZone(date, timezone, 'd MMM yyyy');
 }
 
-// Sent instead of N individual call-scheduled emails whenever a single generation run produces
-// more than one new call (the initial window fill, or a full regenerate) — see
-// consultationScheduleService.js#generateForSchedule for the >1-vs-exactly-1 decision. No .ics
-// here: a multi-event attachment isn't worth the complexity for a summary email, and every call it
-// mentions is already individually visible/manageable from the app.
+function formatScheduleList(createdCalls, timezone) {
+  return createdCalls
+    .map((c) => new Date(c.scheduledAt))
+    .sort((a, b) => a - b)
+    .map((date) => `• ${formatInZone(date, timezone)} (${timezone})`)
+    .join('\n');
+}
+
+// Sent once when a dietitian first saves or regenerates a recurring consultation schedule — a
+// dated list only, no join links. Each occurrence later gets its own reminder email (with the
+// meeting link and time) 3 days before, via reminderScheduler.js. No .ics here: a multi-event
+// attachment isn't worth the complexity for a summary, and every call it mentions is already
+// visible from the app.
 export async function notifyScheduleGenerated({ schedule, client, dietitian, createdCalls, newGaps }) {
   if (createdCalls.length === 0) return;
 
-  const timezone = dietitian.timezone || 'UTC';
+  const clientTimezone = effectiveTimezone(client);
+  const dietitianTimezone = effectiveTimezone(dietitian);
   const sortedDates = createdCalls.map((c) => new Date(c.scheduledAt)).sort((a, b) => a - b);
-  const dateRange = `${formatDate(sortedDates[0], timezone)} – ${formatDate(sortedDates[sortedDates.length - 1], timezone)}`;
+  const dateRange = `${formatDate(sortedDates[0], dietitianTimezone)} – ${formatDate(sortedDates[sortedDates.length - 1], dietitianTimezone)}`;
   const loginUrl = portalPathUrl(client, '/app/calls');
   // A stable key per distinct batch (not per attempt) — a literal retry that recomputes the exact
   // same new instants naturally lands on the same key and is deduplicated by sendEmail's own
@@ -29,7 +38,14 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
     await sendEmail(
       client.email,
       'consultation-schedule-generated',
-      { client_name: client.name, dietitian_name: dietitian.name, count: String(createdCalls.length), date_range: dateRange, login_url: loginUrl },
+      {
+        client_name: client.name,
+        dietitian_name: dietitian.name,
+        count: String(createdCalls.length),
+        date_range: dateRange,
+        schedule_list: formatScheduleList(createdCalls, clientTimezone),
+        login_url: loginUrl,
+      },
       { idempotencyKey: `consultation-schedule-generated:${batchKey}:client`, relatedEntity: { type: 'client', id: client.id } }
     );
   } catch (err) {
@@ -42,7 +58,16 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
     await sendEmail(
       dietitian.email,
       'consultation-schedule-generated-dietitian',
-      { client_name: client.name, dietitian_name: dietitian.name, count: String(createdCalls.length), date_range: dateRange, login_url: loginUrl, gap_notice: gapNotice, company_name: companyName },
+      {
+        client_name: client.name,
+        dietitian_name: dietitian.name,
+        count: String(createdCalls.length),
+        date_range: dateRange,
+        schedule_list: formatScheduleList(createdCalls, dietitianTimezone),
+        login_url: loginUrl,
+        gap_notice: gapNotice,
+        company_name: companyName,
+      },
       { idempotencyKey: `consultation-schedule-generated:${batchKey}:dietitian`, relatedEntity: { type: 'client', id: client.id } }
     );
   } catch (err) {

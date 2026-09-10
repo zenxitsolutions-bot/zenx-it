@@ -21,6 +21,7 @@ export function ScheduleRow({
   onEditRecipe,
   notifyPending,
   readOnly = false,
+  allowRecipeSwap = false,
   dayLocked = false,
   ref,
 }) {
@@ -31,8 +32,9 @@ export function ScheduleRow({
   const swappedRecipe =
     String(meal.recipeId ?? '') !== String(meal.swapOriginalRecipeId ?? '') ||
     (meal.customTitle ?? '') !== (meal.swapOriginalCustomTitle ?? '');
+  const recipeReadOnly = readOnly && !allowRecipeSwap;
   const canNotify =
-    !readOnly &&
+    !recipeReadOnly &&
     Boolean(meal.recipeId || (meal.customTitle ?? '').trim()) &&
     meal.swapRequested &&
     swappedRecipe;
@@ -111,7 +113,7 @@ export function ScheduleRow({
             value={meal.customTitle ?? ''}
             onChange={(e) => onChange({ customTitle: e.target.value })}
             placeholder="Type the recipe/food name"
-            disabled={readOnly}
+            disabled={recipeReadOnly}
           />
         ) : (
           <MealDropzone
@@ -119,7 +121,7 @@ export function ScheduleRow({
             recipe={recipe}
             recipes={recipes}
             onAssign={(recipeId) => onChange({ recipeId, recipeOverride: null })}
-            readOnly={readOnly}
+            readOnly={recipeReadOnly}
           />
         )}
 
@@ -152,7 +154,7 @@ export function ScheduleRow({
             {nutritionSummary(recipe, meal.servings).join(' · ') || 'Nutrition updates with servings'}
             {customized ? ' · Customized for this client' : ''}
           </p>
-          {!readOnly ? (
+          {!recipeReadOnly ? (
             <button
               type="button"
               onClick={onEditRecipe}
@@ -185,7 +187,7 @@ export function ScheduleRow({
         disabled={readOnly}
       />
 
-      {meal.swapRequested && !readOnly && (
+      {meal.swapRequested && !recipeReadOnly && (
         <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2">
           <p className="text-xs text-status-followup-ink">
             {!swappedRecipe

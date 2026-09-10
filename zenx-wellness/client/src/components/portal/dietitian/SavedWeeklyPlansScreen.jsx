@@ -38,8 +38,9 @@ export function SavedWeeklyPlansScreen() {
         onOpenChange={(open) => !open && setManagingPlan(null)}
         plan={managingPlan}
         clients={clients}
-        onApplied={({ clientId, week }) => {
-          navigate(`/${companySlug}/app/plan?client=${clientId}&week=${week}`);
+        onApplied={({ clientId, week, weekEnd, planId }) => {
+          const params = new URLSearchParams({ plan: planId, client: clientId, week, weekEnd });
+          navigate(`/${companySlug}/app/plan?${params.toString()}`);
         }}
       />
     </div>

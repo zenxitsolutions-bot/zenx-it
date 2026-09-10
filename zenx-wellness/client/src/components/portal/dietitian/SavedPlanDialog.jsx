@@ -72,7 +72,7 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
           weekEnd,
         });
         toast.success('Saved week applied to this client.');
-        onApplied?.({ clientId, week, planId: current._id });
+        onApplied?.({ clientId, week, weekEnd, planId: current._id });
       } else {
         const created = await createPlan.mutateAsync({
           client: clientId,
@@ -83,7 +83,7 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
           dietitian: isAdmin ? (target?.assignedDietitian || plan.dietitian) : undefined,
         });
         toast.success('Saved week copied to this client.');
-        onApplied?.({ clientId, week, planId: created._id });
+        onApplied?.({ clientId, week, weekEnd, planId: created._id });
       }
       onOpenChange(false);
     } catch (error) {

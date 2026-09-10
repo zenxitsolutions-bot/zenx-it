@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   DndContext,
   DragOverlay,
@@ -20,9 +20,9 @@ import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients, useDietitians } from '@/hooks/useClients';
 import { useRecipes } from '@/hooks/useRecipes';
-import { useClientPlans, useCreatePlan, useUpdatePlan } from '@/hooks/usePlans';
-import { createBlankMeal, defaultWeekStart, endOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
-import { addCalendarDays, dateForMealDay, dayValueForDate, formatCalendarDate, MAX_PLAN_DAYS, planRangeDates, toLocalCalendarDate } from '@/lib/calendarDate';
+import { useClientPlans, useCreatePlan, useDeletePlan, useUpdatePlan } from '@/hooks/usePlans';
+import { createBlankMeal, endOfWeek, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
+import { addCalendarDays, dateForMealDay, dayValueForDate, formatCalendarDate, MAX_PLAN_DAYS, planRangeDates } from '@/lib/calendarDate';
 import { cn } from '@/lib/utils';
 import { DayTabs } from '@/components/portal/shared/DayTabs';
 import { ScheduleRow } from './ScheduleRow';
@@ -56,13 +56,17 @@ export function PlanBuilderScreen() {
   const isAdmin = user.role === 'admin';
   const [searchParams] = useSearchParams();
   const { companySlug } = useParams();
+  const navigate = useNavigate();
   const clientsQuery = useClients();
   const recipesQuery = useRecipes();
   const dietitiansQuery = useDietitians(isAdmin);
 
   const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
-  const [week, setWeek] = useState(() => searchParams.get('week') || defaultWeekStart());
-  const [weekEnd, setWeekEnd] = useState(() => endOfWeek(searchParams.get('week') || defaultWeekStart()));
+  const [week, setWeek] = useState(() => searchParams.get('week') ?? '');
+  const [weekEnd, setWeekEnd] = useState(() => {
+    const weekFromUrl = searchParams.get('week');
+    return searchParams.get('weekEnd') || (weekFromUrl ? endOfWeek(weekFromUrl) : '');
+  });
   const [title, setTitle] = useState('');
   const [meals, setMeals] = useState([]);
   const [planId, setPlanId] = useState(null);
@@ -71,8 +75,9 @@ export function PlanBuilderScreen() {
   const [publishOpen, setPublishOpen] = useState(false);
   const [editingMealId, setEditingMealId] = useState(null);
   const [draggingRecipe, setDraggingRecipe] = useState(null);
-  const [selectedDay, setSelectedDay] = useState(() => searchParams.get('week') || defaultWeekStart());
+  const [selectedDay, setSelectedDay] = useState(() => searchParams.get('week') ?? '');
   const [notifyingId, setNotifyingId] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef(null);
@@ -100,20 +105,38 @@ export function PlanBuilderScreen() {
   weekRef.current = week;
   weekEndRef.current = weekEnd;
   const clientPlansQuery = useClientPlans(clientId || null);
-  const today = toLocalCalendarDate();
+  const linkedPlanId = searchParams.get('plan');
+  const selectionReady = Boolean(clientId && week && weekEnd);
   const visiblePlan = useMemo(() => {
     const plans = clientPlansQuery.data ?? [];
-    if (!clientId || !week) return null;
-    return (
-      plans.find((plan) => plan.week === week) ??
-      plans.find((plan) => plan.week && plan.weekEnd && plan.week <= week && week <= plan.weekEnd) ??
-      null
+    const linkedSelectionActive =
+      linkedPlanId &&
+      searchParams.get('client') === clientId &&
+      searchParams.get('week') === week &&
+      (!searchParams.get('weekEnd') || searchParams.get('weekEnd') === weekEnd);
+    if (linkedSelectionActive) {
+      const linkedPlan = plans.find((plan) => String(plan._id) === linkedPlanId);
+      if (linkedPlan) return linkedPlan;
+    }
+    if (!selectionReady) return null;
+    const exactPublished = plans.find(
+      (plan) => plan.published && plan.week === week && (plan.weekEnd || plan.week) === weekEnd
     );
-  }, [clientPlansQuery.data, clientId, week]);
-  const planEnd = visiblePlan?.weekEnd || weekEnd;
-  const isHistorical = Boolean(visiblePlan?.published && planEnd && planEnd < today);
+    if (exactPublished) return exactPublished;
+    const exact = plans.find((plan) => plan.week === week && (plan.weekEnd || plan.week) === weekEnd);
+    if (exact) return exact;
+    return (
+      plans.find(
+        (plan) => plan.published && plan.week && plan.weekEnd && plan.week <= week && weekEnd <= plan.weekEnd
+      ) ?? null
+    );
+  }, [clientPlansQuery.data, clientId, linkedPlanId, searchParams, selectionReady, week, weekEnd]);
+  const isPublished = Boolean(visiblePlan?.published);
+  const canDeleteDraft = Boolean(selectionReady && !isPublished && (planId || meals.length > 0 || title.trim()));
+  const hasOpenSwap = meals.some((meal) => meal.swapRequested);
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
+  const deletePlan = useDeletePlan();
 
   const clients = clientsQuery.data ?? [];
   const recipes = recipesQuery.data ?? [];
@@ -129,7 +152,11 @@ export function PlanBuilderScreen() {
     const fromUrl = searchParams.get('client');
     const weekFromUrl = searchParams.get('week');
     if (fromUrl) setClientId(fromUrl);
-    if (weekFromUrl) setWeek(weekFromUrl);
+    if (weekFromUrl) {
+      setWeek(weekFromUrl);
+      setWeekEnd(searchParams.get('weekEnd') || endOfWeek(weekFromUrl));
+      setSelectedDay(weekFromUrl);
+    }
     didScrollHighlightRef.current = false;
   }, [searchParams]);
 
@@ -138,17 +165,20 @@ export function PlanBuilderScreen() {
   // invalidateQueries) must never clobber edits made since the last successful save — only a
   // genuine switch to a different client/week re-seeds while dirty/in-flight.
   useEffect(() => {
-    if (!clientId) {
+    if (!selectionReady) {
       setPlanId(null);
       planIdRef.current = null;
       lastHydratedKeyRef.current = null;
+      setTitle('');
+      titleRef.current = '';
       setMeals([]);
       mealsRef.current = [];
+      setDietitianId('');
       setSaveState('idle');
       return;
     }
     if (clientPlansQuery.isLoading) return;
-    const selectionKey = `${clientId}|${week}`;
+    const selectionKey = `${clientId}|${week}|${weekEnd}|${linkedPlanId ?? ''}`;
     const isSameSelection = lastHydratedKeyRef.current === selectionKey;
     if (isSameSelection && (dirtyRef.current || saveInFlightRef.current)) return;
     lastHydratedKeyRef.current = selectionKey;
@@ -187,27 +217,24 @@ export function PlanBuilderScreen() {
     } else {
       setPlanId(null);
       planIdRef.current = null;
-      nextTitle = titleRef.current.trim();
+      nextTitle = isSameSelection ? titleRef.current.trim() : '';
       nextMeals = [];
       setTitle(nextTitle);
       setMeals(nextMeals);
-      const nextEnd = isSameSelection && weekEndRef.current >= week ? weekEndRef.current : endOfWeek(week);
-      setWeekEnd(nextEnd);
-      weekEndRef.current = nextEnd;
       // Default to the client's own assigned dietitian, if they have one — admin can still change it.
       setDietitianId(selectedClient?.assignedDietitian ?? '');
     }
     lastSavedRef.current = { title: nextTitle, meals: nextMeals, weekEnd: weekEndRef.current };
     setSaveState('idle');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visiblePlan, clientId, week, clientPlansQuery.isLoading]);
+  }, [visiblePlan, clientId, week, weekEnd, linkedPlanId, selectionReady, clientPlansQuery.isLoading]);
 
   // Serialized, awaited autosave: at most one PATCH/POST is ever in flight. An edit that arrives
   // while a save is already outstanding is queued (pendingSaveRef) and re-sent — with the latest
   // meals/title, read via refs — the moment the in-flight one finishes, instead of firing a second
   // overlapping request that could land at the DB out of order and silently overwrite the newer edit.
   async function save(extra = {}) {
-    if (!clientId || isHistorical) return false;
+    if (!selectionReady || (isPublished && !extra.notifySwaps)) return false;
     if (!planIdRef.current && mealsRef.current.length === 0 && extra.published !== true) {
       lastSavedRef.current = { title: titleRef.current, meals: mealsRef.current, weekEnd: weekEndRef.current };
       dirtyRef.current = false;
@@ -288,7 +315,7 @@ export function PlanBuilderScreen() {
   // Autosave: debounce 800ms after the last edit. Skipped (silently, not an error toast) while
   // admin hasn't picked a dietitian yet for a brand-new plan — save() would 400 without one.
   useEffect(() => {
-    if (!dirtyRef.current || needsDietitianChoice || isHistorical) return;
+    if (!dirtyRef.current || needsDietitianChoice || isPublished) return;
     saveTimerRef.current = setTimeout(() => save(), 800);
     return () => clearTimeout(saveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -298,6 +325,12 @@ export function PlanBuilderScreen() {
     markDirty(
       meals.map((m) => {
         if (m.localId !== localId) return m;
+        if (
+          isPublished &&
+          (!m.swapRequested || Object.keys(patch).some((key) => !['recipeId', 'customTitle', 'recipeOverride'].includes(key)))
+        ) {
+          return m;
+        }
         const recipeChanged = patch.recipeId !== undefined && patch.recipeId !== m.recipeId;
         const titleChanged = patch.customTitle !== undefined && patch.customTitle !== m.customTitle;
         const next = { ...m, ...patch };
@@ -375,7 +408,51 @@ export function PlanBuilderScreen() {
     toast.success('Client notified by email and in the app.');
   }
 
-  const planDates = useMemo(() => planRangeDates(week, weekEnd), [week, weekEnd]);
+  function resetBuilder() {
+    clearTimeout(saveTimerRef.current);
+    dirtyRef.current = false;
+    pendingSaveRef.current = null;
+    lastHydratedKeyRef.current = null;
+    setClientId('');
+    setWeek('');
+    weekRef.current = '';
+    setWeekEnd('');
+    weekEndRef.current = '';
+    setTitle('');
+    titleRef.current = '';
+    setMeals([]);
+    mealsRef.current = [];
+    setPlanId(null);
+    planIdRef.current = null;
+    setDietitianId('');
+    setSelectedDay('');
+    setSaveState('idle');
+    setConfirmingDelete(false);
+    navigate(`/${companySlug}/app/plan`, { replace: true });
+  }
+
+  async function deleteDraft() {
+    if (isPublished) return;
+    if (planIdRef.current) {
+      try {
+        await deletePlan.mutateAsync(planIdRef.current);
+      } catch {
+        toast.error("Couldn't delete that draft.");
+        return;
+      }
+    }
+    toast.success('Draft deleted.');
+    resetBuilder();
+  }
+
+  function clearLinkedSelection() {
+    if (searchParams.size > 0) navigate(`/${companySlug}/app/plan`, { replace: true });
+  }
+
+  const planDates = useMemo(
+    () => (selectionReady ? planRangeDates(week, weekEnd) : []),
+    [selectionReady, week, weekEnd]
+  );
   const activeDay = planDates.includes(selectedDay) ? selectedDay : (planDates[0] ?? '');
   const activeDayValue = dayValueForDate(week, weekEnd, activeDay);
   const dayMeals = useMemo(
@@ -398,13 +475,13 @@ export function PlanBuilderScreen() {
 
   function handleDragEnd(event) {
     setDraggingRecipe(null);
-    if (isHistorical) return;
     const { active, over } = event;
     if (!over) return;
     const recipeId = active.data.current?.recipeId;
     if (!recipeId) return;
     const localId = String(over.id).replace('row-', '');
-    updateMeal(localId, { recipeId, servings: 1, recipeOverride: null });
+    if (isPublished && !mealsRef.current.find((meal) => meal.localId === localId)?.swapRequested) return;
+    updateMeal(localId, isPublished ? { recipeId, recipeOverride: null } : { recipeId, servings: 1, recipeOverride: null });
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
@@ -443,11 +520,41 @@ export function PlanBuilderScreen() {
             <Link to={`/${companySlug}/app/saved-plans`}>Saved weekly plans</Link>
           </Button>
           <DownloadPlanPdfButton planId={planId} />
-          {!isHistorical && (
+          {canDeleteDraft && (
+            confirmingDelete ? (
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="text-forest">Delete this draft?</span>
+                <button
+                  type="button"
+                  onClick={deleteDraft}
+                  disabled={deletePlan.isPending}
+                  className="font-semibold text-destructive hover:underline disabled:opacity-60"
+                >
+                  {deletePlan.isPending ? 'Deleting…' : 'Yes, delete'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingDelete(false)}
+                  className="text-muted-foreground hover:underline"
+                >
+                  Never mind
+                </button>
+              </div>
+            ) : (
+              <Button type="button" variant="outline" size="sm" onClick={() => setConfirmingDelete(true)}>
+                Delete draft
+              </Button>
+            )
+          )}
+          {!isPublished && (
             <Button
               onClick={() => {
                 if (!clientId) {
                   toast.error('Select a client first.');
+                  return;
+                }
+                if (!week || !weekEnd) {
+                  toast.error('Select both the start and end dates first.');
                   return;
                 }
                 if (meals.length === 0) {
@@ -464,7 +571,7 @@ export function PlanBuilderScreen() {
                 }
                 setPublishOpen(true);
               }}
-              disabled={!clientId || meals.length === 0 || needsDietitianChoice}
+              disabled={!selectionReady || meals.length === 0 || needsDietitianChoice}
               className="rounded-full bg-coral text-white hover:bg-coral/90"
             >
               Publish weekly plan →
@@ -493,7 +600,18 @@ export function PlanBuilderScreen() {
               <div className={cn('grid grid-cols-1 gap-3 border-b border-line pb-5 min-[650px]:grid-cols-4', isAdmin && 'min-[900px]:grid-cols-5')}>
                 <label className="block text-xs font-bold text-muted-foreground">
                   Client
-                  <Select value={clientId || undefined} onValueChange={setClientId}>
+                  <Select
+                    value={clientId || undefined}
+                    onValueChange={(nextClientId) => {
+                      clearLinkedSelection();
+                      setClientId(nextClientId);
+                      setWeek('');
+                      weekRef.current = '';
+                      setWeekEnd('');
+                      weekEndRef.current = '';
+                      setSelectedDay('');
+                    }}
+                  >
                     <SelectTrigger className="mt-1.5 w-full">
                       <SelectValue placeholder="Select a client" />
                     </SelectTrigger>
@@ -530,13 +648,11 @@ export function PlanBuilderScreen() {
                     value={week}
                     onChange={(e) => {
                       const next = e.target.value;
+                      clearLinkedSelection();
                       setWeek(next);
-                      if (next) setSelectedDay(next);
-                      if (next && weekEnd && weekEnd < next) {
-                        const bumped = endOfWeek(next);
-                        setWeekEnd(bumped);
-                        weekEndRef.current = bumped;
-                      }
+                      setSelectedDay('');
+                      setWeekEnd('');
+                      weekEndRef.current = '';
                     }}
                     className="mt-1.5"
                   />
@@ -548,13 +664,13 @@ export function PlanBuilderScreen() {
                     value={weekEnd}
                     min={week}
                     max={week ? addCalendarDays(week, MAX_PLAN_DAYS - 1) : undefined}
-                    disabled={isHistorical}
                     onChange={(e) => {
                       const next = e.target.value;
                       if (!next || next < week) return;
+                      clearLinkedSelection();
                       setWeekEnd(next);
                       weekEndRef.current = next;
-                      if (!isHistorical) dirtyRef.current = true;
+                      setSelectedDay(week);
                     }}
                     className="mt-1.5"
                   />
@@ -564,14 +680,19 @@ export function PlanBuilderScreen() {
                   <Input
                     value={title}
                     onChange={(e) => {
-                      if (isHistorical) return;
+                      if (isPublished) return;
                       dirtyRef.current = true;
                       setTitle(e.target.value);
                     }}
-                    readOnly={isHistorical}
+                    readOnly={isPublished}
                     className="mt-1.5"
                     placeholder="e.g. High-protein week"
                   />
+                  {isPublished ? (
+                    <span className="mt-1.5 inline-flex rounded-full bg-sage px-2 py-0.5 text-[11px] font-semibold text-forest">
+                      Published
+                    </span>
+                  ) : null}
                 </label>
               </div>
 
@@ -589,16 +710,20 @@ export function PlanBuilderScreen() {
                       : 'Meal schedule'}
                   </h2>
                   <p className="text-xs text-muted-foreground">
-                    {isHistorical
-                      ? 'This published plan is view-only. Reuse a schedule from Saved weekly plans.'
+                    {!selectionReady
+                      ? 'Select a client, start date, and end date to load or create a meal plan.'
+                      : isPublished
+                      ? hasOpenSwap
+                        ? 'This weekly diet is already published. Only meals with a client swap request can be changed and notified.'
+                        : 'This weekly diet is already published and cannot be edited.'
                       : 'Pick a day, then drag a recipe onto a meal slot or choose one from the dropdown.'}
                   </p>
                 </div>
-                {!isHistorical && (
+                {!isPublished && (
                   <button
                     type="button"
                     onClick={addMeal}
-                    disabled={!clientId || !activeDay}
+                    disabled={!selectionReady || !activeDay}
                     className="text-sm font-semibold text-forest hover:underline disabled:text-dim disabled:no-underline"
                   >
                     + Add meal
@@ -606,8 +731,10 @@ export function PlanBuilderScreen() {
                 )}
               </div>
 
-              {!clientId ? (
-                <p className="py-10 text-center text-sm text-dim">Select a client to start the meal schedule.</p>
+              {!selectionReady ? (
+                <p className="py-10 text-center text-sm text-dim">
+                  Select a client, start date, and end date to show the meal schedule.
+                </p>
               ) : clientPlansQuery.isLoading ? (
                 <Skeleton className="h-40 w-full" />
               ) : dayMeals.length === 0 ? (
@@ -637,9 +764,13 @@ export function PlanBuilderScreen() {
                         onChange={(patch) => updateMeal(meal.localId, patch)}
                         onRemove={() => removeMeal(meal.localId)}
                         onNotifySwap={() => notifySwap(meal.localId)}
-                        onEditRecipe={() => setEditingMealId(meal.localId)}
+                        onEditRecipe={() => {
+                          if (isPublished && !meal.swapRequested) return;
+                          setEditingMealId(meal.localId);
+                        }}
                         notifyPending={notifyingId === meal.localId}
-                        readOnly={isHistorical}
+                        readOnly={isPublished}
+                        allowRecipeSwap={isPublished && meal.swapRequested}
                         dayLocked
                       />
                     );
@@ -648,7 +779,7 @@ export function PlanBuilderScreen() {
               )}
             </section>
 
-            {!isHistorical && <RecipeRail recipes={recipes} client={selectedClient} />}
+            {(!isPublished || hasOpenSwap) && <RecipeRail recipes={recipes} client={selectedClient} />}
           </div>
           <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null} zIndex={80}>
             {draggingRecipe ? <RecipeDragPreview recipe={draggingRecipe} className="cursor-grabbing" /> : null}
@@ -669,6 +800,7 @@ export function PlanBuilderScreen() {
               ? 'Weekly plan published and saved for reuse.'
               : 'Weekly plan published — your client can now see it.'
           );
+          resetBuilder();
         }}
       />
 

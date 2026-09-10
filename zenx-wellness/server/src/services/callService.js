@@ -14,9 +14,8 @@ import { attachMeetingToCall, moveMeetingForCall, cancelMeetingForCall } from '.
 // here, the default applies only when the caller omits the field entirely).
 //
 // This used to default to null, which meant reminderScheduler.js's `reminderMinutesBefore == null`
-// gate silently skipped the call forever. Two of the four booking paths — the consultation-schedule
-// batch generator and the enquiry follow-up flow — never pass the field at all, so calls booked
-// that way could never produce a reminder no matter what anyone selected.
+// gate silently skipped the call forever. Recurring consultation slots pass 3 days; one-off
+// bookings keep this 15-minute default unless the booker chooses otherwise.
 export const DEFAULT_REMINDER_MINUTES_BEFORE = 15;
 
 export async function bookCall({
@@ -29,9 +28,12 @@ export async function bookCall({
   consultationScheduleId = null,
   force = false,
   // Only for the consultation-schedule batch-generation path (consultationScheduleService.js),
-  // which decides notification itself once it knows how many calls a single run actually produced
-  // — see that module for why. Every other caller leaves this false and gets the normal email.
+  // which sends one schedule email instead of a booking email per occurrence. Every other caller
+  // leaves this false and gets the normal booked email.
   skipNotification = false,
+  // Recurring consultation slots must not invite the client on Google Calendar — Calendar would
+  // email every future join link the moment the series is generated.
+  inviteAttendee = true,
 }) {
   const payload = { client, enquiry, dietitian, scheduledAt, notes, reminderMinutesBefore, consultationScheduleId };
   const call = force
@@ -43,7 +45,7 @@ export async function bookCall({
 
   // Before the notification, so the booking email and its .ics invite can carry the join link.
   // Never throws and never blocks the booking — see services/callMeeting.js.
-  const withMeeting = await attachMeetingToCall(call);
+  const withMeeting = await attachMeetingToCall(call, { inviteAttendee });
 
   if (!skipNotification) await notifyCallEvent('booked', withMeeting);
   return withMeeting;
@@ -55,7 +57,7 @@ export async function bookCall({
 // domain one). Bumps calls.ics_sequence once per state change that affects the calendar invite,
 // same rule as before this refactor: a request that is somehow both a reschedule and a
 // cancellation at once bumps twice and only the cancellation email fires.
-export async function applyCallUpdate(callId, existingCall, patch, { force = false } = {}) {
+export async function applyCallUpdate(callId, existingCall, patch, { force = false, skipNotification = false } = {}) {
   const dietitianId = existingCall.dietitian?._id ?? existingCall.dietitian;
 
   const isReschedule = Boolean(
@@ -98,10 +100,10 @@ export async function applyCallUpdate(callId, existingCall, patch, { force = fal
   let finalCall = updated;
   if (isCancellation) {
     finalCall = (await cancelMeetingForCall(updated)) ?? updated;
-    await notifyCallEvent('cancelled', finalCall);
+    if (!skipNotification) await notifyCallEvent('cancelled', finalCall);
   } else if (isReschedule) {
     finalCall = (await moveMeetingForCall(updated, existingCall)) ?? updated;
-    await notifyCallEvent('rescheduled', finalCall, { previousScheduledAt: existingCall.scheduledAt });
+    if (!skipNotification) await notifyCallEvent('rescheduled', finalCall, { previousScheduledAt: existingCall.scheduledAt });
   }
 
   return finalCall;

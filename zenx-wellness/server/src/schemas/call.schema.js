@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
-// reminderMinutesBefore drives the client's in-app pop-up reminder — null/0 means no reminder.
-const reminderMinutesBefore = z.coerce.number().int().min(0).max(1440).nullable().optional();
+// reminderMinutesBefore drives the email + in-app reminder. Recurring consultation slots use
+// 3 days (4320). Cap at 7 days so a PATCH can keep that value. null/0 means no reminder.
+const reminderMinutesBefore = z.coerce.number().int().min(0).max(10080).nullable().optional();
 // Bypasses the availability check (working hours / blocks / overlap — see
 // server/src/services/availabilityGuard.js) for a genuine exception, e.g. an emergency call
 // outside hours. call.controller.js only honors this for a dietitian/admin caller — a client can

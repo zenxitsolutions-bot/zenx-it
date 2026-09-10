@@ -139,7 +139,7 @@ export function DietitianOverviewScreen() {
                       trailing={
                         <Link
                           to={appHref(
-                            `plan?client=${item.clientId}&week=${item.week}&day=${encodeURIComponent(item.day)}&time=${encodeURIComponent(item.time)}`
+                            `plan?plan=${item.planId}&client=${item.clientId}&week=${item.week}&day=${encodeURIComponent(item.day)}&time=${encodeURIComponent(item.time)}`
                           )}
                           className="shrink-0 text-sm font-semibold text-forest hover:underline"
                         >

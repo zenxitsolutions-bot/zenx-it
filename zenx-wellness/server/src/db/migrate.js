@@ -114,6 +114,15 @@ const ALTERS = [
   'ALTER TABLE calls ADD COLUMN consultation_schedule_id VARCHAR(36) NULL AFTER ics_sequence',
   'ALTER TABLE calls ADD KEY idx_calls_consultation_schedule (consultation_schedule_id)',
   'ALTER TABLE calls ADD CONSTRAINT fk_calls_consultation_schedule FOREIGN KEY (consultation_schedule_id) REFERENCES consultation_schedules(id) ON DELETE SET NULL',
+  // Recurring slots used to inherit the 15-minute one-off reminder. Move unsent future generated
+  // calls to 3 days so existing series get the join-link email at T-3 without a regenerate.
+  `UPDATE calls
+     SET reminder_minutes_before = 4320
+   WHERE consultation_schedule_id IS NOT NULL
+     AND status = 'scheduled'
+     AND reminder_sent_at IS NULL
+     AND scheduled_at > NOW()
+     AND (reminder_minutes_before IS NULL OR reminder_minutes_before = 15)`,
   // ZenX SSO handoff (auth.controller.js#handoff): links a user to admin-server's zenx_users.id —
   // see the comment on this column in schema.sql.
   'ALTER TABLE users ADD COLUMN zenx_user_id VARCHAR(36) NULL AFTER timezone',

@@ -30,6 +30,14 @@ export function ClientOverviewTab({ client }) {
   const updateUser = useUpdateUser();
   const activeDietitians = (dietitians ?? []).filter((d) => !d.accountStatus || d.accountStatus === 'active');
   const currentDietitian = (dietitians ?? []).find((d) => d._id === client.assignedDietitian);
+  const currentPlanParams = planQuery.plan
+    ? new URLSearchParams({
+        plan: planQuery.plan._id,
+        client: client._id,
+        week: planQuery.plan.week,
+        weekEnd: planQuery.plan.weekEnd || planQuery.plan.week,
+      })
+    : null;
 
   function handleDietitianChange(value) {
     updateUser.mutate(
@@ -127,7 +135,7 @@ export function ClientOverviewTab({ client }) {
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream p-3">
             <div>
               <Link
-                to={`/${companySlug}/app/plan?client=${client._id}&week=${planQuery.plan.week}`}
+                to={`/${companySlug}/app/plan?${currentPlanParams.toString()}`}
                 className="block text-sm font-semibold text-forest hover:underline"
               >
                 {planQuery.plan.title}
