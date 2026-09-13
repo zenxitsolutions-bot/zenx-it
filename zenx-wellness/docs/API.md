@@ -158,6 +158,7 @@ client account). `PATCH /enquiries/:id`'s payload by `status`:
 |---|---|---|---|
 | GET | `/plans` | Auth (own) | `?client=&week=` → `[plan]` (meals populate `recipe`) |
 | GET | `/plans/:id` | Auth (own) | → `{plan}` |
+| GET | `/plans/:id/pdf` | Auth (own) | → PDF of the full week + every meal's recipe (ingredients, method, notes) |
 | POST | `/plans` | dietitian(own client only, `403` otherwise — `dietitian` derived from caller), admin(explicit `dietitian`) | `{client, dietitian?, title?, week, weekEnd, meals[]}` → `{plan}` |
 | PATCH | `/plans/:id` | dietitian(own plan only, `403` otherwise), admin | `{title?, meals?, published?}` → `{plan}` — a genuine `published` transition (`false`/unset → `true`) queues a `plan-published` email to the client (2026-08-23, see below); a repeat `published: true` on an already-published plan (or any other field changing) does not |
 | PATCH | `/plans/:id/meals/:index` | client (own) | `{completed?, swapRequested?}` → `{plan}` — client can mark a meal eaten or flag it for a swap; cannot change what the meal is |
@@ -688,3 +689,25 @@ include a scheme (admin-server's `provisioning.controller.js#normalizeWebsite`).
   `DietitianPickerDialog`, same as any other admin-created, unassigned client. The weekly plan
   builder's own slot-type dropdown (Breakfast/Lunch/Snack/Dinner) is intentionally unrelated to a
   recipe's (now free-text) category, and stays a fixed 4-value enum.
+
+## Client profile photos
+
+All routes below require the existing client authentication and forced-password-change guards.
+They operate only on the signed-in user; no user ID or tenant override is accepted.
+
+| Method | Path | Behavior |
+|---|---|---|
+| GET | /api/users/me/photo | Image bytes with their validated content type; 204 if no photo |
+| PUT | /api/users/me/photo | Multipart `photo` field: JPG, PNG or WebP, maximum 2 MB; atomically replaces the saved photo |
+| DELETE | /api/users/me/photo | Removes the signed-in client's photo; 204 |
+
+Images are stored in the private `user_photos` table, with a foreign key to users.
+Responses are private/no-store and are not exposed as public upload URLs.
+For an existing installation, run `node src/db/migrateUserPhotos.js` from server/.
+Fresh installs include this additive table in schema.sql.
+
+## API request limits
+
+Dashboard GET/HEAD requests have a separate allowance of 120 requests per minute per verified signed-in user; anonymous or invalid-token reads share an IP allowance. POST/PUT/PATCH/DELETE retain the existing 300 requests per 15 minutes per IP. Background reads no longer consume the login/write allowance. Existing stricter enquiry and password-reset limits are unchanged. Limited responses return HTTP 429 with Retry-After and standard rate-limit headers.
+
+Profile photo endpoints GET/PUT/DELETE /api/users/me/photo also support dietitians. Images remain private to the authenticated owner; the existing 2 MB JPEG/PNG/WebP validation applies. Dietitian phone updates use existing PATCH /api/users/me validation.

@@ -1,79 +1,112 @@
 export default function Products() {
   return (
     <section id="products" className="products section">
-      <div className="section-kicker">03 / OUR PRODUCTS</div>
-      <div className="product-intro">
-        <h2>
-          We don't only
-          <br />
-          <em>build for clients.</em>
-        </h2>
-        <p>We build products from real business problems too.</p>
+      <div className="work-head">
+        <div>
+          <p className="eyebrow">FEATURED WORK</p>
+          <h2>
+            Real Projects. <em>Real Products.</em>
+          </h2>
+          <p>
+            We don’t only build for clients. We ship products from real business
+            problems — starting with care practices and small-business retail.
+          </p>
+        </div>
+        <a className="btn btn-ghost" href="#contact">
+          Talk about a product
+        </a>
       </div>
 
-      <article className="product-card dietitian">
-        <div className="product-copy">
+      <article className="work-showcase">
+        <div className="work-devices">
+          <div className="device-laptop">
+            <div className="device-laptop-bar">
+              <span></span><span></span><span></span>
+              <strong>zenxitsolutions.com/dietitian</strong>
+            </div>
+            <div className="dashboard diet-dashboard">
+              <div className="dash-top">
+                <strong>ZENX / DIETITIAN</strong>
+                <span>● LIVE</span>
+              </div>
+              <div className="dash-body">
+                <div className="dash-side">
+                  <span>Overview</span>
+                  <span>Clients</span>
+                  <span>Diet Plans</span>
+                  <span>Progress</span>
+                  <span>Messages</span>
+                </div>
+                <div className="dash-content">
+                  <div className="dash-greeting">Good morning, Dietitian.</div>
+                  <div className="stats">
+                    <div>
+                      <small>ACTIVE CLIENTS</small>
+                      <strong>24</strong>
+                    </div>
+                    <div>
+                      <small>TODAY'S CALLS</small>
+                      <strong>4</strong>
+                    </div>
+                    <div>
+                      <small>PLANS THIS WEEK</small>
+                      <strong>12</strong>
+                    </div>
+                  </div>
+                  <div className="chart">
+                    <span className="chart-line"></span>
+                    <div className="chart-grid"></div>
+                    <small>WEIGHT PROGRESS</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="device-phone" aria-hidden="true">
+            <div className="phone-notch"></div>
+            <p>Today’s meals</p>
+            <div className="phone-card">Breakfast</div>
+            <div className="phone-card">Lunch</div>
+            <div className="phone-card">Dinner</div>
+          </div>
+        </div>
+
+        <aside className="glass-card work-info">
           <span className="product-number">PRODUCT / 01</span>
-          <h3>
-            ZenX
-            <br />
-            <em>Dietitian</em>
-          </h3>
+          <h3>ZenX Dietitian</h3>
           <p>
-            A connected platform that makes it easier for dietitians to
-            manage clients, appointments, diet plans, measurements and
-            weight progress in one place.
+            A connected platform for dietitians to manage clients, appointments,
+            diet plans, measurements, and weight progress in one place.
           </p>
-          <ul>
-            <li>Client management</li>
-            <li>Diet plans & weekly recipes</li>
-            <li>Weight & measurement progress</li>
-            <li>Appointments & communication</li>
-          </ul>
-          <a className="btn btn-light" href="#contact">
-            Talk about Dietitian <span>↗</span>
+          <div className="work-tags">
+            <span>Web App</span>
+            <span>Portal</span>
+            <span>Care</span>
+          </div>
+          <a className="text-link" href="#contact">
+            Talk about Dietitian <span>→</span>
           </a>
-        </div>
-        <div className="dashboard diet-dashboard">
-          <div className="dash-top">
-            <strong>ZENX / DIETITIAN</strong>
-            <span>● LIVE</span>
-          </div>
-          <div className="dash-body">
-            <div className="dash-side">
-              <span>Overview</span>
-              <span>Clients</span>
-              <span>Diet Plans</span>
-              <span>Progress</span>
-              <span>Messages</span>
-            </div>
-            <div className="dash-content">
-              <div className="dash-greeting">Good morning, Dietitian.</div>
-              <div className="stats">
-                <div>
-                  <small>ACTIVE CLIENTS</small>
-                  <strong>128</strong>
-                </div>
-                <div>
-                  <small>TODAY'S CALLS</small>
-                  <strong>08</strong>
-                </div>
-                <div>
-                  <small>PLANS THIS WEEK</small>
-                  <strong>34</strong>
-                </div>
-              </div>
-              <div className="chart">
-                <span className="chart-line"></span>
-                <div className="chart-grid"></div>
-                <small>WEIGHT PROGRESS</small>
-              </div>
-            </div>
-          </div>
-        </div>
+        </aside>
       </article>
 
-      <article className="product-card pos">
+      <article className="work-showcase work-showcase-pos">
+        <aside className="glass-card work-info">
+          <span className="product-number">PRODUCT / 02</span>
+          <h3>ZenX POS</h3>
+          <p>
+            A simple POS experience for small businesses that want less
+            complexity and more control over everyday sales.
+          </p>
+          <div className="work-tags">
+            <span>Retail</span>
+            <span>Checkout</span>
+            <span>Inventory</span>
+          </div>
+          <a className="text-link" href="#contact">
+            Talk about POS <span>→</span>
+          </a>
+        </aside>
+
         <div className="pos-screen">
           <div className="pos-bar">
             <strong>ZENX POS</strong>
@@ -113,29 +146,8 @@ export default function Products() {
             <strong>
               TOTAL <span>$9.97</span>
             </strong>
-            <button>PAY NOW</button>
+            <button type="button" tabIndex={-1}>PAY NOW</button>
           </div>
-        </div>
-        <div className="product-copy">
-          <span className="product-number">PRODUCT / 02</span>
-          <h3>
-            ZenX
-            <br />
-            <em>POS</em>
-          </h3>
-          <p>
-            A simple POS experience for small businesses that want less
-            complexity and more control over everyday sales.
-          </p>
-          <ul>
-            <li>Fast checkout</li>
-            <li>Barcode-ready products</li>
-            <li>Inventory management</li>
-            <li>Sales & business reports</li>
-          </ul>
-          <a className="btn btn-light" href="#contact">
-            Talk about POS <span>↗</span>
-          </a>
         </div>
       </article>
     </section>

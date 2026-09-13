@@ -8,5 +8,8 @@ export default defineConfig({
     // adminUrl.js's ADMIN_URL default (the public site's "Admin Login" link) hardcodes this port —
     // fail loudly if it's ever taken instead of silently drifting to another one.
     strictPort: true,
+    proxy: {
+      "/uploads": { target: "http://localhost:4001", changeOrigin: true },
+    },
   },
 });

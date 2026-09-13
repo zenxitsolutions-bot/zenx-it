@@ -1,19 +1,22 @@
 import { app } from './src/app.js';
 import { connectDb } from './src/config/db.js';
 import { env } from './src/config/env.js';
-import { assertEmailTransportConfigured } from './src/emails/transport/index.js';
+import { assertEmailTransportConfigured, resolveTransportKind } from './src/emails/transport/index.js';
 import { startEmailWorker } from './src/emails/worker.js';
 import { startConsultationScheduleJob } from './src/services/consultationScheduleJob.js';
 import { startReminderScheduler } from './src/services/reminderScheduler.js';
+import { startPlanExpiryJob } from './src/services/planExpiryJob.js';
 
 async function main() {
   // Fails loudly here, before the server accepts any traffic, if EMAIL_TRANSPORT/RESEND_API_KEY
   // isn't valid for this NODE_ENV — see src/emails/transport/index.js.
   assertEmailTransportConfigured();
+  console.log(`[email] transport: ${resolveTransportKind()}`);
   await connectDb();
   startEmailWorker();
   startConsultationScheduleJob();
   startReminderScheduler();
+  startPlanExpiryJob();
   const server = app.listen(env.port, () => console.log(`[server] listening on http://localhost:${env.port}`));
 
   // Same reason as admin-server's identical block: Node drops an idle keep-alive socket after 5s,

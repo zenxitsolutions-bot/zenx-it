@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { UserPlus, Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsers } from '@/hooks/useUsers';
 import { useDietitians } from '@/hooks/useClients';
+import { formatCalendarDate } from '@/lib/calendarDate';
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_BADGE_VARIANT } from '@/lib/accountStatus';
 import { UserFormDialog } from './UserFormDialog';
 import { UserEditDialog } from './UserEditDialog';
@@ -32,6 +33,15 @@ export function UsersScreen() {
   const navigate = useNavigate();
   const { companySlug } = useParams();
   const { user: viewer } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('create') !== '1') return;
+    setCreateOpen(true);
+    const next = new URLSearchParams(searchParams);
+    next.delete('create');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const { data, isLoading, isError, refetch } = useUsers(roleFilter === 'all' ? undefined : { role: roleFilter });
   const { data: dietitians } = useDietitians();
@@ -41,9 +51,12 @@ export function UsersScreen() {
 
   // Dietitians get their own richer page (spec §2026-round2-fixes item 2 — personal/contact
   // details, credentials, working hours, account status); client/admin edits stay in the dialog.
-  function openEdit(user) {
-    if (user.role === 'dietitian') navigate(`/${companySlug}/app/users/dietitians/${user._id}`);
-    else setEditing(user);
+  function openProfile(user, { edit = false } = {}) {
+    if (user.role === 'dietitian') {
+      navigate(`/${companySlug}/app/users/dietitians/${user._id}${edit ? '?edit=1' : ''}`);
+      return;
+    }
+    setEditing(user);
   }
 
   return (
@@ -113,7 +126,7 @@ export function UsersScreen() {
                   <Badge variant={ROLE_TONE[u.role]} className="capitalize">
                     {u.role}
                   </Badge>
-                  {u.role === 'dietitian' && u.accountStatus && u.accountStatus !== 'active' && (
+                  {u.accountStatus && u.accountStatus !== 'active' && (
                     <Badge variant={ACCOUNT_STATUS_BADGE_VARIANT[u.accountStatus]} className="capitalize">
                       {ACCOUNT_STATUS_LABEL[u.accountStatus]}
                     </Badge>
@@ -124,6 +137,9 @@ export function UsersScreen() {
                   {u.email}
                   {u.role === 'client' && (
                     <> · {u.assignedDietitian ? `Works with ${dietitianName(u.assignedDietitian) ?? '…'}` : 'No dietitian yet'}</>
+                  )}
+                  {u.role === 'dietitian' && u.joinedOn && (
+                    <> · Joined {formatCalendarDate(u.joinedOn, { day: 'numeric', month: 'short', year: 'numeric' })}</>
                   )}
                 </span>
               </div>
@@ -137,9 +153,18 @@ export function UsersScreen() {
                     Reset password
                   </button>
                 )}
+                {u.role === 'dietitian' && (
+                  <button
+                    type="button"
+                    onClick={() => openProfile(u)}
+                    className="text-sm font-semibold text-forest hover:underline"
+                  >
+                    View
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => openEdit(u)}
+                  onClick={() => openProfile(u, { edit: true })}
                   className="text-sm font-semibold text-forest hover:underline"
                 >
                   Edit

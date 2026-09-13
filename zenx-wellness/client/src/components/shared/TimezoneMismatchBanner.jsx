@@ -39,16 +39,16 @@ export function TimezoneMismatchBanner() {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 bg-yellow px-4 py-2.5 text-sm text-forest">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-coral/10 px-5 py-2.5 text-sm text-forest">
       <p>
-        Your device timezone appears to be <strong>{browserTimezone}</strong>. Your profile is currently set to{' '}
-        <strong>{user.timezone}</strong>. Would you like to update it?
+        Your device timezone appears to be <strong className="text-coral">{browserTimezone}</strong>. Your profile is currently set to{' '}
+        <strong className="text-coral">{user.timezone}</strong>. Would you like to update it?
       </p>
       <div className="flex shrink-0 items-center gap-2">
-        <Button type="button" size="sm" onClick={update} disabled={updateTimezone.isPending} className="rounded-full bg-coral text-white hover:bg-coral/90">
+        <Button type="button" size="sm" onClick={update} disabled={updateTimezone.isPending}>
           {updateTimezone.isPending ? 'Updating…' : 'Update'}
         </Button>
-        <button type="button" onClick={dismiss} aria-label="Dismiss" className="rounded-full p-1 hover:bg-forest/10">
+        <button type="button" onClick={dismiss} aria-label="Dismiss" className="rounded-full p-1 text-muted-foreground hover:bg-cream">
           <X className="size-4" />
         </button>
       </div>

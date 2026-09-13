@@ -1,4 +1,5 @@
 import { apiClient, isDemoMode } from "../lib/apiClient";
+import { resolveAssetUrl } from "../lib/assetUrl";
 import { demoStore } from "./demo/demoStore";
 import { patchIn, findIn } from "./demo/collection";
 import { auditService } from "./auditLogs";
@@ -137,7 +138,9 @@ export const companiesService = {
     const { data } = await apiClient.post<Company>(`/companies/${companyId}/logo`, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-    return `${apiClient.defaults.baseURL?.replace(/\/api$/, "")}${data.logo_url}`;
+    const url = resolveAssetUrl(data.logo_url);
+    if (!url) throw new Error("Logo upload did not return a URL.");
+    return url;
   },
 
   async listWellnessClients(companyId: string): Promise<{

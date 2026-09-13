@@ -70,16 +70,18 @@ export const login = asyncHandler(async (req, res) => {
   // attacker probing for valid emails or live company slugs — and it is why naming the caller's
   // own company URL below is safe.
   //
-  // Bare /login is refused. The company URL is the only entry point; telling the caller their
-  // own path is safe only because they already passed the password check.
+  // Bare /login (HomePage, bookmarks, emails that omitted the slug) is allowed once the password
+  // is proven: we continue as that user's own company. A slug in the URL is still enforced when
+  // present, so /other-company/login cannot mint a session for this user.
   const ownCompany = user.companyId ? await findCompanyById(user.companyId) : null;
-  if (!companySlug) {
+  const resolvedSlug = companySlug || ownCompany?.slug || null;
+  if (!resolvedSlug) {
     throw ApiError.forbidden('Sign in from your company\'s login page.', {
-      companyLoginPath: ownCompany?.slug ? `/${ownCompany.slug}/login` : null,
+      companyLoginPath: null,
     });
   }
 
-  const company = await findCompanyBySlug(companySlug);
+  const company = await findCompanyBySlug(resolvedSlug);
   // Unknown slug is 403, not 404: this is reachable only with valid credentials, and a
   // distinguishable 404 would turn the login form into a slug-enumeration oracle.
   if (!company || company.id !== user.companyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
@@ -251,13 +253,17 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     await createPasswordResetToken({ userId: user.id, tokenHash: hashResetToken(rawToken), expiresAt });
 
     // Slug-scoped so the link lands on the user's own company page — branded like their login
-    // page, and, more importantly, so ResetPasswordPage can send them to /{slug}/login afterwards.
-    // The bare /login refuses everyone (see the tenant check above), so a slugless reset link would
-    // end on a page that cannot sign the user in. Falls back to the bare path only for a user with
-    // no company_slug, which the bare /reset-password route still serves.
+    // page, and so ResetPasswordPage can send them to /{slug}/login afterwards. Falls back to the
+    // bare path only for a user with no company_slug, which the bare /reset-password route still
+    // serves.
     const resetPath = user.companySlug ? `/${user.companySlug}/reset-password` : '/reset-password';
     const resetUrl = `${env.clientOrigin}${resetPath}?token=${rawToken}`;
-    await sendPasswordResetEmail(user.email, resetUrl).catch((err) => {
+    // `name` is the full name ("Ava Admin"); the greeting takes the first word so the email opens
+    // "Hi Ava", not "Hi Ava Admin". Falls back to "there" inside sendPasswordResetEmail for a user
+    // whose name was never captured, rather than rendering an empty "Hi ,".
+    const greetingName = user.name?.trim().split(/\s+/)[0] || undefined;
+    const company = user.companyId ? await findCompanyById(user.companyId) : null;
+    await sendPasswordResetEmail(user.email, resetUrl, greetingName, company?.name?.trim() || undefined).catch((err) => {
       console.error('[forgotPassword] failed to send reset email', err);
     });
   }

@@ -1,12 +1,22 @@
 import { z } from 'zod';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { PLAN_DURATIONS } from '../constants/planDurations.js';
+import { DIET_PREFERENCES } from '../constants/dietPreferences.js';
 import { isValidTimezone } from '../services/timezoneService.js';
+import { toCalendarDate } from '../utils/calendarDate.js';
 
 // Only meaningful for role: 'client' — applied conditionally in the controller, same convention
 // as assignedDietitian.
 const programPlan = z.string().min(1).nullable().optional();
 const planDuration = z.enum(PLAN_DURATIONS).nullable().optional();
+const dietPreference = z.enum(DIET_PREFERENCES).nullable().optional();
+const allergies = z
+  .string()
+  .trim()
+  .max(1000)
+  .optional()
+  .nullable()
+  .transform((value) => (value === '' ? null : value));
 
 // The client's PhoneInput (client/src/components/ui/phone-input.jsx) always sends E.164 (e.g.
 // "+14155550123") — a real, dialable number for a real country, not just "looks phone-shaped".
@@ -29,6 +39,17 @@ const optionalPhone = z.union([phone, z.literal('')]).optional();
 const optionalAddress = z.union([address, z.literal('')]).optional();
 const qualifications = z.string().trim().max(2000).optional();
 const accountStatus = z.enum(['active', 'inactive', 'suspended']).optional();
+
+// Civil day the dietitian joined. Empty string from a controlled date input means "cleared".
+const joinedOn = z
+  .union([z.string(), z.null()])
+  .optional()
+  .transform((value) => {
+    if (value === undefined) return undefined;
+    if (value === '' || value === null) return null;
+    return toCalendarDate(value);
+  })
+  .refine((value) => value === undefined || value === null || Boolean(value), 'Use a calendar date (YYYY-MM-DD)');
 
 // Must be a real IANA zone name — isValidTimezone (timezoneService.js) uses Intl.DateTimeFormat's
 // own RangeError as the validity check, the standard way to validate one without a lookup table
@@ -60,6 +81,10 @@ export const updateMeSchema = z.object({
   name: z.string().min(1).optional(),
   phone: optionalPhone,
   assignedDietitian: z.string().min(1).nullable().optional(),
+  // Client-only diet notes — updateMe strips these for any other role so a dietitian/admin
+  // cannot accidentally write them onto their own row via My account.
+  dietPreference,
+  allergies,
   timezone,
   country,
   dateFormat,
@@ -80,9 +105,12 @@ export const updateUserSchema = z.object({
   phone: optionalPhone,
   address: optionalAddress,
   qualifications,
+  joinedOn,
   accountStatus,
   programPlan,
   planDuration,
+  dietPreference,
+  allergies,
   timezone,
   country,
   dateFormat,
@@ -102,9 +130,12 @@ export const createUserSchema = z
     phone: optionalPhone,
     address: optionalAddress,
     qualifications,
+    joinedOn,
     assignedDietitian: z.string().min(1).nullable().optional(),
     programPlan,
     planDuration,
+    dietPreference,
+    allergies,
     // Optional at creation — an admin can set it up front instead of relying on the DB's 'UTC'
     // default + a later PATCH, but nothing requires it (spec item 1 only requires phone/address
     // for a dietitian, not timezone).

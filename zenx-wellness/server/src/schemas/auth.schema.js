@@ -6,7 +6,7 @@ export const loginSchema = z.object({
   // The company slug from the URL the login form was served on (/:companySlug/login). A slug,
   // never a company id — the controller resolves it against the companies table itself, so a
   // client cannot name a tenant by editing the request body. Bare /login (null/absent) is
-  // refused after a successful password check.
+  // allowed after a successful password check and signs the user into their own company.
   companySlug: z.string().min(1).max(255).optional().nullable(),
 });
 

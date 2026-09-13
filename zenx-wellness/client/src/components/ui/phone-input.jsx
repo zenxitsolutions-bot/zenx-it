@@ -14,7 +14,7 @@ const PhoneInput = React.forwardRef(function PhoneInput({ className, ...props },
       international
       defaultCountry="US"
       className={cn(
-        'nourishly-phone-input flex h-8 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1 text-base transition-colors focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 md:text-sm',
+        'nourishly-phone-input flex h-10 w-full min-w-0 items-center gap-1.5 rounded-lg border border-input bg-cream px-3.5 py-2.5 text-base text-forest transition-colors focus-within:border-coral/60 focus-within:bg-white focus-within:ring-2 focus-within:ring-coral/20 md:text-sm',
         className
       )}
       numberInputProps={{

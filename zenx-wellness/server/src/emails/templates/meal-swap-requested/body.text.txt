@@ -1,0 +1,8 @@
+Hi {{dietitian_name}}
+
+{{client_name}} asked to swap a meal on their weekly plan.
+
+{{meal_title}}
+{{meal_type}} · {{meal_when}}
+
+Open their profile to review the request and update the plan: {{login_url}}

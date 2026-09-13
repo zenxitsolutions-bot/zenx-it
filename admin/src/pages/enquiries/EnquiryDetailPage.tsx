@@ -25,11 +25,13 @@ import { Button } from "../../components/ui/Button";
 import { Select } from "../../components/ui/Field";
 import { StatusBadge, PriorityBadge } from "../../components/ui/Badges";
 import { PipelineStepper } from "../../components/enquiries/PipelineStepper";
+import { EnquiryLifecycle } from "../../components/enquiries/EnquiryLifecycle";
+import { RescheduleFollowupModal } from "../../components/followups/RescheduleFollowupModal";
 import { ConversationTimeline } from "../../components/enquiries/ConversationTimeline";
 import { AddInteractionModal } from "../../components/enquiries/AddInteractionModal";
 import { SkeletonRows } from "../../components/ui/Skeleton";
 import { TimezoneToggle, type TimezoneViewMode } from "../../components/shared/TimezoneToggle";
-import { LEAD_PRIORITIES, type LeadPriority } from "../../types/domain";
+import { LEAD_PRIORITIES, type LeadPriority, type Followup } from "../../types/domain";
 import { formatDate, formatDateTime, followupInstant } from "../../utils/date";
 import { browserTimezone } from "../../lib/timezone";
 import { useAuth } from "../../context/AuthContext";
@@ -40,6 +42,7 @@ export default function EnquiryDetailPage() {
   const { profile } = useAuth();
   const [addOpen, setAddOpen] = useState(false);
   const [zoneMode, setZoneMode] = useState<TimezoneViewMode>("mine");
+  const [rescheduleTarget, setRescheduleTarget] = useState<Followup | null>(null);
   const viewerTimezone = (profile?.timezone && profile.timezone !== "UTC" ? profile.timezone : browserTimezone()) as string;
 
   const { data: enquiry, loading, refresh } = useLiveQuery(
@@ -136,10 +139,20 @@ export default function EnquiryDetailPage() {
         </div>
       </Card>
 
-      <Card className="p-6">
-        <h3 className="mb-5 font-display text-base text-offwhite">Pipeline</h3>
-        <PipelineStepper status={enquiry.status} />
-      </Card>
+      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+        <Card className="p-6">
+          <h3 className="mb-5 font-display text-base text-offwhite">Pipeline</h3>
+          <PipelineStepper status={enquiry.status} />
+        </Card>
+        <Card className="p-6">
+          <h3 className="mb-5 font-display text-base text-offwhite">Lifecycle</h3>
+          <EnquiryLifecycle
+            enquiry={enquiry}
+            interactions={interactions ?? []}
+            followups={followups ?? []}
+          />
+        </Card>
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
         <div className="flex flex-col gap-6">
@@ -207,7 +220,7 @@ export default function EnquiryDetailPage() {
                   const effectiveTimezone = zoneMode === "theirs" && assignedAdmin?.timezone ? assignedAdmin.timezone : viewerTimezone;
                   return (
                     <div key={f.id} className="rounded-md border border-border p-3.5">
-                      <p className={`text-sm font-semibold ${overdue ? "text-danger" : "text-offwhite"}`}>
+                      <p className={`text-sm font-semibold ${overdue ? "text-dangerInk" : "text-offwhite"}`}>
                         {formatDateTime(instant.toISOString(), effectiveTimezone)}
                       </p>
                       <p className="mt-1 text-xs text-muted">{f.contact_method}{f.notes ? ` · ${f.notes}` : ""}</p>
@@ -223,18 +236,7 @@ export default function EnquiryDetailPage() {
                         >
                           Complete
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={async () => {
-                            const newDate = prompt("Reschedule to date (YYYY-MM-DD):", f.scheduled_date);
-                            if (!newDate) return;
-                            const newTime = prompt("Time (HH:MM):", f.scheduled_time) ?? f.scheduled_time;
-                            await followupsService.reschedule(f.id, newDate, newTime, f.timezone);
-                            toast("Follow-up rescheduled");
-                            refreshFollowups();
-                          }}
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => setRescheduleTarget(f)}>
                           Reschedule
                         </Button>
                       </div>
@@ -292,6 +294,16 @@ export default function EnquiryDetailPage() {
         onSaved={() => {
           setAddOpen(false);
           refreshInteractions();
+          refreshFollowups();
+        }}
+      />
+      <RescheduleFollowupModal
+        open={Boolean(rescheduleTarget)}
+        followup={rescheduleTarget}
+        assignee={assignedAdmin}
+        onClose={() => setRescheduleTarget(null)}
+        onSaved={() => {
+          setRescheduleTarget(null);
           refreshFollowups();
         }}
       />

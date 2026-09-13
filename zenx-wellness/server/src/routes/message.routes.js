@@ -15,14 +15,12 @@ import {
 import { createMessageSchema, markReadSchema } from '../schemas/message.schema.js';
 
 export const messageRouter = Router();
-// Admin is deliberately excluded — messaging is client <-> assigned dietitian only (spec §1.5),
-// and admin isn't a party to any conversation.
-messageRouter.use(authenticate, blockIfMustChangePassword, authorize('client', 'dietitian'));
+messageRouter.use(authenticate, blockIfMustChangePassword);
 
 messageRouter.get('/conversations', authorize('dietitian'), listConversations);
-messageRouter.get('/unread-count', getUnreadCount);
-messageRouter.get('/presence', getPresence);
-messageRouter.get('/stream', streamMessages);
-messageRouter.get('/', listMessages);
-messageRouter.post('/', validate(createMessageSchema), createMessage);
-messageRouter.post('/read', validate(markReadSchema), markRead);
+messageRouter.get('/unread-count', authorize('client', 'dietitian'), getUnreadCount);
+messageRouter.get('/presence', authorize('client', 'dietitian', 'admin'), getPresence);
+messageRouter.get('/stream', authorize('client', 'dietitian', 'admin'), streamMessages);
+messageRouter.get('/', authorize('client', 'dietitian'), listMessages);
+messageRouter.post('/', authorize('client', 'dietitian'), validate(createMessageSchema), createMessage);
+messageRouter.post('/read', authorize('client', 'dietitian'), validate(markReadSchema), markRead);

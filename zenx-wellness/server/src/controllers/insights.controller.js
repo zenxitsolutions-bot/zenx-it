@@ -1,4 +1,10 @@
-import { countEnquiries, countEnquiriesByStatus, listEnquiryCreatedAtSince } from '../models/Enquiry.js';
+import {
+  countEnquiries,
+  countEnquiriesByStatus,
+  listEnquiries,
+  listEnquiryCreatedAtSince,
+  listEnquiryTimelineSince,
+} from '../models/Enquiry.js';
 import {
   countUsers,
   listUsers,
@@ -7,7 +13,11 @@ import {
   countClientsCreatedBetween,
 } from '../models/User.js';
 import { countCalls, listCallsForDietitianInRange } from '../models/Call.js';
-import { countPlanStatesForDietitian, countPublishedPlansCreatedBetween } from '../models/Plan.js';
+import {
+  countPlanStatesForDietitian,
+  countPublishedPlansCreatedBetween,
+  listSwapRequestsForDietitian,
+} from '../models/Plan.js';
 import { countProgressByDayForClients, latestProgressByClientIds } from '../models/Progress.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { toClientShape } from '../utils/serialize.js';
@@ -37,23 +47,50 @@ function startOfWeek(date) {
   return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
 }
 
+function localDayKey(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function localMonthKey(date) {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
 export const adminOverview = asyncHandler(async (req, res) => {
   const companyId = req.user.companyId;
-  const [newEnquiries, converted, totalEnquiries, activeClients, dietitians, statusCounts] = await Promise.all([
+  const dayStart = startOfDay();
+  const dayEnd = endOfDay();
+  const monthStart = new Date(dayStart.getFullYear(), dayStart.getMonth() - 5, 1);
+  const thirtyDaysAgo = new Date(dayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
+
+  const [
+    newEnquiries,
+    converted,
+    closed,
+    followUpEnquiries,
+    totalEnquiries,
+    activeClients,
+    dietitians,
+    statusCounts,
+    followUpsToday,
+    overdueFollowups,
+    timeline,
+    recentRows,
+  ] = await Promise.all([
     countEnquiries({ companyId, status: 'new' }),
     countEnquiries({ companyId, status: 'converted' }),
+    countEnquiries({ companyId, status: 'closed' }),
+    countEnquiries({ companyId, status: 'follow-up' }),
     countEnquiries({ companyId }),
     countUsers({ companyId, role: 'client' }),
     listUsers({ companyId, role: 'dietitian' }),
     countEnquiriesByStatus(companyId),
+    countCalls({ companyId, status: 'scheduled', from: dayStart, to: dayEnd }),
+    countCalls({ companyId, status: 'scheduled', to: new Date(dayStart.getTime() - 1) }),
+    listEnquiryTimelineSince(companyId, monthStart),
+    listEnquiries({ companyId }, { limit: 6 }),
   ]);
-
-  const followUpsToday = await countCalls({
-    companyId,
-    status: 'scheduled',
-    from: startOfDay(),
-    to: endOfDay(),
-  });
 
   const clientsByDietitian = new Map(
     (await countUsersGroupedByDietitian(companyId)).map((row) => [row.dietitianId, row.clients])
@@ -81,14 +118,65 @@ export const adminOverview = asyncHandler(async (req, res) => {
   const countByStatus = new Map(statusCounts.map((s) => [s.status, s.count]));
   const statusBreakdown = ENQUIRY_STATUSES.map((status) => ({ status, count: countByStatus.get(status) ?? 0 }));
 
+  const todayKey = localDayKey(dayStart);
+  const newEnquiriesToday = timeline.filter((row) => localDayKey(row.createdAt) === todayKey).length;
+
+  const monthly = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(dayStart.getFullYear(), dayStart.getMonth() - (5 - i), 1);
+    const key = localMonthKey(d);
+    const rows = timeline.filter((row) => localMonthKey(row.createdAt) === key);
+    const monthConverted = rows.filter((row) => row.status === 'converted').length;
+    const monthLost = rows.filter((row) => row.status === 'closed').length;
+    return {
+      key,
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
+      enquiries: rows.length,
+      converted: monthConverted,
+      lost: monthLost,
+      conversionRate: rows.length ? Math.round((monthConverted / rows.length) * 1000) / 10 : 0,
+    };
+  });
+
+  const daily = Array.from({ length: 30 }, (_, i) => {
+    const d = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
+    const key = localDayKey(d);
+    const rows = timeline.filter((row) => localDayKey(row.createdAt) === key);
+    return {
+      key,
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      enquiries: rows.length,
+      converted: rows.filter((row) => row.status === 'converted').length,
+      lost: rows.filter((row) => row.status === 'closed').length,
+    };
+  });
+
+  const conversionRate = totalEnquiries ? Math.round((converted / totalEnquiries) * 1000) / 10 : 0;
+
   res.json({
     newEnquiries,
     followUpsToday,
-    conversionRate: totalEnquiries ? Math.round((converted / totalEnquiries) * 1000) / 10 : 0,
+    conversionRate,
     activeClients,
     growthSeries,
     dietitianWorkload,
     statusBreakdown,
+    today: {
+      newEnquiriesToday,
+      followupsToday: followUpsToday,
+      overdueFollowups,
+      callsScheduledToday: followUpsToday,
+    },
+    kpis: {
+      totalEnquiries,
+      newEnquiries,
+      followupsDue: followUpEnquiries,
+      converted,
+      conversionRate,
+      lost: closed,
+    },
+    monthly,
+    daily,
+    recentEnquiries: recentRows.map((e) => toClientShape(e)),
   });
 });
 
@@ -128,6 +216,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     plansPrevWindow,
     callsToday,
     callsSameDayLastWeek,
+    swapRequests,
   ] = await Promise.all([
     listCallsForDietitianInRange(dietitianId, dayStart, dayEnd),
     latestProgressByClientIds(clientIds),
@@ -144,6 +233,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
       from: new Date(dayStart.getTime() - 7 * day),
       to: new Date(dayEnd.getTime() - 7 * day),
     }),
+    listSwapRequestsForDietitian(dietitianId),
   ]);
 
   // Progress logs per day across the last PROGRESS_SERIES_DAYS days, gaps filled with zero so the
@@ -160,7 +250,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
 
   res.json({
     todaysAppointments: todaysAppointments.map((c) => toClientShape(c)),
-    attentionItems: [],
+    attentionItems: swapRequests.map((item) => ({ type: 'swap-request', ...item })),
     clientMomentum: clientMomentum.length,
     // Each stat pairs its own value with the change figure the UI labels it by — the client never
     // has to guess which window a percentage came from.

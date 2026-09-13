@@ -4,17 +4,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useCurrentPlan, useUpdateMealStatus } from '@/hooks/usePlans';
-import { getTodayName, getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
+import { getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
+import { formatCalendarDate, planRangeDates } from '@/lib/calendarDate';
 import { DayTabs } from './DayTabs';
 import { MealCard } from './MealCard';
+import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
 import { Utensils } from 'lucide-react';
 
 export function MealsScreen() {
-  // getTodayName() is only a placeholder here, before `plan` (and therefore its actual week start)
-  // has loaded — the effect below immediately corrects it to today's real position within THIS
-  // plan's week via getDayKeyForDate, which is what actually matters once a week doesn't
-  // necessarily start on a Monday (see DayTabs.jsx/clientPortal.js's own comments on this split).
-  const [selectedDay, setSelectedDay] = useState(getTodayName());
+  // Placeholder until the plan loads. The effect then selects today when it sits inside this
+  // plan's window, or the plan's first civil day (Wednesday on a Wed–Tue week).
+  const [selectedDay, setSelectedDay] = useState('');
   const { plan, isLoading, isError, refetch } = useCurrentPlan();
   const updateMeal = useUpdateMealStatus();
 
@@ -25,9 +25,9 @@ export function MealsScreen() {
   useEffect(() => {
     if (!plan?.week || defaultedForWeekRef.current === plan.week) return;
     defaultedForWeekRef.current = plan.week;
-    const todayKey = getDayKeyForDate(plan.week);
-    if (todayKey) setSelectedDay(todayKey);
-  }, [plan?.week]);
+    const todayKey = getDayKeyForDate(plan.week, new Date(), plan.weekEnd);
+    setSelectedDay(todayKey ?? planRangeDates(plan.week, plan.weekEnd)[0]);
+  }, [plan?.week, plan?.weekEnd]);
 
   const mealsByDay = groupMealsByDay(plan);
   const dayMeals = mealsByDay[selectedDay] ?? [];
@@ -35,20 +35,33 @@ export function MealsScreen() {
 
   function toggle(meal, field) {
     if (!plan) return;
+    const next = !meal[field];
     updateMeal.mutate(
-      { planId: plan._id, mealIndex: plan.meals.indexOf(meal), [field]: !meal[field] },
-      { onError: () => toast.error("That didn't save — please try again.") }
+      { planId: plan._id, mealIndex: plan.meals.indexOf(meal), [field]: next },
+      {
+        onError: () => toast.error("That didn't save — please try again."),
+        onSuccess: () => {
+          if (field === 'swapRequested' && next) {
+            toast.success('Swap requested — your dietitian has been notified.');
+          }
+        },
+      }
     );
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-9">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto max-w-6xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
+      <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground">Made to nourish your week</p>
-          <h1 className="mt-1 text-3xl text-forest">This week's meals</h1>
-          <p className="mt-1 text-muted-foreground">Tap a meal when you've enjoyed it. Every little tick is a win.</p>
+          <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Made to nourish your week</p>
+          <h1 className="mt-1.5 text-3xl font-semibold text-forest">This week's meals</h1>
+          <p className="mt-1.5 text-muted-foreground">
+            {plan
+              ? `${plan.title} · ${formatCalendarDate(plan.week)} – ${formatCalendarDate(plan.weekEnd)}`
+              : "Tap a meal when you've enjoyed it. Every little tick is a win."}
+          </p>
         </div>
+        {plan ? <DownloadPlanPdfButton planId={plan._id} /> : null}
       </div>
 
       {isLoading ? (
@@ -77,7 +90,7 @@ export function MealsScreen() {
       ) : (
         <div className="grid gap-5 min-[900px]:grid-cols-[1fr_260px]">
           <section>
-            <DayTabs weekStart={plan.week} selectedDay={selectedDay} onSelect={setSelectedDay} />
+            <DayTabs weekStart={plan.week} weekEnd={plan.weekEnd} selectedDay={selectedDay} onSelect={setSelectedDay} />
             <div className="mt-4 grid gap-3">
               {dayMeals.length === 0 ? (
                 <EmptyState title="No meals planned for this day" />
@@ -95,12 +108,16 @@ export function MealsScreen() {
             </div>
           </section>
 
-          <aside className="rounded-card bg-forest p-6 text-white shadow-soft">
-            <h2 className="text-xl">Your weekly rhythm</h2>
+          <aside className="h-fit rounded-card bg-forest p-6 text-white shadow-lift min-[900px]:sticky min-[900px]:top-24">
+            <h2 className="text-xl font-semibold text-white">Your weekly rhythm</h2>
             <p className="mt-3 text-sm text-sage/90">
               You've completed {completed} of {total} meals this week.
             </p>
-            <Progress value={total ? (completed / total) * 100 : 0} className="mt-3 bg-white/15 [&>div]:bg-yellow" />
+            <p className="mt-4 text-4xl font-semibold tabular-nums">
+              {total ? Math.round((completed / total) * 100) : 0}
+              <span className="text-xl text-sage/70">%</span>
+            </p>
+            <Progress value={total ? (completed / total) * 100 : 0} className="mt-3 bg-white/15 [&>div]:bg-brand-2" />
           </aside>
         </div>
       )}

@@ -17,8 +17,10 @@ import { useCreateUser, useUpdateUser } from '@/hooks/useUsers';
 import { generateTempPassword } from '@/lib/generateTempPassword';
 import { useSaveConsultationSchedule } from '@/hooks/useConsultationSchedule';
 import { PLAN_DURATIONS } from '@/lib/planDurations';
+import { DIET_PREFERENCES } from '@/lib/dietPreferences';
 import { defaultConsultationScheduleValues, toApiPayload } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from '@/components/portal/shared/ConsultationScheduleFields';
+import { toLocalCalendarDate } from '@/lib/calendarDate';
 
 // Phone/address are only required for a dietitian (spec §2026-round2-fixes item 1's explicit "Add
 // and require: Email, Phone Number, Address") — enforced below via superRefine, mirroring the
@@ -32,9 +34,12 @@ const schema = z
     phone: z.string().optional(),
     address: z.string().optional(),
     qualifications: z.string().optional(),
+    joinedOn: z.string().optional(),
     assignedDietitian: z.string().optional(),
     programPlan: z.string().optional(),
     planDuration: z.string().optional(),
+    dietPreference: z.string().optional(),
+    allergies: z.string().max(1000, 'Keep allergies under 1000 characters').optional(),
     // Consultation schedule (client role only) — same field names ConsultationScheduleFields.jsx
     // expects, so it can bind directly to this same form; only actually required when the
     // "Set up a consultation schedule now" checkbox is on (see the superRefine below). Saving
@@ -75,9 +80,12 @@ const EMPTY = {
   phone: '',
   address: '',
   qualifications: '',
+  joinedOn: toLocalCalendarDate(),
   assignedDietitian: 'none',
   programPlan: 'none',
   planDuration: 'none',
+  dietPreference: 'none',
+  allergies: '',
   setUpSchedule: false,
   ...defaultConsultationScheduleValues(),
 };
@@ -123,9 +131,12 @@ export function UserFormDialog({ open, onOpenChange }) {
       phone: values.phone || undefined,
       address: values.address || undefined,
       qualifications: values.role === 'dietitian' && values.qualifications ? values.qualifications : undefined,
+      joinedOn: values.role === 'dietitian' && values.joinedOn ? values.joinedOn : undefined,
       assignedDietitian: values.role === 'client' && values.assignedDietitian !== 'none' ? values.assignedDietitian : null,
       programPlan: values.role === 'client' && values.programPlan !== 'none' ? values.programPlan : null,
       planDuration: values.role === 'client' && values.planDuration !== 'none' ? values.planDuration : null,
+      dietPreference: values.role === 'client' && values.dietPreference !== 'none' ? values.dietPreference : null,
+      allergies: values.role === 'client' && values.allergies?.trim() ? values.allergies.trim() : null,
     };
 
     createUser.mutate(payload, {
@@ -258,6 +269,7 @@ export function UserFormDialog({ open, onOpenChange }) {
               )}
             />
             {role === 'dietitian' && (
+              <>
               <FormField
                 control={form.control}
                 name="qualifications"
@@ -271,6 +283,20 @@ export function UserFormDialog({ open, onOpenChange }) {
                   </FormItem>
                 )}
               />
+              <FormField
+                control={form.control}
+                name="joinedOn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Date of joining</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              </>
             )}
 
             {role === 'client' && (
@@ -346,6 +372,44 @@ export function UserFormDialog({ open, onOpenChange }) {
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="dietPreference"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diet preference (optional)</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Choose a preference" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">Not specified</SelectItem>
+                          {DIET_PREFERENCES.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="allergies"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allergies (optional)</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} placeholder="e.g. peanuts, lactose, gluten" {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

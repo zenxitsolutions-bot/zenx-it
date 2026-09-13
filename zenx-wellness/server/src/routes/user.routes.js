@@ -1,3 +1,5 @@
+import { getMyPhoto, putMyPhoto, removeMyPhoto } from '../controllers/userPhoto.controller.js';
+import { uploadProfilePhoto } from '../middleware/uploadProfilePhoto.js';
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
@@ -25,6 +27,9 @@ export const userRouter = Router();
 userRouter.use(authenticate, blockIfMustChangePassword);
 
 userRouter.get('/', authorize('admin', 'dietitian', 'client'), listUsers);
+userRouter.get('/me/photo', authorize('client', 'dietitian'), getMyPhoto);
+userRouter.put('/me/photo', authorize('client', 'dietitian'), uploadProfilePhoto, putMyPhoto);
+userRouter.delete('/me/photo', authorize('client', 'dietitian'), removeMyPhoto);
 userRouter.get('/:id', getUser);
 userRouter.patch('/me', validate(updateMeSchema), updateMe);
 userRouter.post('/me/device-token', validate(registerDeviceTokenSchema), registerDeviceToken);
@@ -34,3 +39,4 @@ userRouter.delete('/me/device-token', validate(registerDeviceTokenSchema), unreg
 userRouter.patch('/:id', authorize('admin', 'dietitian'), validate(updateUserSchema), updateUser);
 userRouter.patch('/:id/password', authorize('admin'), validate(resetUserPasswordSchema), resetUserPassword);
 userRouter.post('/', authorize('admin'), validate(createUserSchema), createUser);
+

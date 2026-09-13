@@ -22,6 +22,8 @@ export async function sendEmail(to, templateKey, params, { idempotencyKey, relat
   // Same fail-fast reasoning for a calendar invite (params.ics) — a malformed one should surface
   // immediately in the caller's request path, not after the worker's first retry.
   buildIcsAttachment(templateKey, params);
+  // PDF is rendered later by the worker (binary, not stored in email_log.params). planId is only
+  // validated as "present" here so a publish without an id fails in the request path.
 
   const log = await enqueueEmail({
     idempotencyKey: idempotencyKey ?? randomUUID(),

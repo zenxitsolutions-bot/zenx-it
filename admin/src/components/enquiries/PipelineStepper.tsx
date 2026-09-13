@@ -6,7 +6,7 @@ const STEPS: EnquiryStatus[] = ["NEW", "CONTACTED", "FOLLOW_UP", "CONVERTED"];
 export function PipelineStepper({ status }: { status: EnquiryStatus }) {
   if (status === "LOST") {
     return (
-      <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger">
+      <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-dangerInk">
         This enquiry was marked as Lost.
       </div>
     );

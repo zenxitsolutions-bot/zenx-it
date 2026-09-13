@@ -6,6 +6,7 @@ import { validate } from '../middleware/validate.js';
 import {
   listPlans,
   getPlan,
+  downloadPlanPdf,
   createPlan,
   updatePlan,
   deletePlan,
@@ -17,6 +18,7 @@ export const planRouter = Router();
 planRouter.use(authenticate, blockIfMustChangePassword);
 
 planRouter.get('/', listPlans);
+planRouter.get('/:id/pdf', downloadPlanPdf);
 planRouter.get('/:id', getPlan);
 planRouter.post('/', authorize('dietitian', 'admin'), validate(createPlanSchema), createPlan);
 planRouter.patch('/:id', authorize('dietitian', 'admin'), validate(updatePlanSchema), updatePlan);

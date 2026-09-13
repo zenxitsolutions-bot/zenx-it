@@ -202,6 +202,44 @@ export async function createMeetingForCall({ dietitianId, summary, description, 
   }
 }
 
+/**
+ * Creates a Calendar event that points at a room hosted somewhere else (currently Jitsi) instead
+ * of asking Google to make one. Same OAuth grant and same event shape as createMeetingForCall,
+ * minus conferenceData — so the dietitian still gets the appointment on their calendar, with a
+ * working join link, without a second unused Google Meet room being created alongside it.
+ *
+ * `location` carries the URL as well as the description: Google Calendar renders location as a
+ * tappable link in the mobile app and in the event chip, which is where people actually look for
+ * the join button. Returns { eventId } or null — never throws, see the file header.
+ */
+export async function createCalendarEventForCall({ dietitianId, summary, description, startsAt, endsAt, attendeeEmails = [], meetingUrl }) {
+  if (!isGoogleConfigured()) return null;
+  try {
+    const accessToken = await getAccessToken(dietitianId);
+    if (!accessToken) return null;
+
+    const event = await calendarRequest(accessToken, '', {
+      // No conferenceDataVersion here — that parameter only matters when creating conferencing,
+      // and this deliberately creates none.
+      method: 'POST',
+      query: { sendUpdates: 'none' },
+      body: {
+        summary,
+        description: meetingUrl ? `${description}\n\nJoin: ${meetingUrl}` : description,
+        location: meetingUrl ?? undefined,
+        start: { dateTime: new Date(startsAt).toISOString() },
+        end: { dateTime: new Date(endsAt).toISOString() },
+        attendees: attendeeEmails.filter(Boolean).map((email) => ({ email })),
+      },
+    });
+
+    return event?.id ? { eventId: event.id } : null;
+  } catch (err) {
+    console.error('[googleMeet] createCalendarEventForCall failed', err.message);
+    return null;
+  }
+}
+
 // Moves an existing event. Returns true if Google accepted it; false means the caller should treat
 // the stored link as still-valid-but-stale rather than failing the reschedule.
 export async function updateMeetingTime({ dietitianId, eventId, startsAt, endsAt }) {

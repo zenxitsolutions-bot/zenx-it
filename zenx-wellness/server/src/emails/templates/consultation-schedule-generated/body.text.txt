@@ -1,8 +1,10 @@
 Hi {{client_name}}
 
-Based on your consultation schedule with {{dietitian_name}}, {{count}} upcoming calls have been
-booked, from {{date_range}}.
+Your consultation schedule with {{dietitian_name}} is set. {{count}} upcoming calls have been
+booked from {{date_range}}:
 
-Each one has its own calendar invite and reminder — view them anytime from your calls list.
+{{schedule_list}}
+
+You will receive a separate email with the video-call link and exact time 3 days before each call.
 
 View my calls: {{login_url}}

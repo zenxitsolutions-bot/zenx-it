@@ -49,10 +49,10 @@ export default function ForgotPasswordPage() {
       <p className="mt-1 text-sm text-muted">We'll send reset instructions to your admin email.</p>
 
       <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
-        <FieldWrap label="Email" htmlFor="email">
+        <FieldWrap label="Email" htmlFor="email" required>
           <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
         </FieldWrap>
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && <p className="text-xs text-dangerInk">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Sending…" : "Send reset instructions"}
         </Button>

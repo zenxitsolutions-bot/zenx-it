@@ -46,6 +46,12 @@ const ALTERS = [
   // comment on this column in schema.sql. A MODIFY COLUMN re-applying an already-matching
   // definition is a harmless no-op in MySQL (no error to swallow), unlike ADD/DROP above.
   'ALTER TABLE recipes MODIFY COLUMN meal_type VARCHAR(50) NOT NULL',
+  // Shared catalog rows are platform-owned, not owned by a seeded/demo dietitian. Making the
+  // creator nullable lets production deployments populate the catalog before any customer user
+  // exists and prevents deleting one user from deleting all shared recipes.
+  'ALTER TABLE recipes DROP FOREIGN KEY fk_recipes_created_by',
+  'ALTER TABLE recipes MODIFY COLUMN created_by VARCHAR(36) NULL',
+  'ALTER TABLE recipes ADD CONSTRAINT fk_recipes_created_by FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL',
   // Enquiry history / Follow-up / Converted (2026-08-22): enquiry_history itself is a brand-new
   // table, created via schema.sql's own CREATE TABLE IF NOT EXISTS — only this new enquiries
   // column needs backfilling here.
@@ -108,6 +114,15 @@ const ALTERS = [
   'ALTER TABLE calls ADD COLUMN consultation_schedule_id VARCHAR(36) NULL AFTER ics_sequence',
   'ALTER TABLE calls ADD KEY idx_calls_consultation_schedule (consultation_schedule_id)',
   'ALTER TABLE calls ADD CONSTRAINT fk_calls_consultation_schedule FOREIGN KEY (consultation_schedule_id) REFERENCES consultation_schedules(id) ON DELETE SET NULL',
+  // Recurring slots used to inherit the 15-minute one-off reminder. Move unsent future generated
+  // calls to 3 days so existing series get the join-link email at T-3 without a regenerate.
+  `UPDATE calls
+     SET reminder_minutes_before = 4320
+   WHERE consultation_schedule_id IS NOT NULL
+     AND status = 'scheduled'
+     AND reminder_sent_at IS NULL
+     AND scheduled_at > NOW()
+     AND (reminder_minutes_before IS NULL OR reminder_minutes_before = 15)`,
   // ZenX SSO handoff (auth.controller.js#handoff): links a user to admin-server's zenx_users.id —
   // see the comment on this column in schema.sql.
   'ALTER TABLE users ADD COLUMN zenx_user_id VARCHAR(36) NULL AFTER timezone',
@@ -140,6 +155,37 @@ const ALTERS = [
   // Stamped on password login and ZenX SSO handoff so the admin customer page can show a real
   // last-login instead of "Never" when the person only ever signs into this app.
   'ALTER TABLE users ADD COLUMN last_login DATETIME(3) NULL AFTER updated_at',
+  // Dietitian date of joining — civil day only. See schema.sql's joined_on comment.
+  'ALTER TABLE users ADD COLUMN joined_on DATE NULL AFTER qualifications',
+  // Saved weekly plans (reuse library): a plan is only offered for reassignment when the dietitian
+  // chose "Save for reuse" on publish. Autosaved drafts stay assigned to one client and stay out
+  // of that list.
+  'ALTER TABLE plans ADD COLUMN reusable BOOLEAN NOT NULL DEFAULT FALSE AFTER published',
+  'ALTER TABLE users ADD COLUMN diet_preference VARCHAR(32) NULL AFTER plan_duration',
+  'ALTER TABLE users ADD COLUMN allergies TEXT NULL AFTER diet_preference',
+  'ALTER TABLE users ADD COLUMN plan_started_on DATE NULL AFTER plan_duration',
+  "UPDATE users SET plan_started_on = DATE(created_at) WHERE role = 'client' AND plan_duration IS NOT NULL AND plan_started_on IS NULL",
+  "ALTER TABLE recipes ADD COLUMN cook_time VARCHAR(100) NULL AFTER prep_time",
+  "ALTER TABLE recipes ADD COLUMN total_time VARCHAR(100) NULL AFTER cook_time",
+  "ALTER TABLE recipes ADD COLUMN cuisine VARCHAR(80) NOT NULL DEFAULT 'Indian' AFTER total_time",
+  "ALTER TABLE recipes ADD COLUMN diet_type VARCHAR(32) NOT NULL DEFAULT 'Vegetarian' AFTER cuisine",
+  "ALTER TABLE recipes ADD COLUMN servings DECIMAL(6, 2) NOT NULL DEFAULT 1 AFTER diet_type",
+  "ALTER TABLE recipes ADD COLUMN carbs INT NULL AFTER protein",
+  "ALTER TABLE recipes ADD COLUMN fat INT NULL AFTER carbs",
+  "ALTER TABLE recipes ADD COLUMN fiber INT NULL AFTER fat",
+  "ALTER TABLE recipes ADD COLUMN sugar INT NULL AFTER fiber",
+  "ALTER TABLE recipes ADD COLUMN portion_size VARCHAR(100) NULL AFTER sugar",
+  "ALTER TABLE recipes ADD COLUMN allergens TEXT NULL AFTER portion_size",
+  "ALTER TABLE recipes ADD COLUMN suitable_meal_type VARCHAR(50) NULL AFTER allergens",
+  "ALTER TABLE recipes ADD COLUMN image_url VARCHAR(1024) NULL AFTER suitable_meal_type",
+  "ALTER TABLE recipes ADD COLUMN health_notes TEXT NULL AFTER image_url",
+  "ALTER TABLE plan_meals ADD COLUMN servings DECIMAL(6, 2) NOT NULL DEFAULT 1 AFTER notes",
+  // Shared Healthy Indian catalog: visible to every ACTIVE ZenX customer, not only the
+  // practice that first seeded the rows. Custom recipes stay company-scoped (default).
+  "ALTER TABLE recipes ADD COLUMN visibility ENUM('company', 'shared') NOT NULL DEFAULT 'company' AFTER instructions",
+  "ALTER TABLE recipes ADD KEY idx_recipes_visibility (visibility)",
+  // Dietitian can tweak a catalog recipe for one client meal without mutating the shared library.
+  'ALTER TABLE plan_meals ADD COLUMN recipe_override JSON NULL AFTER servings',
 ];
 
 // admin-server (ZenX) is the source of truth for company identity; this is only the local mirror
@@ -217,11 +263,29 @@ async function backfillLegacyCompany(conn) {
   }
 }
 
+async function backfillSharedCatalog(conn) {
+  const { HEALTHY_INDIAN_RECIPES } = await import('../data/healthyIndianRecipes.js');
+  const titles = HEALTHY_INDIAN_RECIPES.map((recipe) => recipe.title);
+  if (titles.length === 0) return;
+  let affected = 0;
+  for (let i = 0; i < titles.length; i += 200) {
+    const chunk = titles.slice(i, i + 200);
+    const [result] = await conn.query(
+      `UPDATE recipes SET visibility = 'shared' WHERE visibility = 'company' AND title IN (${chunk.map(() => '?').join(',')})`,
+      chunk
+    );
+    affected += result.affectedRows;
+  }
+  if (affected) {
+    console.log(`[migrate] marked ${affected} Healthy Indian catalog recipe(s) as shared`);
+  }
+}
+
 async function migrate() {
   const sql = readFileSync(schemaPath, 'utf8');
   // multipleStatements is only turned on for this one-off DDL run, never for the app's pool.
   const conn = await mysql.createConnection({ uri: env.mysqlUrl, multipleStatements: true });
-  console.log(`[migrate] connected → ${env.mysqlUrl}`);
+  console.log('[migrate] database connected');
   await conn.query(sql);
   console.log('[migrate] schema applied');
 
@@ -255,6 +319,7 @@ async function migrate() {
   }
 
   await backfillLegacyCompany(conn);
+  await backfillSharedCatalog(conn);
 
   await conn.end();
 }

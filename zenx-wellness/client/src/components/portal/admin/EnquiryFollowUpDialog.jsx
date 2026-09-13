@@ -1,53 +1,68 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SlotPicker } from '@/components/portal/shared/SlotPicker';
-import { useDietitians } from '@/hooks/useClients';
+import { useAuth } from '@/hooks/useAuth';
+import { useUsers } from '@/hooks/useUsers';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useUpdateEnquiry } from '@/hooks/useEnquiries';
-import { todayDateValue } from '@/lib/timezone';
+import { toDatetimeLocalValue } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
 
 // Books a real call directly against the enquiry — no client account exists yet (spec
 // §2026-round2-fixes item 1: that only happens on an explicit "Successfully Converted / Won").
 const schema = z.object({
-  dietitian: z.string().min(1, 'Choose a dietitian'),
-  scheduledAt: z.string().min(1, 'Choose an available time'),
+  assignedTo: z.string().min(1, 'Choose an admin'),
+  scheduledAt: z.string().min(1, 'Choose a date and time'),
   note: z.string().optional(),
 });
 
+function defaultFollowUpAt() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(10, 0, 0, 0);
+  return toDatetimeLocalValue(d);
+}
+
 // enquiry: the card being moved to "Follow-up" (never null while open).
 export function EnquiryFollowUpDialog({ open, onOpenChange, enquiry }) {
+  const { user } = useAuth();
   const updateEnquiry = useUpdateEnquiry();
-  const { timezone } = useViewerTimezone();
-  const { data: dietitians } = useDietitians();
-  const [date, setDate] = useState(() => todayDateValue(timezone));
+  const { browserTimezone: clockZone } = useViewerTimezone();
+  const { data: admins } = useUsers({ role: 'admin' });
+
+  const adminOptions = useMemo(() => {
+    const list = [...(admins ?? [])].filter((a) => !a.accountStatus || a.accountStatus === 'active');
+    if (user?._id && !list.some((a) => a._id === user._id)) {
+      list.unshift({ _id: user._id, name: user.name });
+    }
+    return list;
+  }, [admins, user]);
 
   const form = useForm({
     resolver: zodResolver(schema),
-    defaultValues: { dietitian: '', scheduledAt: '', note: '' },
+    defaultValues: { assignedTo: user?._id ?? '', scheduledAt: defaultFollowUpAt(), note: '' },
   });
-  const dietitian = form.watch('dietitian');
 
   useEffect(() => {
     if (!open) return;
-    form.reset({ dietitian: '', scheduledAt: '', note: '' });
-    setDate(todayDateValue(timezone));
-  }, [open, form, timezone]);
+    form.reset({ assignedTo: user?._id ?? '', scheduledAt: defaultFollowUpAt(), note: '' });
+  }, [open, form, user?._id]);
 
   function onSubmit(values) {
     updateEnquiry.mutate(
       {
         enquiryId: enquiry._id,
         status: 'follow-up',
-        dietitian: values.dietitian,
-        scheduledAt: values.scheduledAt,
+        assignedTo: values.assignedTo,
+        scheduledAt: new Date(values.scheduledAt).toISOString(),
         note: values.note || undefined,
       },
       {
@@ -75,50 +90,45 @@ export function EnquiryFollowUpDialog({ open, onOpenChange, enquiry }) {
           <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
             <FormField
               control={form.control}
-              name="dietitian"
+              name="assignedTo"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dietitian</FormLabel>
+                  <FormLabel>Assign to</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl>
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Choose a dietitian" />
+                        <SelectValue placeholder="Choose an admin" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(dietitians ?? []).map((d) => (
-                        <SelectItem key={d._id} value={d._id}>
-                          {d.name}
+                      {adminOptions.map((admin) => (
+                        <SelectItem key={admin._id} value={admin._id}>
+                          {admin.name}
+                          {admin._id === user?._id ? ' (you)' : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <FormDescription>Defaults to you. You can assign any admin in this organisation.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            {dietitian && (
-              <FormField
-                control={form.control}
-                name="scheduledAt"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date &amp; time</FormLabel>
-                    <FormControl>
-                      <SlotPicker
-                        dietitianId={dietitian}
-                        date={date}
-                        onDateChange={setDate}
-                        value={field.value}
-                        onChange={field.onChange}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="scheduledAt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Date &amp; time</FormLabel>
+                  <FormControl>
+                    <Input type="datetime-local" {...field} />
+                  </FormControl>
+                  <FormDescription>Times are in {clockZone} ({timezoneOffsetLabel(clockZone)}).</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

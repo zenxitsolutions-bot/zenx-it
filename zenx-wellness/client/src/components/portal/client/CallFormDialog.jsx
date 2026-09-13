@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useCreateCall, useUpdateCall } from '@/hooks/useCalls';
 import { useDietitians } from '@/hooks/useClients';
-import { reminderValueToMinutes } from '@/lib/callScheduling';
+import { reminderValueToMinutes, DEFAULT_CALL_REMINDER_VALUE } from '@/lib/callScheduling';
 import { todayDateValue, zonedCalendarDate } from '@/lib/timezone';
 
 const bookSchema = z.object({
@@ -38,13 +38,13 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
 
   const form = useForm({
     resolver: zodResolver(isReschedule ? rescheduleSchema : bookSchema),
-    defaultValues: { scheduledAt: '', notes: '', reminderMinutesBefore: '30' },
+    defaultValues: { scheduledAt: '', notes: '', reminderMinutesBefore: DEFAULT_CALL_REMINDER_VALUE },
   });
 
   useEffect(() => {
     if (!open) return;
     const scheduledAt = isReschedule && call ? call.scheduledAt : '';
-    form.reset({ scheduledAt, notes: '', reminderMinutesBefore: '30' });
+    form.reset({ scheduledAt, notes: '', reminderMinutesBefore: DEFAULT_CALL_REMINDER_VALUE });
     setDate(scheduledAt ? zonedCalendarDate(scheduledAt, timezone) : todayDateValue(timezone));
   }, [open, isReschedule, call, form, timezone]);
 
@@ -140,7 +140,7 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
               </>
             )}
 
-            <Button type="submit" disabled={isPending} className="mt-1 w-full rounded-full bg-coral text-white hover:bg-coral/90">
+            <Button type="submit" disabled={isPending} className="mt-1 w-full rounded-pill">
               {isPending ? 'Saving…' : isReschedule ? 'Save new time' : 'Book call'}
             </Button>
           </form>

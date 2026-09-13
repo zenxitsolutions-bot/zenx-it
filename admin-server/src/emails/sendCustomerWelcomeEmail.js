@@ -1,9 +1,10 @@
 import { sendEmail } from './sendEmail.js';
 import { env } from '../config/env.js';
 
-export async function sendCustomerWelcomeEmail({ to, name, companyName }) {
-  // Customer login lives in the admin SPA (clientOrigins[0]) at /login, not on the marketing site.
-  const url = `${env.clientOrigins[0]}/login`;
+export async function sendCustomerWelcomeEmail({ to, name, companyName, companySlug }) {
+  // Customer login is tenant-scoped. Bare /login refuses every account.
+  const origin = env.clientOrigins[0].replace(/\/+$/, '');
+  const url = companySlug ? `${origin}/${companySlug}/login` : `${origin}/login`;
   await sendEmail({
     to,
     subject: `Welcome to ${companyName}'s ZenX account`,

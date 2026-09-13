@@ -1,4 +1,4 @@
-# Nourishly
+# ZenX Dietitian
 
 A nutrition / dietitian ↔ client management platform — a React (Vite) + Node/Express + MySQL
 rebuild of a static prototype (kept for reference in `legacy/`).

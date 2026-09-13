@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useDietitianOverview } from '@/hooks/useInsights';
 import { useClients } from '@/hooks/useClients';
 import { formatRelativeDay, formatTime } from '@/lib/format';
+import { formatCalendarDate } from '@/lib/calendarDate';
 import { ClientProgressChart } from './ClientProgressChart';
 import { PlansOverviewChart } from './PlansOverviewChart';
 
@@ -59,7 +60,7 @@ export function DietitianOverviewScreen() {
     .slice(0, 4);
 
   return (
-    <div className="mx-auto max-w-5xl p-9">
+    <div className="w-full min-w-0 p-9">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-muted-foreground">Today's focus</p>
@@ -84,7 +85,7 @@ export function DietitianOverviewScreen() {
           }
         />
       ) : (
-        <div className="grid gap-5">
+        <div className="grid gap-3">
           <div className="grid gap-3 min-[700px]:grid-cols-3">
             <StatCard
               label="Total clients"
@@ -112,8 +113,48 @@ export function DietitianOverviewScreen() {
             />
           </div>
 
-          <div className="grid gap-5 min-[900px]:grid-cols-2">
-            <section className="rounded-card border border-line bg-white p-6 shadow-soft">
+          <div className="grid items-stretch gap-3 min-[1200px]:grid-cols-3">
+          <section className="min-w-0 rounded-card border border-line bg-white p-5 shadow-soft">
+            <SectionHeader
+              title="Needs attention"
+              subtitle="Meal swap requests from your clients"
+              to={appHref('plan')}
+              linkLabel="Open planner"
+            />
+            {(data.attentionItems ?? []).length === 0 ? (
+              <div className="mt-4">
+                <EmptyState title="All clear" description="No meal swap requests right now." />
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {data.attentionItems.map((item, i) => {
+                  const dateLabel = item.mealDate
+                    ? formatCalendarDate(item.mealDate, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+                    : item.day;
+                  return (
+                    <PersonRow
+                      key={`${item.planId}-${item.day}-${item.time}-${i}`}
+                      initial={item.clientName?.[0] ?? 'C'}
+                      name={item.clientName ?? 'Client'}
+                      meta={`${item.mealTitle} · ${item.mealType} · ${dateLabel} · ${item.time}`}
+                      trailing={
+                        <Link
+                          to={appHref(
+                            `plan?plan=${item.planId}&client=${item.clientId}&week=${item.week}&day=${encodeURIComponent(item.day)}&time=${encodeURIComponent(item.time)}`
+                          )}
+                          className="shrink-0 text-sm font-semibold text-forest hover:underline"
+                        >
+                          Review →
+                        </Link>
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
+            <section className="min-w-0 rounded-card border border-line bg-white p-5 shadow-soft">
               <SectionHeader title="Today's appointments" to={appHref('calls')} />
 
               {data.todaysAppointments.length === 0 ? (
@@ -145,7 +186,7 @@ export function DietitianOverviewScreen() {
               )}
             </section>
 
-            <section className="rounded-card border border-line bg-white p-6 shadow-soft">
+            <section className="min-w-0 rounded-card border border-line bg-white p-5 shadow-soft">
               <SectionHeader
                 title="Client progress"
                 subtitle="Entries your clients logged over the last 7 days"
@@ -153,11 +194,13 @@ export function DietitianOverviewScreen() {
                 linkLabel="View clients"
               />
               <div className="mt-2">
-                <ClientProgressChart data={data.progressSeries} />
+                <ClientProgressChart data={data.progressSeries} height={150} />
               </div>
             </section>
 
-            <section className="rounded-card border border-line bg-white p-6 shadow-soft">
+          </div>
+          <div className="grid gap-3 min-[900px]:grid-cols-2">
+            <section className="rounded-card border border-line bg-white p-5 shadow-soft">
               <SectionHeader title="Recent clients" to={appHref('clients')} />
 
               {clientsQuery.isLoading ? (
@@ -185,7 +228,7 @@ export function DietitianOverviewScreen() {
               )}
             </section>
 
-            <section className="rounded-card border border-line bg-white p-6 shadow-soft">
+            <section className="min-w-0 rounded-card border border-line bg-white p-5 shadow-soft">
               <SectionHeader
                 title="Plans overview"
                 subtitle="Active covers this week onwards; completed weeks have ended"

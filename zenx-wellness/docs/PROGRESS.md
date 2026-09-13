@@ -819,3 +819,38 @@ One line per work session, newest first. Links to `docs/worklog/YYYY-MM-DD.md`.
   problem hit, and bug found, is in that file's eight `## Session N` entries.
 - [2026-08-09](worklog/2026-08-09.md) — Phase 1: repo init, legacy files moved to `legacy/`, full
   API + folder-structure plan approved, `client/` and `server/` scaffolded and building.
+- [2026-09-06](worklog/2026-09-06.md) — SMTP transport added alongside console/Resend (prod default
+  now `smtp`); `npm run db:migrate` run on `nourishly`, fixing the dead `calls.reminder_sent_at`
+  reminder scheduler; diagnosed forgot-password silence as a Resend sandbox limit, not a bug.
+- [2026-09-07](worklog/2026-09-07.md) — ZenX Dietitian theme: palette re-pointed to the wellness
+  green in `index.css`, light sidebar, Inter, new dashboard summary strip and phone tab bar,
+  primitives and every screen restyled. Presentation only — no API, hook, route or calculation
+  touched.
+
+- [2026-09-12](worklog/2026-09-12.md) — Shared cream-and-sage styling for wellness admin, dietitian and client; production build and source-preservation checks passed. Authenticated verification awaits local MySQL configuration.
+
+- [2026-09-12](worklog/2026-09-12.md) — Client footer matches the supplied reference; Settings supports private profile-photo upload/removal with server persistence and passing integration tests.
+
+- 2026-09-12: Widened dietitian dashboard with balanced gutters; preserved mobile spacing and functionality. See [work log](worklog/2026-09-12.md#session-6--dietitian-dashboard-width).
+
+- 2026-09-12: Added four missing recipe photos with source credits and a tenant-scoped backfill. See [work log](worklog/2026-09-12.md#session-7--missing-recipe-photographs).
+
+- 2026-09-12: Added dietitian account footer and floating admin chat shortcut. See [work log](worklog/2026-09-12.md#session-8--dietitian-sidebar-footer-and-admin-chat-shortcut).
+
+- 2026-09-12: Dietitian Settings supports private account photos and phone editing. See [work log](worklog/2026-09-12.md#session-9--dietitian-account-photo-and-phone).
+
+- 2026-09-12: Dietitian tagline header and sidebar notifications with supplied icon. See [work log](worklog/2026-09-12.md#session-10--dietitian-header-and-sidebar-notifications).
+
+- 2026-09-12: Matched client header and sidebar notifications to dietitian styling. See [work log](worklog/2026-09-12.md#session-11--matching-client-header-and-notifications).
+
+- 2026-09-12: Added matching client/dietitian wellness footer. See [work log](worklog/2026-09-12.md#session-12--client-and-dietitian-page-footer).
+
+- 2026-09-12: Matched admin header/sidebar styling and added floating messages shortcut. See [work log](worklog/2026-09-12.md#session-13--matching-admin-header-and-sidebar).
+
+- 2026-09-12: Compact sidebar footer leaves more room for navigation. See [work log](worklog/2026-09-12.md#session-14--compact-sidebar-footer).
+
+- 2026-09-12: Enabled matching admin bottom footer. See [work log](worklog/2026-09-12.md#session-15--admin-bottom-footer).
+
+- 2026-09-12: Updated dietitian dashboard layout and added enquiry list view. See [work log](worklog/2026-09-12.md#session-16--dashboard-layout-and-enquiry-list).
+
+- 2026-09-12: Added rounded outer portal border. See [work log](worklog/2026-09-12.md#session-17--portal-outer-border).

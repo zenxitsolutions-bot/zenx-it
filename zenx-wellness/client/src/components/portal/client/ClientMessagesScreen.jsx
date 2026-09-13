@@ -10,11 +10,11 @@ export function ClientMessagesScreen() {
   const dietitian = (dietitians ?? []).find((item) => item._id === user.assignedDietitian);
 
   return (
-    <div className="mx-auto max-w-3xl p-9">
-      <div className="mb-6">
-        <p className="text-muted-foreground">Stay in touch</p>
-        <h1 className="mt-1 text-3xl text-forest">Messages</h1>
-        <p className="mt-1 text-muted-foreground">Chat directly with your dietitian.</p>
+    <div className="mx-auto max-w-3xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
+      <div className="mb-7">
+        <p className="text-xs font-semibold tracking-wide text-brand-strong uppercase">Stay in touch</p>
+        <h1 className="mt-1.5 text-3xl font-semibold text-forest">Messages</h1>
+        <p className="mt-1.5 text-muted-foreground">Chat directly with your dietitian.</p>
       </div>
 
       {!user.assignedDietitian ? (
@@ -24,7 +24,7 @@ export function ClientMessagesScreen() {
           description="Contact support to get assigned a dietitian so you can start messaging."
         />
       ) : (
-        <div className="rounded-card bg-white shadow-soft">
+        <div className="rounded-card border border-line bg-white shadow-soft">
           <MessageThread title={dietitian?.name ?? 'Your dietitian'} peerId={user.assignedDietitian} />
         </div>
       )}

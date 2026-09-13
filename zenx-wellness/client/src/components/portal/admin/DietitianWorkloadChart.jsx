@@ -24,13 +24,13 @@ export function DietitianWorkloadChart({ data }) {
         <YAxis
           type="category"
           dataKey="dietitian"
-          tick={{ fill: '#0f172a', fontSize: 12 }}
+          tick={{ fill: CHART.label, fontSize: 12 }}
           axisLine={false}
           tickLine={false}
           width={110}
         />
         <Tooltip content={<ChartTooltip />} cursor={{ fill: CHART.cursor }} />
-        <Bar dataKey="clients" fill={CHART.line} radius={[0, 4, 4, 0]} maxBarSize={22} />
+        <Bar dataKey="clients" fill={CHART.line} radius={[0, 8, 8, 0]} maxBarSize={22} />
       </BarChart>
     </ResponsiveContainer>
   );

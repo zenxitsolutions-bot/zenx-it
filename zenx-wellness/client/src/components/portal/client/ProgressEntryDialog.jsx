@@ -178,7 +178,7 @@ export function ProgressEntryDialog({ open, onOpenChange }) {
             <Button
               type="submit"
               disabled={createProgress.isPending}
-              className="mt-1 w-full rounded-full bg-coral text-white hover:bg-coral/90"
+              className="mt-1 w-full rounded-pill"
             >
               {createProgress.isPending ? 'Saving…' : 'Save progress'}
             </Button>

@@ -8,10 +8,10 @@ export function ReportCard({ report }) {
   const [viewerOpen, setViewerOpen] = useState(false);
 
   return (
-    <article className="rounded-card bg-white p-5 shadow-soft">
+    <article className="rounded-card border border-line bg-white p-5 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-full bg-cream text-forest">
+          <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-sage text-brand-strong">
             <FileText className="size-5" aria-hidden="true" />
           </div>
           <div>
@@ -36,7 +36,7 @@ export function ReportCard({ report }) {
         ) : (
           <div className="grid gap-3">
             {report.feedback.map((entry) => (
-              <div key={entry._id} className="rounded-xl bg-sage/30 p-3">
+              <div key={entry._id} className="rounded-card border border-sage bg-cream p-3.5">
                 <div className="flex items-center justify-between">
                   <strong className="text-sm text-forest">{entry.authorName}</strong>
                   <span className="text-xs text-muted-foreground">{formatDate(entry.createdAt)}</span>

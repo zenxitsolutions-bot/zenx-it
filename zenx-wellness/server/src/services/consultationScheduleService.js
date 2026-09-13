@@ -10,9 +10,10 @@ import { createGap, listGapInstants, listGapsBySchedule, deleteGapsBySchedule } 
 import { listCalls, listOccurrenceInstants } from '../models/Call.js';
 import { findUserById } from '../models/User.js';
 import { bookCall, applyCallUpdate } from './callService.js';
-import { notifyCallEvent } from './callNotifications.js';
 import { notifyScheduleGenerated } from './consultationScheduleNotifications.js';
 import { ApiError } from '../utils/ApiError.js';
+
+export const SCHEDULE_REMINDER_MINUTES_BEFORE = 3 * 24 * 60;
 
 // How far ahead a generation run keeps the series filled — a ROLLING window, not an infinite
 // series: refreshed by re-running generateForSchedule (the recurring job, or an immediate run
@@ -127,7 +128,13 @@ export async function checkWorkingHoursWarning({ dietitian, preferredWeekday, pr
 // blocked/outside hours/overlap) is recorded as a gap instead of aborting the rest of the run. A
 // non-ApiError failure is NOT swallowed as a gap — it propagates, so a real bug is never mistaken
 // for an ordinary scheduling conflict.
-export async function generateForSchedule({ schedule, client, dietitian, now = new Date() }) {
+export async function generateForSchedule({
+  schedule,
+  client,
+  dietitian,
+  now = new Date(),
+  sendScheduleEmail = false,
+}) {
   const timezone = dietitian.timezone || 'UTC';
   const windowInstants = computeOccurrencesInWindow({
     startDate: schedule.startDate,
@@ -155,7 +162,9 @@ export async function generateForSchedule({ schedule, client, dietitian, now = n
         scheduledAt,
         notes: 'Recurring consultation',
         consultationScheduleId: schedule.id,
+        reminderMinutesBefore: SCHEDULE_REMINDER_MINUTES_BEFORE,
         skipNotification: true,
+        inviteAttendee: false,
       });
       createdCalls.push(call);
     } catch (err) {
@@ -165,13 +174,10 @@ export async function generateForSchedule({ schedule, client, dietitian, now = n
     }
   }
 
-  // Notification batching: a lone new call (the normal steady-state top-up as the window rolls
-  // forward) gets the usual per-call booking email; more than one (the initial fill, or right
-  // after a regenerate) gets a single summary instead of a burst — see
-  // consultationScheduleNotifications.js.
-  if (createdCalls.length === 1) {
-    await notifyCallEvent('booked', createdCalls[0]);
-  } else if (createdCalls.length > 1) {
+  // One schedule email on first save / regenerate. Each call later gets its own join-link
+  // reminder 3 days before (reminderScheduler + SCHEDULE_REMINDER_MINUTES_BEFORE). Rolling
+  // top-ups stay silent so a window refill does not re-send the whole series.
+  if (sendScheduleEmail && createdCalls.length > 0) {
     await notifyScheduleGenerated({ schedule, client, dietitian, createdCalls, newGaps });
   }
 
@@ -179,9 +185,10 @@ export async function generateForSchedule({ schedule, client, dietitian, now = n
 }
 
 // Cancels every still-scheduled, still-future call this schedule already produced, through the
-// real cancellation path (applyCallUpdate) — a genuine cancellation, so the cancellation
-// email/.ics fires for each one. Also DETACHES each one from the schedule (consultationScheduleId:
-// null): this is what lets a regenerate actually refill a date the new pattern lands back on —
+// real cancellation path (applyCallUpdate). Per-call cancellation emails are skipped so a
+// regenerate does not blast one cancel notice per leftover slot. Also DETACHES each one from the
+// schedule (consultationScheduleId: null): this is what lets a regenerate actually refill a date
+// the new pattern lands back on —
 // without detaching, that instant would stay "claimed" forever by the now-cancelled row and
 // generateForSchedule would permanently skip it. This is deliberately different from an
 // individual, user-initiated cancel/reschedule via the normal call PATCH path, which never detaches
@@ -193,7 +200,9 @@ export async function cancelFutureGeneratedCalls(scheduleId, companyId) {
   const calls = await listCalls({ companyId, consultationScheduleId: scheduleId, status: 'scheduled', from: new Date() });
   const cancelled = [];
   for (const call of calls) {
-    cancelled.push(await applyCallUpdate(call.id, call, { status: 'cancelled', consultationScheduleId: null }));
+    cancelled.push(
+      await applyCallUpdate(call.id, call, { status: 'cancelled', consultationScheduleId: null }, { skipNotification: true })
+    );
   }
   return cancelled;
 }
@@ -251,7 +260,12 @@ export async function saveConsultationSchedule({
     // unresolvable under the new pattern.
     await deleteGapsBySchedule(schedule.id);
     if (active) {
-      ({ createdCalls: generated, newGaps: gaps } = await generateForSchedule({ schedule, client, dietitian }));
+      ({ createdCalls: generated, newGaps: gaps } = await generateForSchedule({
+        schedule,
+        client,
+        dietitian,
+        sendScheduleEmail: true,
+      }));
     }
   }
 

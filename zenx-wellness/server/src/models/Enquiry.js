@@ -97,3 +97,13 @@ export async function listEnquiryCreatedAtSince(companyId, date) {
   const [rows] = await pool.query('SELECT created_at FROM enquiries WHERE company_id = ? AND created_at >= ?', [companyId, date]);
   return rows.map((r) => r.created_at);
 }
+
+// Status + created_at for dashboard time series (monthly/daily enquiries, conversions, losses).
+export async function listEnquiryTimelineSince(companyId, date) {
+  if (!companyId) throw new Error('listEnquiryTimelineSince: companyId is required');
+  const [rows] = await pool.query(
+    'SELECT created_at, status FROM enquiries WHERE company_id = ? AND created_at >= ?',
+    [companyId, date]
+  );
+  return rows.map((r) => ({ createdAt: r.created_at, status: r.status }));
+}

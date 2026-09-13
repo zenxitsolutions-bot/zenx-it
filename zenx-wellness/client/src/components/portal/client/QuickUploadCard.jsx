@@ -23,12 +23,14 @@ export function QuickUploadCard() {
   }
 
   return (
-    <section className="rounded-card bg-white p-6 shadow-soft">
+    <section className="rounded-card border border-line bg-white p-6 shadow-soft">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl">Quick report upload</h2>
-        <UploadCloud className="size-5 text-sage-deep" aria-hidden="true" />
+        <h2 className="text-xl font-semibold text-forest">Quick report upload</h2>
+        <span className="grid size-9 place-items-center rounded-full bg-sage text-brand-strong">
+          <UploadCloud className="size-4.5" aria-hidden="true" />
+        </span>
       </div>
-      <div className="mt-4 rounded-xl border border-dashed border-line p-6 text-center">
+      <div className="mt-4 rounded-card border border-dashed border-sage bg-cream/60 p-6 text-center transition-colors hover:border-coral/40">
         <strong className="block text-sm text-forest">Drop a report here</strong>
         <p className="mt-1 text-xs text-muted-foreground">PDF, photo, or lab result · up to 10 MB</p>
         <Button
@@ -36,7 +38,7 @@ export function QuickUploadCard() {
           variant="outline"
           disabled={uploadReport.isPending}
           onClick={() => inputRef.current?.click()}
-          className="mt-3 rounded-full border-line text-forest"
+          className="mt-3 rounded-pill"
         >
           {uploadReport.isPending ? 'Uploading…' : 'Choose a file'}
         </Button>

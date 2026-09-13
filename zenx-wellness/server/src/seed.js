@@ -1,6 +1,8 @@
 import { pool } from './db/pool.js';
 import { findUserByEmail, createUser, updateUser } from './models/User.js';
-import { findRecipesByTitles, createRecipe } from './models/Recipe.js';
+import { findRecipesByTitles, createRecipe, markRecipesSharedByTitles, syncCatalogRecipes } from './models/Recipe.js';
+import { HEALTHY_INDIAN_RECIPES } from './data/healthyIndianRecipes.js';
+import { RECIPE_PHOTOS } from './data/recipePhotos.js';
 import { findPlanByClient, createPlan } from './models/Plan.js';
 import { createProgress } from './models/Progress.js';
 import { createCall, updateCallById } from './models/Call.js';
@@ -25,6 +27,7 @@ const SEED_USERS = [
 const SEED_RECIPES = [
   {
     title: 'Berry & chia breakfast bowl',
+    imageUrl: RECIPE_PHOTOS['Berry & chia breakfast bowl'],
     emoji: '🥣',
     mealType: 'Breakfast',
     prepTime: '10 min',
@@ -36,6 +39,7 @@ const SEED_RECIPES = [
   },
   {
     title: 'Rainbow quinoa nourish bowl',
+    imageUrl: RECIPE_PHOTOS['Rainbow quinoa nourish bowl'],
     emoji: '🥗',
     mealType: 'Lunch',
     prepTime: '20 min',
@@ -47,6 +51,7 @@ const SEED_RECIPES = [
   },
   {
     title: 'Lentil & veggie comfort soup',
+    imageUrl: RECIPE_PHOTOS['Lentil & veggie comfort soup'],
     emoji: '🍲',
     mealType: 'Dinner',
     prepTime: '30 min',
@@ -58,6 +63,7 @@ const SEED_RECIPES = [
   },
   {
     title: 'Apple slices with nut butter',
+    imageUrl: RECIPE_PHOTOS['Apple slices with nut butter'],
     emoji: '🍏',
     mealType: 'Snack',
     prepTime: '5 min',
@@ -85,6 +91,14 @@ function endOfWeek(weekStart) {
   return new Date(Date.UTC(year, month - 1, day + 6)).toISOString().slice(0, 10);
 }
 
+async function seedHealthyIndianCatalog(dietitian) {
+  const { created, updated } = await syncCatalogRecipes(HEALTHY_INDIAN_RECIPES, dietitian.id);
+  await markRecipesSharedByTitles(HEALTHY_INDIAN_RECIPES.map((recipe) => recipe.title));
+  console.log(
+    `[seed] healthy Indian recipes: catalog ${HEALTHY_INDIAN_RECIPES.length}, created ${created}, updated ${updated}`
+  );
+}
+
 function daysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
@@ -102,6 +116,8 @@ async function seedDemoData(dietitian, client) {
   } else {
     console.log('[seed] demo recipes already exist, skipped');
   }
+
+  await seedHealthyIndianCatalog(dietitian);
 
   const existingPlan = await findPlanByClient(client.id);
   if (existingPlan) {

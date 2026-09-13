@@ -60,19 +60,19 @@ export function AddEnquiryModal({ open, onClose }: AddEnquiryModalProps) {
     <Modal open onClose={() => onClose(false)} title="Add an enquiry" subtitle="Log a lead that came in outside the website form.">
       <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrap label="Company name" htmlFor="ae-company">
+          <FieldWrap label="Company name" htmlFor="ae-company" required>
             <Input id="ae-company" value={form.companyName} onChange={(e) => set("companyName", e.target.value)} required />
           </FieldWrap>
-          <FieldWrap label="Contact name" htmlFor="ae-contact">
+          <FieldWrap label="Contact name" htmlFor="ae-contact" required>
             <Input id="ae-contact" value={form.contactName} onChange={(e) => set("contactName", e.target.value)} required />
           </FieldWrap>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrap label="Phone" htmlFor="ae-phone">
+          <FieldWrap label="Phone" htmlFor="ae-phone" required>
             <PhoneField id="ae-phone" value={form.phone} onChange={(value) => set("phone", value)} required />
           </FieldWrap>
-          <FieldWrap label="Email" htmlFor="ae-email">
+          <FieldWrap label="Email" htmlFor="ae-email" required>
             <Input id="ae-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} required />
           </FieldWrap>
         </div>

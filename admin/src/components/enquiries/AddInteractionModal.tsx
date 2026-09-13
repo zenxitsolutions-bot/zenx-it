@@ -91,7 +91,7 @@ export function AddInteractionModal({ open, enquiry, onClose, onSaved }: AddInte
           </Select>
         </FieldWrap>
 
-        <FieldWrap label="Comment" htmlFor="i-comment">
+        <FieldWrap label="Comment" htmlFor="i-comment" required>
           <Textarea
             id="i-comment"
             value={comment}

@@ -30,9 +30,9 @@ function ChartTooltip({ active, payload }) {
 // Counts, so the domain starts at zero and ticks stay whole — unlike WeightTrendChart, where a
 // tightly fitted domain is the point. A flat line at zero here is a truthful "nothing logged this
 // week", not a rendering artifact.
-export function ClientProgressChart({ data }) {
+export function ClientProgressChart({ data, height = 200 }) {
   return (
-    <ResponsiveContainer width="100%" height={200}>
+    <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -20 }}>
         <CartesianGrid vertical={false} stroke={CHART.grid} />
         <XAxis

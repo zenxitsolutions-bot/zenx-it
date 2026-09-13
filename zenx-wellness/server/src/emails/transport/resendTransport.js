@@ -11,11 +11,19 @@ function getClient() {
   return client;
 }
 
-export async function sendViaResend({ to, subject, html, text, attachment }) {
-  const attachments = attachment
-    ? [{ filename: attachment.filename, contentType: attachment.contentType, content: Buffer.from(attachment.content, 'utf8').toString('base64') }]
+function toBase64(content) {
+  return Buffer.isBuffer(content) ? content.toString('base64') : Buffer.from(content, 'utf8').toString('base64');
+}
+
+export async function sendViaResend({ to, subject, html, text, attachments = [] }) {
+  const mailAttachments = attachments.length
+    ? attachments.map((attachment) => ({
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        content: toBase64(attachment.content),
+      }))
     : undefined;
-  const { data, error } = await getClient().emails.send({ from: env.emailFrom, to, subject, html, text, attachments });
+  const { data, error } = await getClient().emails.send({ from: env.emailFrom, to, subject, html, text, attachments: mailAttachments });
   if (error) throw new Error(error.message || 'Resend send failed');
   return { providerMessageId: data?.id ?? null };
 }

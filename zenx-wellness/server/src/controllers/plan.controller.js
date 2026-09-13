@@ -5,12 +5,22 @@ import {
   updatePlanById,
   deletePlanById,
   updatePlanMealByIndex,
+  clearResolvedSwapRequests,
 } from '../models/Plan.js';
+import { findUserById } from '../models/User.js';
+import { findCompanyById } from '../models/Company.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { assertDietitianOwnsClient, assertUserInCompany } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
-import { notifyPlanPublished } from '../services/planNotifications.js';
+import {
+  notifyPlanPublished,
+  notifyMealSwapRequested,
+  notifyResolvedSwaps,
+  requestedSwapResolutions,
+} from '../services/planNotifications.js';
+import { markNotificationsReadByType } from '../models/Notification.js';
+import { planPdfFileName, renderPlanPdf } from '../services/planPdf.js';
 
 function scopeToOwner(req, filter = {}) {
   if (req.user.role === 'client') filter.client = req.user.id;
@@ -18,27 +28,58 @@ function scopeToOwner(req, filter = {}) {
   return filter;
 }
 
+function contentDispositionAttachment(fileName) {
+  const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
+async function assertPlanAccess(req, plan) {
+  if (!plan) throw ApiError.notFound('Plan not found');
+  await assertUserInCompany(req, plan.dietitian);
+  const owns =
+    req.user.role === 'admin' ||
+    (req.user.role === 'client' && String(plan.client) === req.user.id) ||
+    (req.user.role === 'dietitian' && String(plan.dietitian) === req.user.id);
+  if (!owns) throw ApiError.forbidden();
+}
+
 export const listPlans = asyncHandler(async (req, res) => {
-  const filter = scopeToOwner(req, { companyId: req.user.companyId });
+  const wantsReusable = req.query.reusable === 'true' || req.query.reusable === '1';
+  // Reusable weeks are practice templates — any dietitian/admin in the company can copy them
+  // onto a client they manage. Regular plan lists stay owner-scoped.
+  const filter = wantsReusable && req.user.role !== 'client'
+    ? { companyId: req.user.companyId, reusable: true }
+    : scopeToOwner(req, { companyId: req.user.companyId });
   if (req.query.client && req.user.role !== 'client') filter.client = req.query.client;
   if (req.query.week) filter.week = String(req.query.week).slice(0, 10);
+  if (wantsReusable && req.user.role === 'client') filter.reusable = true;
   const plans = await queryPlans(filter);
   res.json(plans.map((p) => toClientShape(p)));
 });
 
 export const getPlan = asyncHandler(async (req, res) => {
   const plan = await findPlanById(req.params.id);
-  if (!plan) throw ApiError.notFound('Plan not found');
-  // Admin is org-scoped, not platform-scoped — re-check company before the role bypass below.
-  await assertUserInCompany(req, plan.dietitian);
-
-  const owns =
-    req.user.role === 'admin' ||
-    (req.user.role === 'client' && String(plan.client) === req.user.id) ||
-    (req.user.role === 'dietitian' && String(plan.dietitian) === req.user.id);
-  if (!owns) throw ApiError.forbidden();
-
+  await assertPlanAccess(req, plan);
   res.json(toClientShape(plan));
+});
+
+export const downloadPlanPdf = asyncHandler(async (req, res) => {
+  const plan = await findPlanById(req.params.id);
+  await assertPlanAccess(req, plan);
+
+  const [client, dietitian, company] = await Promise.all([
+    findUserById(plan.client),
+    findUserById(plan.dietitian),
+    findCompanyById(req.user.companyId),
+  ]);
+  const buffer = await renderPlanPdf({ plan, client, dietitian, company });
+  const fileName = planPdfFileName({ plan, client });
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', contentDispositionAttachment(fileName));
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.send(buffer);
 });
 
 export const createPlan = asyncHandler(async (req, res) => {
@@ -74,9 +115,40 @@ export const updatePlan = asyncHandler(async (req, res) => {
   // A genuine publish (false/undefined → true) — not every autosave, and not a repeat "publish" of
   // an already-published plan. See docs/API.md for why this is what "published" means here.
   const isPublishing = req.body.published === true && !existing.published;
+  const { notifySwaps, swapResolutions, ...patch } = req.body;
+  let effectiveSwapResolutions = swapResolutions;
 
-  const plan = await updatePlanById(req.params.id, req.body);
-  if (isPublishing) await notifyPlanPublished(plan);
+  if (patch.client && String(patch.client) !== String(existing.client)) {
+    if (req.user.role === 'dietitian') await assertDietitianOwnsClient(req, patch.client);
+    else await assertUserInCompany(req, patch.client);
+  }
+
+  // A swap notification is the client-facing update — publish so they see the new recipe, not
+  // an older overlapping published week still sitting in pickCurrentPlan.
+  if (notifySwaps) {
+    effectiveSwapResolutions = requestedSwapResolutions(existing.meals, swapResolutions);
+    patch.published = true;
+    const slots = new Set(effectiveSwapResolutions.map((note) => `${note.day}|${note.time}`));
+    if (Array.isArray(patch.meals)) {
+      patch.meals = patch.meals.map((meal) =>
+        slots.has(`${meal.day}|${meal.time}`) ? { ...meal, swapRequested: false } : meal
+      );
+    }
+  }
+
+  const plan = await updatePlanById(req.params.id, patch);
+  if (isPublishing || (notifySwaps && !existing.published)) await notifyPlanPublished(plan);
+  if (notifySwaps) {
+    await clearResolvedSwapRequests({
+      clientId: existing.client?._id ?? existing.client,
+      plan,
+      resolutions: effectiveSwapResolutions,
+    });
+    const dietitianId = existing.dietitian?._id ?? existing.dietitian;
+    const clientId = existing.client?._id ?? existing.client;
+    await markNotificationsReadByType(dietitianId, 'meal-swap-requested', `/app/clients/${clientId}`);
+    await notifyResolvedSwaps(existing, plan, effectiveSwapResolutions);
+  }
 
   res.json(toClientShape(plan));
 });
@@ -98,11 +170,16 @@ export const updateMealStatus = asyncHandler(async (req, res) => {
   if (!existing) throw ApiError.notFound('Plan not found');
   if (String(existing.client) !== req.user.id) throw ApiError.forbidden();
 
-  if (!existing.meals[Number(req.params.index)]) throw ApiError.notFound('Meal not found');
+  const mealIndex = Number(req.params.index);
+  const meal = existing.meals[mealIndex];
+  if (!meal) throw ApiError.notFound('Meal not found');
 
-  const plan = await updatePlanMealByIndex(req.params.id, Number(req.params.index), {
+  const turningSwapOn = req.body.swapRequested === true && !meal.swapRequested;
+
+  const plan = await updatePlanMealByIndex(req.params.id, mealIndex, {
     completed: req.body.completed,
     swapRequested: req.body.swapRequested,
   });
+  if (turningSwapOn) await notifyMealSwapRequested(plan, mealIndex);
   res.json(toClientShape(plan));
 });

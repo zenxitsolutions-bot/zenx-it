@@ -18,7 +18,7 @@ export function ProgressTimeline({ steps }: { steps: ProgressStep[] }) {
               <span
                 className={cn(
                   "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2",
-                  done ? "border-lime bg-lime text-ink" : "border-border text-dim"
+                  done ? "border-lime bg-lime text-white" : "border-border text-dim"
                 )}
               >
                 {done && <Check size={13} />}

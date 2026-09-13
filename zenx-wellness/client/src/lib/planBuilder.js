@@ -1,24 +1,59 @@
 import { WEEKDAYS } from './clientPortal';
-import { addCalendarDays, toCalendarDate } from './calendarDate';
+import { addCalendarDays, dateForMealDay, toCalendarDate, toLocalCalendarDate } from './calendarDate';
 import { FIXED_MEAL_SLOT_TYPES } from './mealSlotTypes';
 
-// UTC-based deliberately, matching server/src/controllers/insights.controller.js's fix for the
-// same bug: local-time Date methods + .toISOString() shift the computed Monday by a day in any
-// timezone ahead of UTC (e.g. IST), so this and the server's stored `Plan.week` — which must
-// compare equal for the plan builder to find an existing plan — silently disagreed. Found by
-// actually loading the plan builder for a client with a seeded plan and seeing an empty schedule.
-export function startOfWeek(date = new Date()) {
-  const d = new Date(date);
-  const day = d.getUTCDay();
-  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff)).toISOString().slice(0, 10);
+// The plan week now starts on the day the dietitian is building it, not the Monday of the
+// surrounding week — a plan written on a Thursday covers Thu–Wed, which is what "this week's plan"
+// means to the person writing it.
+//
+// Local, not UTC. `week` is a plain calendar date the dietitian picked out of a date input showing
+// their own local dates, so deriving it from UTC would show yesterday to anyone east of Greenwich
+// late in the evening. (The old Monday-snapping helper was UTC-based for a different reason — it
+// had to agree with a server-computed Monday — which no longer applies now that the date is simply
+// "today".)
+export function defaultWeekStart() {
+  return toLocalCalendarDate();
 }
 
-// The diet week's end date — always exactly 6 days after its start. Same UTC-safe math as
-// startOfWeek, so the two stay consistent regardless of the caller's local timezone.
+// Default end date is 6 days after start (a 7-day window). Dietitians can pick a later end.
 export function endOfWeek(weekStart) {
   const ymd = toCalendarDate(weekStart);
   return ymd ? addCalendarDays(ymd, 6) : '';
+}
+
+export function remapMealDay(day, fromWeek, toWeek) {
+  const fromStart = toCalendarDate(fromWeek);
+  const toStart = toCalendarDate(toWeek);
+  const date = dateForMealDay(fromStart, day);
+  if (!date || !fromStart || !toStart) return day;
+  const [sy, sm, sd] = fromStart.split('-').map(Number);
+  const [ty, tm, td] = date.split('-').map(Number);
+  const offset = Math.round((Date.UTC(ty, tm - 1, td) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+  if (offset <= 0) return WEEKDAYS[0];
+  if (offset < 7) return WEEKDAYS[offset];
+  return addCalendarDays(toStart, offset);
+}
+
+export function endDateFromTemplate(weekStart, template) {
+  const start = toCalendarDate(weekStart);
+  if (!start) return '';
+  const from = toCalendarDate(template?.week);
+  const to = toCalendarDate(template?.weekEnd);
+  if (from && to && to >= from) {
+    const [sy, sm, sd] = from.split('-').map(Number);
+    const [ey, em, ed] = to.split('-').map(Number);
+    const extraDays = Math.round((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000);
+    return addCalendarDays(start, Math.max(0, extraDays));
+  }
+  return endOfWeek(start);
+}
+
+// A published week whose 7-day window contains `date` (the dietitian may pick any day in that
+// week, not only the original start). Used to reopen an old published diet after a back-dated pick.
+export function findPublishedPlanForDate(plans, date) {
+  const ymd = toCalendarDate(date);
+  if (!ymd || !plans?.length) return null;
+  return plans.find((plan) => plan.published && plan.week && plan.weekEnd && plan.week <= ymd && ymd <= plan.weekEnd) ?? null;
 }
 
 let localId = 0;
@@ -32,6 +67,11 @@ export function createBlankMeal(day = WEEKDAYS[0]) {
     recipeId: null,
     customTitle: '',
     notes: '',
+    servings: 1,
+    completed: false,
+    swapRequested: false,
+    pendingNotify: false,
+    recipeOverride: null,
   };
 }
 
@@ -52,7 +92,29 @@ export function toLocalMeal(meal) {
     recipeId: meal.recipe?._id ?? meal.recipe ?? null,
     customTitle: meal.customTitle ?? '',
     notes: meal.notes ?? '',
+    servings: Number(meal.servings) > 0 ? Number(meal.servings) : 1,
+    completed: !!meal.completed,
+    swapRequested: !!meal.swapRequested,
+    pendingNotify: false,
+    recipeOverride: meal.recipeOverride ?? null,
+    // Frozen at first load of a swap request — autosave must not rewrite these, or "notify"
+    // thinks the replacement is the original.
+    swapOriginalRecipeId: meal.swapRequested ? (meal.recipe?._id ?? meal.recipe ?? null) : undefined,
+    swapOriginalCustomTitle: meal.swapRequested ? (meal.customTitle ?? '') : undefined,
+    swapOriginalOverride: meal.swapRequested ? meal.recipeOverride ?? null : undefined,
+    swapOriginalTitle: meal.swapRequested
+      ? (meal.recipe?.title ?? meal.customTitle ?? meal.mealType)
+      : undefined,
   };
+}
+
+export function hasSwapReplacement(meal) {
+  if (!meal) return false;
+  const recipeChanged = String(meal.recipeId ?? '') !== String(meal.swapOriginalRecipeId ?? '');
+  const titleChanged = (meal.customTitle ?? '') !== (meal.swapOriginalCustomTitle ?? '');
+  const overrideChanged =
+    JSON.stringify(meal.recipeOverride ?? null) !== JSON.stringify(meal.swapOriginalOverride ?? null);
+  return Boolean(meal.recipeId || (meal.customTitle ?? '').trim()) && (recipeChanged || titleChanged || overrideChanged);
 }
 
 // Local editable row → the shape the API expects. While a slot shows 'Custom', its fixed-type/
@@ -61,7 +123,7 @@ export function toLocalMeal(meal) {
 // holds for the custom buffers once a fixed type is picked. A blank custom meal-type name falls
 // back to the literal "Custom" rather than blocking autosave mid-edit, the same tolerant-of-an-
 // incomplete-slot spirit as an empty recipe already rendering as "<type> — recipe TBD" elsewhere.
-export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes }) {
+export function toApiMeal({ mealType, customMealType, day, time, recipeId, customTitle, notes, completed, swapRequested, servings, recipeOverride }) {
   const isCustom = mealType === 'Custom';
   return {
     day,
@@ -70,5 +132,60 @@ export function toApiMeal({ mealType, customMealType, day, time, recipeId, custo
     recipe: isCustom ? null : recipeId,
     customTitle: isCustom ? customTitle?.trim() || null : null,
     notes: notes || null,
+    completed: !!completed,
+    swapRequested: !!swapRequested,
+    servings: Number(servings) > 0 ? Number(servings) : 1,
+    recipeOverride: isCustom ? null : recipeOverride || null,
   };
+}
+
+
+/* Selectable meal times, replacing what used to be a free-text box. That box let anything through
+   and the data shows it — the database currently holds "9:30 pM", which no formatter parses and no
+   sort orders correctly. 15-minute steps across 5:00 AM–11:00 PM covers real meal and snack slots
+   without turning the list into 96 entries. */
+function buildMealTimes() {
+  const out = [];
+  for (let minutes = 5 * 60; minutes <= 23 * 60; minutes += 15) {
+    const h24 = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    const suffix = h24 < 12 ? 'AM' : 'PM';
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    out.push(`${h12}:${String(m).padStart(2, '0')} ${suffix}`);
+  }
+  return out;
+}
+
+export const MEAL_TIME_OPTIONS = buildMealTimes();
+
+/**
+ * Canonicalises a stored time to the exact `h:mm AM/PM` spelling used in MEAL_TIME_OPTIONS, so a
+ * legacy row still selects its matching option instead of looking like an unknown value. Handles
+ * the casing and spacing variants free text produced ("9:30 pM", "9:30pm", "09:30 PM") and 24-hour
+ * input ("21:30"). Returns null when it genuinely can't tell — the caller keeps the raw string
+ * rather than guessing, so no saved value is ever silently rewritten to something else.
+ */
+export function normalizeMealTime(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+
+  const ampm = raw.match(/^(\d{1,2}):(\d{2})\s*([AaPp])\.?[Mm]\.?$/);
+  if (ampm) {
+    const h = Number(ampm[1]);
+    const m = Number(ampm[2]);
+    if (h < 1 || h > 12 || m > 59) return null;
+    return `${h}:${String(m).padStart(2, '0')} ${ampm[3].toUpperCase()}M`;
+  }
+
+  const h24 = raw.match(/^(\d{1,2}):(\d{2})$/);
+  if (h24) {
+    const h = Number(h24[1]);
+    const m = Number(h24[2]);
+    if (h > 23 || m > 59) return null;
+    const suffix = h < 12 ? 'AM' : 'PM';
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${suffix}`;
+  }
+
+  return null;
 }

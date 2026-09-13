@@ -42,11 +42,32 @@ export const env = {
   // still has to work without one configured) — emails/transport/resendTransport.js throws a clear
   // error at send time instead, and only when that transport is the selected one.
   resendApiKey: process.env.RESEND_API_KEY || '',
-  emailFrom: process.env.EMAIL_FROM || 'Nourishly <onboarding@resend.dev>',
+  // SMTP transport (emails/transport/smtpTransport.js). Same "must not crash boot" reasoning as
+  // resendApiKey above — transport/index.js#resolveTransportKind is what rejects a missing host,
+  // and only when smtp is the selected transport. `secure` means implicit TLS on connect (port
+  // 465); port 587 leaves it false and upgrades via STARTTLS instead, which is what most providers
+  // want — so it's derived from the port rather than defaulted to a constant that would be wrong
+  // half the time.
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : Number(process.env.SMTP_PORT || 587) === 465,
+  // Both optional: an internal relay that authenticates by IP needs no credentials, so an unset
+  // user means "connect without auth" rather than a misconfiguration.
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  emailFrom: process.env.EMAIL_FROM || 'ZenX Dietitian <onboarding@resend.dev>',
   // Google Calendar / Meet (services/googleMeet.js). Not `required(...)`: with these unset the
   // whole integration is simply inert — calls are still booked, just without a meeting link — so
   // an unconfigured install must not fail to boot. googleMeet.js#isGoogleConfigured is the single
   // place that decides whether the feature is on.
+  // Which provider hosts a booked call's video room: 'jitsi' | 'google' | 'none'.
+  // Defaults to jitsi — it needs no account, no OAuth and no credentials, so a fresh install gets
+  // working video calls out of the box, where 'google' only produces links once each dietitian has
+  // individually connected their Google account.
+  meetingProvider: process.env.MEETING_PROVIDER || 'jitsi',
+  // The public instance by default. Point this at a self-hosted Jitsi to get moderation, lobbies
+  // and real access control — see the security note in services/jitsiMeet.js for why that matters.
+  jitsiBaseUrl: process.env.JITSI_BASE_URL || 'https://meet.jit.si',
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   // Must match a redirect URI registered on the OAuth client in Google Cloud Console, exactly.
@@ -66,4 +87,7 @@ export const env = {
   // under the smallest CALL_REMINDER_OPTIONS value (10 minutes) so the due-window query never skips
   // a call between ticks.
   reminderSchedulerIntervalMs: Number(process.env.REMINDER_SCHEDULER_INTERVAL_MS || 60 * 1000),
+  // Deactivate clients whose program plan duration has elapsed (services/planExpiryJob.js).
+  // Default 1h so a plan ending today is picked up the same day without a daily-only wait.
+  planExpiryJobIntervalMs: Number(process.env.PLAN_EXPIRY_JOB_INTERVAL_MS || 60 * 60 * 1000),
 };

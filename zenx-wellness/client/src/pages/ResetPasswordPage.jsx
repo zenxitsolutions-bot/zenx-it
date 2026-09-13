@@ -35,10 +35,10 @@ export function ResetPasswordPage() {
   const [serverError, setServerError] = useState(null);
   // Same branding treatment as LoginPage on a slug-scoped URL — the reset link now carries the
   // user's own slug (auth.controller.js#forgotPassword), so the page they land on looks like their
-  // company's, not a generic Nourishly one. Resolves to null on the bare /reset-password.
+  // company's, not a generic product-branded one. Resolves to null on the bare /reset-password.
   const { data: company } = usePublicCompany(companySlug);
-  // Where to send someone once they're done. The bare /login refuses every account that belongs to
-  // a company, so falling back to it is only correct when there is no slug to use.
+  // Where to send someone once they're done. Prefer the company login page when we have a slug;
+  // bare /login also works after a password check, but keeps the user on the branded URL.
   const loginPath = companySlug ? `/${companySlug}/login` : '/login';
   const forgotPath = companySlug ? `/${companySlug}/forgot-password` : '/forgot-password';
 

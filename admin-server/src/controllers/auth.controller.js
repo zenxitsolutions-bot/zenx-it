@@ -78,14 +78,26 @@ export const updateMe = asyncHandler(async (req, res) => {
   res.json(toClientShape(profile));
 });
 
+// One source of truth for the token's lifetime: the same value mints the token and is rendered
+// into the email's "expires in ..." sentence, so the two can't drift apart.
+const RESET_TTL_MINUTES = 60;
+
 // Replaces Supabase's auth.resetPasswordForEmail — always responds 204 regardless of whether the
 // email matched, so this endpoint can never be used to enumerate staff accounts.
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email } = req.body;
   const profile = await findProfileByEmail(email);
   if (profile) {
-    const token = await createPasswordResetToken({ accountKind: 'staff', accountId: profile.id, ttlMinutes: 60 });
-    await sendPasswordResetEmail({ to: profile.email, name: profile.first_name, token, kind: 'staff' });
+    const token = await createPasswordResetToken({ accountKind: 'staff', accountId: profile.id, ttlMinutes: RESET_TTL_MINUTES });
+    // Not awaited into the response path unguarded: a mail-provider outage must not turn a valid
+    // reset request into a 500 (the token is already minted and the link still works).
+    await sendPasswordResetEmail({
+      to: profile.email,
+      name: profile.first_name,
+      token,
+      kind: 'staff',
+      expiresInMinutes: RESET_TTL_MINUTES,
+    }).catch((err) => console.error('[forgotPassword] failed to send reset email', err));
   }
   res.status(204).send();
 });

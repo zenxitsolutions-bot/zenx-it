@@ -28,8 +28,23 @@ export const env = {
     .map((s) => s.trim())
     .filter(Boolean),
 
+  // Which transport sendEmail.js actually delivers through: 'smtp', 'resend' or 'console'.
+  // Unset defaults to 'console' in dev and 'smtp' in production — an unconfigured dev install
+  // still never sends real mail by accident, matching wellness-app's resolveTransportKind().
+  emailTransport: process.env.EMAIL_TRANSPORT || '',
   resendApiKey: process.env.RESEND_API_KEY || '',
   emailFrom: process.env.EMAIL_FROM || 'ZenX Admin <onboarding@resend.dev>',
+
+  // SMTP transport. `secure` means implicit TLS on connect (port 465); port 587 leaves it false
+  // and upgrades via STARTTLS instead, which is what most providers want — so it's derived from
+  // the port rather than defaulted to a constant that would be wrong half the time.
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === 'true' : Number(process.env.SMTP_PORT || 587) === 465,
+  // Both optional: an internal relay that authenticates by IP needs no credentials, so an unset
+  // user means "connect without auth" rather than a misconfiguration.
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
   // Inbox that receives a copy of every public contact-form enquiry. Optional: unset skips the
   // staff email (the enquiry is still saved and the in-app notification is still created).
   enquiryNotifyEmail: process.env.ENQUIRY_NOTIFY_EMAIL || '',

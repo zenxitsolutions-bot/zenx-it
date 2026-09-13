@@ -1,4 +1,4 @@
-# CLAUDE.md — Nourishly project rules
+# CLAUDE.md — ZenX Dietitian project rules
 
 > Save this file at the **root of the repo**. Claude Code reads it automatically on every session.
 > These are standing rules. They apply to every task, without being repeated.
@@ -7,7 +7,12 @@
 
 ## 1. Project
 
-**Nourishly** — a nutrition / dietitian ↔ client management platform.
+**ZenX Dietitian** (formerly Nourishly) — a nutrition / dietitian ↔ client management platform.
+
+The product was renamed on 2026-09-07. Only user-visible text moved: internal identifiers keep the
+old name on purpose (the `nourishly_refresh` cookie, `nourishly:*` localStorage keys, the
+`nourishly.app` iCalendar UID domain, the `nourishly` database and the `.nourishly-phone-input`
+class). Renaming any of those silently invalidates live state — see docs/worklog/2026-09-07.md.
 Being migrated from a static `index.html` + `styles.css` + `recipes.css` + `app.js` prototype to a
 **React (Vite) frontend + Node.js backend**, in a monorepo:
 
@@ -56,31 +61,51 @@ nourishly/
 4. **No secrets in code.** Everything through `.env`, with a committed `.env.example`.
 5. **No mock data left behind.** If a screen is built before its endpoint exists, put fixtures in
    `client/src/mocks/` and add a `TODO(api):` comment. Never inline fake arrays in a component.
-6. **Preserve the visual design.** The rebuild must look like the original — same palette,
-   typography, spacing feel, rounded cards, soft shadows. This is a port, not a redesign.
+6. **One design language.** The app follows the ZenX Dietitian theme in §4 — every screen uses
+   the same tokens, card treatment, radii and title block. Restyling is fine and expected;
+   changing behaviour while restyling is not. A theme change must leave routes, hooks, queries,
+   calculations and form schemas byte-identical.
 7. **Accessibility stays.** Keep the `aria-label`s, semantic landmarks, focus states and
    keyboard-usable modals from the original markup.
 8. **Run it before claiming it works.** `npm run build` on the client and start the server after
    every phase. Fix warnings, don't report them as done.
 9. **Ask before deviating** from the stack, folder structure, or data model in §2 / §5.
 
-## 4. Design tokens — carry these over exactly
+## 4. Design tokens — the ZenX Dietitian theme
+
+Superseded the original cream/coral palette on 2026-09-07 at the owner's request (see
+`docs/worklog/2026-09-07.md`). **`client/src/index.css` is the single source of truth** — the
+values below are a summary of it, not a second copy to keep in sync.
 
 ```
-forest      #173f36     forest-2  #0e3028
-sage        #dce9d8     sage-deep #679873
-cream       #fbf8f1     peach     #fde2d3
-coral       #ec7958     yellow    #f7d776
-ink         #193b34     muted     #6f807a
-line        #e4e6dd
-shadow      0 18px 50px rgba(31,68,56,.11)
-radius      cards 12–18px, pills 999px
+brand       #087f6b     brand-strong #075f55    brand-mid #159a7c
+sage        #ddf4e9     sage-deep    #075f55
+cream       #eef7f3     mist (page)  #f6faf8    card      #ffffff
+forest/ink  #102a2a     muted text   #607574
+line        #e1ece8
+accents     hydration #3e9bd1 · calories #e9a23b · measure #db7e9c (ink #a84a66)
+shadow-soft 0 1px 2px rgba(0,60,50,.04), 0 4px 20px rgba(0,60,50,.06)
+shadow-lift 0 2px 4px rgba(0,60,50,.05), 0 14px 34px rgba(0,60,50,.10)
+radius      cards 20px (`rounded-card`), controls 12–16px, pills 999px
 ```
 
-Fonts: **Playfair Display** (headings, `h1`–`h3`, brand, prices) · **DM Sans** (everything else).
-Buttons: `btn-coral` (primary), `btn-forest` (dark), `btn-outline` (ghost).
-Expose these as Tailwind theme tokens (`bg-forest`, `text-coral`, `shadow-soft`) — no hex codes
-sprinkled through JSX.
+The token *names* are the original green-palette ones (`forest`/`sage`/`cream`/`coral`) even
+though the values are not. That is deliberate: ~570 utility classes reference them, so re-pointing
+the values in `index.css` re-skins the whole app from one file. **Prefer the honest aliases**
+(`brand`, `brand-strong`, `mist`, `sky`) in new code.
+
+Fonts: **Inter** (everything — headings differ by weight, not family) · **Playfair Display**
+still available via `font-display`.
+Buttons: the default `<Button>` variant *is* the brand green, with its own hover and shadow.
+Many call sites still re-declare `bg-coral text-white hover:bg-coral/90`, which overrides both —
+prefer passing only a radius on new code. No hex codes in JSX.
+
+Scope note: the client portal is on the full theme (borders, gutters, title blocks); the dietitian
+and admin screens currently take the palette only, by choice — see `docs/worklog/2026-09-07.md`.
+
+Any color that carries text must be checked against its own ground at 4.5:1 (small text) or
+3:1 (icons) before it ships — several `*-ink` tokens exist precisely because the matching fill
+failed that check.
 
 ## 5. Roles and data model
 

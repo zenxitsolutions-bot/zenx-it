@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -8,7 +9,11 @@ import { useUpdateUser } from '@/hooks/useUsers';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCalendarDate } from '@/lib/calendarDate';
 import { formatDate } from '@/lib/format';
+import { dietPreferenceLabel } from '@/lib/dietPreferences';
+import { planEndDate } from '@/lib/planDurations';
+import { ACCOUNT_STATUS_LABEL } from '@/lib/accountStatus';
 import { ClientContactEditDialog } from './ClientContactEditDialog';
+import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
 
 // Spec §6 item 1: client information, plan, and plan duration — plus a quick pointer at the
 // current weekly meal plan (full history of those lives in the Meal plans tab). Spec
@@ -18,12 +23,21 @@ import { ClientContactEditDialog } from './ClientContactEditDialog';
 export function ClientOverviewTab({ client }) {
   const planQuery = useCurrentPlan(client._id);
   const [editingContact, setEditingContact] = useState(false);
+  const { companySlug } = useParams();
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
   const { data: dietitians } = useDietitians(isAdmin);
   const updateUser = useUpdateUser();
   const activeDietitians = (dietitians ?? []).filter((d) => !d.accountStatus || d.accountStatus === 'active');
   const currentDietitian = (dietitians ?? []).find((d) => d._id === client.assignedDietitian);
+  const currentPlanParams = planQuery.plan
+    ? new URLSearchParams({
+        plan: planQuery.plan._id,
+        client: client._id,
+        week: planQuery.plan.week,
+        weekEnd: planQuery.plan.weekEnd || planQuery.plan.week,
+      })
+    : null;
 
   function handleDietitianChange(value) {
     updateUser.mutate(
@@ -54,8 +68,20 @@ export function ClientOverviewTab({ client }) {
             <dd className="text-forest">{client.phone || '—'}</dd>
           </div>
           <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Account</dt>
+            <dd className="text-forest">{ACCOUNT_STATUS_LABEL[client.accountStatus ?? 'active']}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Client since</dt>
             <dd className="text-forest">{formatDate(client.createdAt)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Diet preference</dt>
+            <dd className="text-forest">{dietPreferenceLabel(client.dietPreference)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-muted-foreground">Allergies</dt>
+            <dd className="text-right text-forest">{client.allergies || '—'}</dd>
           </div>
           <div className="flex items-center justify-between gap-4">
             <dt className="text-muted-foreground">Dietitian</dt>
@@ -90,7 +116,14 @@ export function ClientOverviewTab({ client }) {
         <h2 className="text-xl">Plan</h2>
         <div className="mt-4 rounded-xl bg-cream p-3">
           <strong className="block text-sm text-forest">{client.programPlan?.name ?? 'No plan assigned'}</strong>
-          {client.planDuration && <span className="text-xs text-muted-foreground">{client.planDuration}</span>}
+          {client.planDuration && (
+            <span className="text-xs text-muted-foreground">
+              {client.planDuration}
+              {client.planStartedOn && planEndDate(client.planStartedOn, client.planDuration)
+                ? ` · ${formatCalendarDate(client.planStartedOn, { day: 'numeric', month: 'short', year: 'numeric' })} – ${formatCalendarDate(planEndDate(client.planStartedOn, client.planDuration), { day: 'numeric', month: 'short', year: 'numeric' })}`
+                : ''}
+            </span>
+          )}
         </div>
       </section>
 
@@ -99,12 +132,20 @@ export function ClientOverviewTab({ client }) {
         {planQuery.isLoading ? (
           <Skeleton className="mt-4 h-14 w-full" />
         ) : planQuery.plan ? (
-          <div className="mt-4 rounded-xl bg-cream p-3">
-            <strong className="block text-sm text-forest">{planQuery.plan.title}</strong>
-            <span className="text-xs text-muted-foreground">
-              Week of {formatCalendarDate(planQuery.plan.week, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {planQuery.plan.published ? 'Published' : 'Draft'} ·{' '}
-              {planQuery.plan.meals.length} meal{planQuery.plan.meals.length === 1 ? '' : 's'}
-            </span>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-cream p-3">
+            <div>
+              <Link
+                to={`/${companySlug}/app/plan?${currentPlanParams.toString()}`}
+                className="block text-sm font-semibold text-forest hover:underline"
+              >
+                {planQuery.plan.title}
+              </Link>
+              <span className="text-xs text-muted-foreground">
+                Week of {formatCalendarDate(planQuery.plan.week, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {planQuery.plan.published ? 'Published' : 'Draft'} ·{' '}
+                {planQuery.plan.meals.length} meal{planQuery.plan.meals.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <DownloadPlanPdfButton planId={planQuery.plan._id} size="sm" />
           </div>
         ) : (
           <p className="mt-4 text-sm text-muted-foreground">No weekly plan assigned yet.</p>

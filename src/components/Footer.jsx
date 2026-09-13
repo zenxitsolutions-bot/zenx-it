@@ -7,20 +7,23 @@ export default function Footer() {
         <a className="brand" href="#top">
           <img src="/logo-icon.png" alt="" className="brand-mark" />
           <span>
-            ZENX<span className="muted">.</span>
+            ZenX <span className="brand-rest">IT SOLUTIONS</span>
           </span>
         </a>
-        <p>Build. Get Seen. Grow.</p>
-        <a href="#top" className="back-top">
-          Back to top ↑
-        </a>
+        <nav className="footer-nav">
+          <a href="#services">Services</a>
+          <a href="#products">Solutions</a>
+          <a href="#process">Work</a>
+          <a href="#about">About</a>
+          <a href="#contact">Contact</a>
+          <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">
+            Admin
+          </a>
+        </nav>
       </div>
       <div className="footer-bottom">
         <span>© 2026 ZenX IT Solutions Pvt Ltd</span>
-        <span>Web • Marketing • Software • POS</span>
-        <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer" className="footer-admin-link">
-          Admin Login
-        </a>
+        <span>Build. Get Seen. Grow.</span>
       </div>
     </footer>
   );

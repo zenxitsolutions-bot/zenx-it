@@ -21,8 +21,11 @@ export const channels = {
   // unconditionally without a feature check, and so a future real server-pushed in-app channel
   // (e.g. WebSocket/SSE) is a swap-in here.
   inApp: {
-    async send() {
-      return { delivered: false, reason: 'in-app delivery is client-side (useCallReminders.js polling), nothing to dispatch server-side' };
+    async send({ userId, title, body, url, type }) {
+      if (!userId || !title) return { delivered: false, reason: 'missing userId or title' };
+      const { createNotification } = await import('../../models/Notification.js');
+      await createNotification({ userId, type: type || 'info', title, body: body ?? null, url: url ?? null });
+      return { delivered: true };
     },
   },
   sms: {

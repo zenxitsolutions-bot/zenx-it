@@ -86,7 +86,7 @@ export default function CustomerLoginPage() {
         </p>
       ) : (
         <form className="mt-6 flex flex-col gap-4" onSubmit={handleSubmit}>
-          <FieldWrap label="Email" htmlFor="c-email">
+          <FieldWrap label="Email" htmlFor="c-email" required>
             <Input
               id="c-email"
               type="email"
@@ -96,7 +96,7 @@ export default function CustomerLoginPage() {
               required
             />
           </FieldWrap>
-          <FieldWrap label="Password" htmlFor="c-password">
+          <FieldWrap label="Password" htmlFor="c-password" required>
             <Input
               id="c-password"
               type="password"
@@ -108,7 +108,7 @@ export default function CustomerLoginPage() {
           </FieldWrap>
 
           {error && (
-            <div className="flex flex-col gap-1 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+            <div className="flex flex-col gap-1 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-dangerInk">
               <div className="flex items-center gap-2">
                 <AlertCircle size={14} />
                 {error}

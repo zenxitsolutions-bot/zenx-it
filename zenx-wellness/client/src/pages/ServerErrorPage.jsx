@@ -12,19 +12,19 @@ export function ServerErrorPage() {
     <main className="grid min-h-screen place-items-center bg-cream px-6 text-center">
       <div>
         <Link to="/" className="mb-6 inline-block font-display text-xl text-forest">
-          ✦ nourishly
+          ✦ ZenX Dietitian
         </Link>
         <p className="text-xs font-bold tracking-widest text-sage-deep">SOMETHING WENT WRONG</p>
         <h1 className="mt-2 mb-3 text-6xl text-forest">500</h1>
         <p className="mx-auto mb-6 max-w-sm text-muted-foreground">
-          We hit a snag loading this page. Try again, or head back to Nourishly.
+          We hit a snag loading this page. Try again, or head back to ZenX Dietitian.
         </p>
         <div className="flex justify-center gap-3">
           <Button variant="outline" onClick={() => window.location.reload()} className="rounded-full border-line text-forest">
             Reload
           </Button>
           <Button asChild className="rounded-full bg-coral text-white hover:bg-coral/90">
-            <Link to="/">Back to Nourishly</Link>
+            <Link to="/">Back to ZenX Dietitian</Link>
           </Button>
         </div>
       </div>

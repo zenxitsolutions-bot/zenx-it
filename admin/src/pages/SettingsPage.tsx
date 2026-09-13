@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useConfirm } from "../context/ConfirmContext";
 import { useToast } from "../context/ToastContext";
 import { Card } from "../components/ui/Card";
+import { PageHeader } from "../components/ui/PageHeader";
 import { Button } from "../components/ui/Button";
 import { FieldWrap, Select } from "../components/ui/Field";
 import { TimezoneSelect } from "../components/shared/TimezoneSelect";
@@ -74,7 +75,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex max-w-2xl flex-col gap-5">
+      <PageHeader description="Your profile, display preferences and this environment's configuration." />
       <Card className="p-6">
         <h3 className="mb-4 font-display text-base text-offwhite">Profile</h3>
         <dl className="flex flex-col gap-3 text-sm">
@@ -133,7 +135,7 @@ export default function SettingsPage() {
       <Card className="p-6">
         <h3 className="mb-4 font-display text-base text-offwhite">Environment</h3>
         <div className="flex items-center gap-3 rounded-md border border-border p-4">
-          <DatabaseZap size={18} className={isDemoMode ? "text-warn" : "text-lime"} />
+          <DatabaseZap size={18} className={isDemoMode ? "text-warnInk" : "text-lime"} />
           <div>
             <p className="text-sm text-offwhite">{isDemoMode ? "Demo mode" : "Connected to ZenX Admin API"}</p>
             <p className="text-xs text-dim">

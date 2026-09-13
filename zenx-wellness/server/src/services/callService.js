@@ -9,19 +9,31 @@ import { attachMeetingToCall, moveMeetingForCall, cancelMeetingForCall } from '.
 // directly, specifically so the booking email can never be skipped just because a second entry
 // point exists. (It used to be: the Follow-up flow called the model directly, bypassing the email
 // entirely — the concrete bug this refactor fixes.)
+// Every booked call gets a 15-minute reminder unless the booker explicitly chooses otherwise
+// (the dialogs offer "No reminder", which sends null and is respected — `?? DEFAULT` is wrong
+// here, the default applies only when the caller omits the field entirely).
+//
+// This used to default to null, which meant reminderScheduler.js's `reminderMinutesBefore == null`
+// gate silently skipped the call forever. Recurring consultation slots pass 3 days; one-off
+// bookings keep this 15-minute default unless the booker chooses otherwise.
+export const DEFAULT_REMINDER_MINUTES_BEFORE = 15;
+
 export async function bookCall({
   client = null,
   enquiry = null,
   dietitian,
   scheduledAt,
   notes = null,
-  reminderMinutesBefore = null,
+  reminderMinutesBefore = DEFAULT_REMINDER_MINUTES_BEFORE,
   consultationScheduleId = null,
   force = false,
   // Only for the consultation-schedule batch-generation path (consultationScheduleService.js),
-  // which decides notification itself once it knows how many calls a single run actually produced
-  // — see that module for why. Every other caller leaves this false and gets the normal email.
+  // which sends one schedule email instead of a booking email per occurrence. Every other caller
+  // leaves this false and gets the normal booked email.
   skipNotification = false,
+  // Recurring consultation slots must not invite the client on Google Calendar — Calendar would
+  // email every future join link the moment the series is generated.
+  inviteAttendee = true,
 }) {
   const payload = { client, enquiry, dietitian, scheduledAt, notes, reminderMinutesBefore, consultationScheduleId };
   const call = force
@@ -33,7 +45,7 @@ export async function bookCall({
 
   // Before the notification, so the booking email and its .ics invite can carry the join link.
   // Never throws and never blocks the booking — see services/callMeeting.js.
-  const withMeeting = await attachMeetingToCall(call);
+  const withMeeting = await attachMeetingToCall(call, { inviteAttendee });
 
   if (!skipNotification) await notifyCallEvent('booked', withMeeting);
   return withMeeting;
@@ -45,7 +57,7 @@ export async function bookCall({
 // domain one). Bumps calls.ics_sequence once per state change that affects the calendar invite,
 // same rule as before this refactor: a request that is somehow both a reschedule and a
 // cancellation at once bumps twice and only the cancellation email fires.
-export async function applyCallUpdate(callId, existingCall, patch, { force = false } = {}) {
+export async function applyCallUpdate(callId, existingCall, patch, { force = false, skipNotification = false } = {}) {
   const dietitianId = existingCall.dietitian?._id ?? existingCall.dietitian;
 
   const isReschedule = Boolean(
@@ -55,7 +67,12 @@ export async function applyCallUpdate(callId, existingCall, patch, { force = fal
 
   let finalPatch = patch;
   if (isReschedule) {
-    finalPatch = { ...patch, rescheduledAt: new Date(), originalScheduledAt: existingCall.originalScheduledAt ?? existingCall.scheduledAt };
+    finalPatch = {
+      ...patch,
+      rescheduledAt: new Date(),
+      originalScheduledAt: existingCall.originalScheduledAt ?? existingCall.scheduledAt,
+      reminderSentAt: null,
+    };
   }
   if (isReschedule || isCancellation) {
     finalPatch = { ...finalPatch, icsSequence: existingCall.icsSequence + (isReschedule ? 1 : 0) + (isCancellation ? 1 : 0) };
@@ -69,16 +86,25 @@ export async function applyCallUpdate(callId, existingCall, patch, { force = fal
         })
       : await updateCallById(callId, finalPatch);
 
-  // Keep the Google Calendar event in step with the row: move it on a reschedule (so the same
-  // Meet link stays valid and the dietitian's calendar is correct), delete it on a cancellation
-  // (so a cancelled call doesn't leave a live meeting behind). Both are best-effort.
+  // Keep the meeting in step with the row: move it on a reschedule (so the same join link stays
+  // valid and the dietitian's calendar is correct), delete it on a cancellation (so a cancelled
+  // call doesn't leave a live meeting behind). Both are best-effort.
+  //
+  // Both helpers RETURN the updated call — their return value must be carried forward, not
+  // discarded. cancelMeetingForCall writes meeting_url/meeting_provider to NULL in the database
+  // and hands back the cleared row; ignoring it meant the HTTP response still advertised a join
+  // link for a call that had just been cancelled, and the cancellation email was built from the
+  // stale object too (offering a "Join" button for a call that is no longer happening). The
+  // reschedule path has the same shape and one extra case: when a call had no room yet,
+  // moveMeetingForCall attaches one, and that new link was being dropped from the response.
+  let finalCall = updated;
   if (isCancellation) {
-    await cancelMeetingForCall(updated);
-    await notifyCallEvent('cancelled', updated);
+    finalCall = (await cancelMeetingForCall(updated)) ?? updated;
+    if (!skipNotification) await notifyCallEvent('cancelled', finalCall);
   } else if (isReschedule) {
-    await moveMeetingForCall(updated, existingCall);
-    await notifyCallEvent('rescheduled', updated, { previousScheduledAt: existingCall.scheduledAt });
+    finalCall = (await moveMeetingForCall(updated, existingCall)) ?? updated;
+    if (!skipNotification) await notifyCallEvent('rescheduled', finalCall, { previousScheduledAt: existingCall.scheduledAt });
   }
 
-  return updated;
+  return finalCall;
 }

@@ -9,7 +9,7 @@ import { CHART } from '@/lib/chartColors';
 const SEGMENTS = [
   { key: 'active', label: 'Active', color: CHART.line },
   { key: 'completed', label: 'Completed', color: CHART.lineDeep },
-  { key: 'draft', label: 'Draft', color: '#cbd5e1' },
+  { key: 'draft', label: 'Draft', color: '#dce3ec' },
 ];
 
 function ChartTooltip({ active, payload }) {

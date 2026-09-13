@@ -9,7 +9,7 @@ export function ProtectedRoute() {
 
   if (isLoading) return null;
   if (!user) {
-    return <Navigate to={tenantLoginFromPath(location.pathname)} state={{ from: location }} replace />;
+    return <Navigate to={tenantLoginFromPath(location.pathname)} replace />;
   }
 
   // Blocks every route this guard wraps — not just /app/* — until a forced password change is

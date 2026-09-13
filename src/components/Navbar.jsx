@@ -1,6 +1,15 @@
 import { useState } from "react";
 import { ADMIN_URL } from "../lib/adminUrl";
 
+const LINKS = [
+  { href: "#top", label: "Home" },
+  { href: "#services", label: "Services" },
+  { href: "#products", label: "Solutions" },
+  { href: "#process", label: "Work" },
+  { href: "#about", label: "About" },
+  { href: "#contact", label: "Contact" },
+];
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
 
@@ -9,14 +18,15 @@ export default function Navbar() {
       <a className="brand" href="#top" aria-label="ZenX home">
         <img src="/logo-icon.png" alt="" className="brand-mark" />
         <span>
-          ZENX<span className="muted">.</span>
+          ZenX <span className="brand-rest">IT SOLUTIONS</span>
         </span>
       </a>
       <nav className={`nav-links${open ? " mobile-open" : ""}`}>
-        <a href="#services" onClick={() => setOpen(false)}>Services</a>
-        <a href="#products" onClick={() => setOpen(false)}>Products</a>
-        <a href="#process" onClick={() => setOpen(false)}>How we work</a>
-        <a href="#contact" onClick={() => setOpen(false)}>Contact</a>
+        {LINKS.map((link) => (
+          <a key={link.href} href={link.href} onClick={() => setOpen(false)}>
+            {link.label}
+          </a>
+        ))}
         <a
           href={ADMIN_URL}
           target="_blank"
@@ -27,15 +37,16 @@ export default function Navbar() {
           Admin Login
         </a>
       </nav>
-      <a className="nav-cta" href="#contact">
-        Start a project <span>↗</span>
+      <a className="nav-cta" href="#contact" onClick={() => setOpen(false)}>
+        Get Started
       </a>
       <button
         className="menu-btn"
-        aria-label="Open menu"
+        aria-label={open ? "Close menu" : "Open menu"}
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        ☰
+        {open ? "✕" : "☰"}
       </button>
     </header>
   );

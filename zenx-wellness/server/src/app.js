@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import rateLimit from 'express-rate-limit';
+import { createApiRateLimiter } from './middleware/apiRateLimit.js';
 
 import { env } from './config/env.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
@@ -19,12 +19,14 @@ import { availabilityRouter } from './routes/availability.routes.js';
 import { progressRouter } from './routes/progress.routes.js';
 import { clientNoteRouter } from './routes/clientNote.routes.js';
 import { messageRouter } from './routes/message.routes.js';
+import { supportMessageRouter } from './routes/supportMessage.routes.js';
 import { reportRouter } from './routes/report.routes.js';
 import { insightsRouter } from './routes/insights.routes.js';
 import { emailLogRouter } from './routes/emailLog.routes.js';
 import { consultationScheduleRouter } from './routes/consultationSchedule.routes.js';
 import { companyRouter } from './routes/company.routes.js';
 import { integrationsRouter } from './routes/integrations.routes.js';
+import { notificationRouter } from './routes/notification.routes.js';
 
 export const app = express();
 
@@ -47,15 +49,7 @@ app.use(cookieParser());
 // (spec §2026-round2-fixes item 6): they're now served only through the permission-checked
 // GET /api/reports/:id/file route (report.controller.js#getReportFile), which sits behind this
 // app's normal authenticate/blockIfMustChangePassword stack like every other API route.
-app.use(
-  rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 300,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req) => req.path === '/api/messages/stream',
-  })
-);
+app.use(createApiRateLimiter());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
@@ -70,12 +64,14 @@ app.use('/api/availability', availabilityRouter);
 app.use('/api/progress', progressRouter);
 app.use('/api/client-notes', clientNoteRouter);
 app.use('/api/messages', messageRouter);
+app.use('/api/support-messages', supportMessageRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/insights', insightsRouter);
 app.use('/api/emails', emailLogRouter);
 app.use('/api/consultation-schedule', consultationScheduleRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/integrations', integrationsRouter);
+app.use('/api/notifications', notificationRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -4,6 +4,7 @@ import { env } from '../config/env.js';
 import { formatInZone, effectiveTimezone } from './timezoneService.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
+import { companyDisplayName } from '../utils/companyBrand.js';
 import { notifyUserPush } from './pushNotifications.js';
 
 // Every user (client or dietitian) can now have their own timezone (see users.timezone's comment
@@ -15,6 +16,15 @@ function formatMeetingTime(date, entity) {
   const timezone = effectiveTimezone(entity);
   return `${formatInZone(date, timezone)} (${timezone})`;
 }
+
+// calls.meeting_provider -> the button text on the email. Falls back to a provider-neutral label
+// rather than guessing: a row from a provider this build no longer knows about should still render
+// a usable button, just without naming an app it might get wrong.
+const JOIN_LABEL_BY_PROVIDER = {
+  google_meet: 'Join Google Meet',
+  jitsi: 'Join video call',
+};
+const providerJoinLabel = (provider) => JOIN_LABEL_BY_PROVIDER[provider] ?? 'Join video call';
 
 const TEMPLATE_BY_EVENT = {
   booked: { client: 'call-scheduled', dietitian: 'call-scheduled-dietitian' },
@@ -63,7 +73,11 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   // otherwise the portal page — always a usable destination, so the templates need no conditional
   // (renderTemplate.js is plain {{token}} substitution and throws on a missing key).
   const joinUrl = call.meetingUrl || meetingLink;
-  const joinLabel = call.meetingUrl ? 'Join Google Meet' : 'View in Nourishly';
+  // Named after whichever provider actually created the room, not the currently-configured one —
+  // a call booked before the setting changed still carries a working link from the old provider,
+  // and labelling it with the new one would send people looking for the wrong app.
+  const companyName = await companyDisplayName(dietitian.companyId || attendee?.companyId);
+  const joinLabel = call.meetingUrl ? providerJoinLabel(call.meetingProvider) : `View in ${companyName}`;
   // Two independently-correct renderings of the SAME UTC instant — the client's email uses the
   // client's (or lead's, defaulting to UTC) zone, the dietitian's email uses the dietitian's.
   const dietitianMeetingTime = formatMeetingTime(call.scheduledAt, dietitian);
@@ -74,15 +88,15 @@ export async function notifyCallEvent(event, call, { previousScheduledAt } = {})
   const icsBase = {
     callId: call.id,
     sequence: call.icsSequence,
-    summary: `Nourishly call with ${dietitian.name}`,
+    summary: `${companyName} call with ${dietitian.name}`,
     // The join link goes in the description as well as `url`: calendar clients differ in which
     // one they surface, and Google Calendar in particular renders the description body but not
     // every event URL field.
     description: call.meetingUrl
-      ? `Your call with ${dietitian.name} via Nourishly.
+      ? `Your call with ${dietitian.name} via ${companyName}.
 
 Join: ${call.meetingUrl}`
-      : `Your call with ${dietitian.name} via Nourishly.`,
+      : `Your call with ${dietitian.name} via ${companyName}.`,
     url: joinUrl,
     start: call.scheduledAt,
     organizer: { name: dietitian.name, email: dietitian.email },

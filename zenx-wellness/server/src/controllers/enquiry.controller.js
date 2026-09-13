@@ -8,7 +8,7 @@ import {
 } from '../models/Enquiry.js';
 import { listByEnquiryId, createHistoryEntry } from '../models/EnquiryHistory.js';
 import { findUserByEmail, findUserById, createUser as createUserRecord, updateUser as updateUserRecord } from '../models/User.js';
-import { findCompanyById } from '../models/Company.js';
+import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
 import { reassignEnquiryCallsToClient } from '../models/Call.js';
 import { createClientNote } from '../models/ClientNote.js';
 import { hashPassword } from '../utils/password.js';
@@ -20,6 +20,7 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { toClientShape } from '../utils/serialize.js';
 import { env } from '../config/env.js';
+import { todayCalendarDate } from '../utils/calendarDate.js';
 
 // Duplicated from client/src/lib/enquiryStatus.js's STATUS_LABEL — this monorepo has no package
 // shared between client/ and server/ (see similar duplication comments elsewhere, e.g.
@@ -38,7 +39,7 @@ const STATUS_NOTE_LABEL = {
 // user.controller.js#createUser already uses (hash the temp password, force a change on first
 // login). Must run inside the caller's transaction (conn) so account creation and everything that
 // gets carried over onto it either all commit together or none do.
-async function createConvertedAccount(enquiry, { planId, planDuration, password, assignedDietitian }, conn) {
+async function createConvertedAccount(enquiry, { planId, planDuration, password, assignedDietitian, dietPreference, allergies }, conn) {
   if (!password || !planId || !planDuration) {
     throw ApiError.badRequest('password, planId, and planDuration are required to create the client account');
   }
@@ -67,6 +68,9 @@ async function createConvertedAccount(enquiry, { planId, planDuration, password,
       role: 'client',
       programPlan: planId,
       planDuration,
+      planStartedOn: planDuration || planId ? todayCalendarDate() : null,
+      dietPreference: dietPreference || null,
+      allergies: allergies || null,
       assignedDietitian: assignedDietitian || null,
       mustChangePassword: true,
       companyId: enquiry.companyId,
@@ -76,12 +80,38 @@ async function createConvertedAccount(enquiry, { planId, planDuration, password,
   );
 }
 
-// Public, unauthenticated — there is one public funnel today, so it always attaches to the
-// configured legacy/default company (see env.js#legacyCompanyId's comment). A real per-company
-// public funnel (e.g. resolved from a URL slug) is future work, not built here.
+// Which company a public enquiry belongs to. The slug comes from the funnel's own URL
+// (/:companySlug/enquiry) and is the ONLY thing that decides which admin pipeline the lead lands
+// in — every read path is already scoped by company (listEnquiries, assertOwnEnquiry), so getting
+// this right here is what keeps one tenant's leads out of another's board.
+//
+// An unknown slug is a 404, never a fall back to the default company: silently re-homing a lead
+// would put a real person's contact details on the wrong company's screen, which is worse than
+// asking them to retry. The no-slug case is the pre-existing bare funnel and keeps its old
+// behaviour, so links that predate per-company URLs are unaffected.
+async function resolveEnquiryCompanyId(companySlug) {
+  if (!companySlug) {
+    if (!env.legacyCompanyId) throw new Error('LEGACY_COMPANY_ID is not configured');
+    return env.legacyCompanyId;
+  }
+  const company = await findCompanyBySlug(companySlug);
+  if (!company) throw ApiError.notFound('Unknown company');
+  // A non-ACTIVE company blocks login and authentication everywhere else (auth.controller.js,
+  // middleware/authenticate.js), so its admins cannot reach the pipeline at all. Accepting leads
+  // into a board nobody can open would strand a real person's contact details, so the public
+  // funnel closes with them.
+  if (company.status !== 'ACTIVE') {
+    throw ApiError.notFound('This clinic is not accepting enquiries right now');
+  }
+  return company.id;
+}
+
+// Public, unauthenticated. `companySlug` is stripped from the payload rather than passed through —
+// the enquiries table stores a company_id, and the slug is only ever an addressing detail.
 export const createEnquiry = asyncHandler(async (req, res) => {
-  if (!env.legacyCompanyId) throw new Error('LEGACY_COMPANY_ID is not configured');
-  const enquiry = await createEnquiryRecord({ ...req.body, companyId: env.legacyCompanyId });
+  const { companySlug, ...payload } = req.body;
+  const companyId = await resolveEnquiryCompanyId(companySlug);
+  const enquiry = await createEnquiryRecord({ ...payload, companyId });
   await notifyEnquirySubmitted(enquiry);
   res.status(201).json(toClientShape(enquiry));
 });
@@ -135,20 +165,32 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   const { status, note } = req.body;
 
   if (status === 'follow-up') {
-    const { dietitian, scheduledAt } = req.body;
-    // Goes through the exact same service call.controller.js#createCall uses (availability check,
-    // transaction, AND the booking-email notification to both the dietitian and the enquiry's own
-    // contact email) — this used to call the model directly, silently skipping the booking email
-    // for every Follow-up call. `enquiry`, not `client`: no account exists to attach this call to
-    // yet.
-    const call = await bookCall({ enquiry: existing.id, dietitian, scheduledAt, notes: note });
+    const { scheduledAt, assignedTo, dietitian } = req.body;
+    const hostId = assignedTo || dietitian || req.user.id;
+    const host = await findUserById(hostId);
+    if (!host || host.role !== 'admin' || host.companyId !== existing.companyId) {
+      throw ApiError.badRequest('Follow-up must be assigned to an admin in this organisation');
+    }
+    if (host.accountStatus && host.accountStatus !== 'active') {
+      throw ApiError.badRequest('That admin account is not active');
+    }
+    // Hosts are admins, who typically have no weekly hours — skip dietitian-slot availability.
+    // Still goes through bookCall so the booking email fires to the admin and the enquiry contact.
+    // `enquiry`, not `client`: no account exists to attach this call to yet.
+    const call = await bookCall({
+      enquiry: existing.id,
+      dietitian: hostId,
+      scheduledAt,
+      notes: note,
+      force: true,
+    });
     await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null, callId: call.id });
     const enquiry = await updateEnquiryById(req.params.id, { status, note });
     return res.json(toClientShape(enquiry));
   }
 
   if (status === 'converted') {
-    const { planId, planDuration, password, assignedDietitian } = req.body;
+    const { planId, planDuration, password, assignedDietitian, dietPreference, allergies } = req.body;
     const alreadyConverted = Boolean(existing.convertedUserId);
     // Captured from inside the transaction, but only ever notified about after it commits (below)
     // — never from inside the transaction body itself, so a conversion that ends up rolling back
@@ -164,7 +206,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
       let convertedUserId = existing.convertedUserId;
 
       if (!alreadyConverted) {
-        const user = await createConvertedAccount(existing, { planId, planDuration, password, assignedDietitian }, conn);
+        const user = await createConvertedAccount(existing, { planId, planDuration, password, assignedDietitian, dietPreference, allergies }, conn);
         convertedUserId = user.id;
         newUser = user;
 
@@ -180,7 +222,16 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
         }
       } else {
         // Re-selecting Converted after a later Unsuccessful: restore the client that conversion created.
-        await updateUserRecord(existing.convertedUserId, { accountStatus: 'active' }, conn);
+        await updateUserRecord(
+          existing.convertedUserId,
+          {
+            accountStatus: 'active',
+            ...(planId ? { programPlan: planId } : {}),
+            ...(planDuration ? { planDuration } : {}),
+            ...((planId || planDuration) ? { planStartedOn: todayCalendarDate() } : {}),
+          },
+          conn
+        );
       }
 
       await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null }, conn);

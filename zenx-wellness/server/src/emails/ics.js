@@ -11,7 +11,7 @@ export function icsUidForCall(callId) {
   return `call-${callId}@nourishly.app`;
 }
 
-const PROD_ID = { company: 'Nourishly', product: 'Scheduling', language: 'EN' };
+const PROD_ID = { company: 'ZenX Dietitian', product: 'Scheduling', language: 'EN' };
 
 // method/status are fixed per call site (buildRequestIcs/buildCancelIcs below); everything else
 // comes from the caller. `sequence` must be the same monotonically-increasing counter for a given

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AuthLayout } from '@/components/auth/AuthLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,14 +20,13 @@ const loginSchema = z.object({
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const { companySlug } = useParams();
   const [serverError, setServerError] = useState(null);
-  // Set when the server refuses a bare /login and names the caller's own company login page
-  // (auth.controller.js#login returns it in `details`), so it can be offered as a link.
+  // Set when the server refuses a login on the wrong company URL and names the caller's own
+  // company page (auth.controller.js#login returns it in `details`), so it can be offered as a link.
   const [companyLoginPath, setCompanyLoginPath] = useState(null);
   // Only queried on a slug-scoped URL (/:companySlug/login) — the bare /login has no company to
-  // brand for. Resolves to null for an unknown slug, which falls back to Nourishly's branding
+  // brand for. Resolves to null for an unknown slug, which falls back to ZenX Dietitian's branding
   // rather than revealing whether that slug exists.
   const { data: company } = usePublicCompany(companySlug);
 
@@ -49,10 +48,10 @@ export function LoginPage() {
         navigate(getChangePasswordPath(user.companySlug), { replace: true });
         return;
       }
-      const from = location.state?.from;
-      navigate(from?.pathname ? `${from.pathname}${from.search ?? ''}` : getPortalHome(user.role, user.companySlug), {
-        replace: true,
-      });
+      // Always land on the role dashboard after a fresh login. Returning to the last protected
+      // URL (saved when a session expired mid-page) sent people back to recipes/enquiries/etc
+      // after an explicit log out, which is not what they expect.
+      navigate(getPortalHome(user.role, user.companySlug), { replace: true });
     } catch (error) {
       setCompanyLoginPath(error?.response?.data?.details?.companyLoginPath ?? null);
       setServerError(getAuthErrorMessage(error, { fallback: "We couldn't log you in. Please try again." }));
@@ -62,7 +61,7 @@ export function LoginPage() {
   return (
     <AuthLayout
       eyebrow="WELCOME BACK"
-      title={company ? `Log in to ${company.name}` : 'Log in to Nourishly'}
+      title={company ? `Log in to ${company.name}` : 'Log in to ZenX Dietitian'}
       subtitle="Pick up right where you left off."
       company={company}
     >
@@ -119,7 +118,7 @@ export function LoginPage() {
                 >
                   Forgot your password
                 </Link>{' '}
-                or open Nourishly from your ZenX account.
+                or open it from your ZenX account.
               </p>
             </div>
           )}

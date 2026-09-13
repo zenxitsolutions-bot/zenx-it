@@ -149,11 +149,11 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
   return (
     <Modal open onClose={() => onClose(false)} title="Add a customer" subtitle="Create a company and account directly, without an enquiry.">
       <form className="flex flex-col gap-5" onSubmit={handleSubmit}>
-        <FieldWrap label="Company name" htmlFor="ac-company">
+        <FieldWrap label="Company name" htmlFor="ac-company" required>
           <Input id="ac-company" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
         </FieldWrap>
 
-        <FieldWrap label="Company URL" htmlFor="ac-slug" hint="Auto-generated from the company name — edit if needed.">
+        <FieldWrap label="Company URL" htmlFor="ac-slug" hint="Auto-generated from the company name — edit if needed." required>
           <Input
             id="ac-slug"
             value={companySlug}
@@ -203,10 +203,10 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <FieldWrap label="First name" htmlFor="ac-first">
+          <FieldWrap label="First name" htmlFor="ac-first" required>
             <Input id="ac-first" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
           </FieldWrap>
-          <FieldWrap label="Last name" htmlFor="ac-last">
+          <FieldWrap label="Last name" htmlFor="ac-last" required>
             <Input id="ac-last" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
           </FieldWrap>
         </div>
@@ -215,7 +215,7 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
           <FieldWrap label="Phone" htmlFor="ac-phone">
             <PhoneField id="ac-phone" value={phone} onChange={setPhone} />
           </FieldWrap>
-          <FieldWrap label="Customer admin email" htmlFor="ac-email">
+          <FieldWrap label="Customer admin email" htmlFor="ac-email" required>
             <Input id="ac-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
           </FieldWrap>
         </div>
@@ -275,8 +275,7 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         <FieldWrap
           label="Temporary password"
           htmlFor="ac-password"
-          hint="Shown once after creation — the customer must change it on first login."
-        >
+          hint="Shown once after creation — the customer must change it on first login." required>
           <div className="flex gap-2">
             <Input
               id="ac-password"
@@ -293,7 +292,7 @@ export function AddCustomerModal({ open, onClose }: AddCustomerModalProps) {
         </FieldWrap>
 
         {error && (
-          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-danger">
+          <div className="flex items-center gap-2 rounded-md border border-danger/30 bg-danger/10 px-3.5 py-2.5 text-xs text-dangerInk">
             <AlertCircle size={14} />
             {error}
           </div>

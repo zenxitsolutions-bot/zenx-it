@@ -100,7 +100,7 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
   // restrictions in dev) and the wellness-app eager-create (a best-effort mirror — the SSO handoff
   // still creates it lazily on first login if this is skipped or fails) are both non-fatal.
   try {
-    await sendCustomerWelcomeEmail({ to: email, name: firstName, companyName });
+    await sendCustomerWelcomeEmail({ to: email, name: firstName, companyName, companySlug });
   } catch (err) {
     console.error('[provisionCustomerAccount] welcome email failed', err);
   }

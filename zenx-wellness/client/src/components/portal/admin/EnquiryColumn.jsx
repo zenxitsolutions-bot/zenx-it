@@ -1,6 +1,7 @@
 import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { EnquiryCard } from './EnquiryCard';
+import { STATUS_DOT } from '@/lib/enquiryStatus';
 
 export function EnquiryColumn({ status, label, enquiries, onStatusChange, onOpenDetail, pendingId }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
@@ -13,8 +14,14 @@ export function EnquiryColumn({ status, label, enquiries, onStatusChange, onOpen
         isOver && 'bg-sage/40'
       )}
     >
-      <h3 className="px-1 text-xs font-bold tracking-wide text-forest uppercase">
-        {label} · {enquiries.length}
+      {/* A colored dot per column carries the status identity without tinting the whole column,
+          which would fight the cards sitting on it. Same hues as the CRM's pipeline. */}
+      <h3 className="flex items-center gap-2 px-1 text-xs font-bold tracking-wide text-forest uppercase">
+        <span className={cn('size-2 shrink-0 rounded-full', STATUS_DOT[status])} aria-hidden="true" />
+        <span className="truncate">{label}</span>
+        <span className="ml-auto rounded-full bg-white px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          {enquiries.length}
+        </span>
       </h3>
       <div className="grid gap-2">
         {enquiries.map((enquiry) => (

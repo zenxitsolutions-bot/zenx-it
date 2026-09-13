@@ -62,6 +62,19 @@ export const login = asyncHandler(async (req, res) => {
 
   const signedIn = await touchUserLastLogin(user.id);
   const accessToken = issueTokens(res, signedIn, company.id);
+  // Keep wellness-app's hash in lockstep. SSO handoff used to create that row with a random
+  // unusable password, so the same email/password that works here then failed on
+  // wellness-app's own /login. Failures stay non-fatal — this login must still succeed.
+  try {
+    await updateWellnessPassword({
+      zenxUserId: user.id,
+      email: user.email,
+      passwordHash: user.password_hash,
+      mustChangePassword: Boolean(user.must_change_password),
+    });
+  } catch (err) {
+    console.error('[customerLogin] wellness-app password sync failed', err);
+  }
   res.json({ user: toClientShape(signedIn), accessToken, companyId: company.id });
 });
 
@@ -196,6 +209,19 @@ export const issueHandoffToken = asyncHandler(async (req, res) => {
     application.handoff_secret,
     { expiresIn: '60s' }
   );
+
+  if (applicationSlug === 'zenx-dietitian') {
+    try {
+      await updateWellnessPassword({
+        zenxUserId: req.customer.id,
+        email: req.customer.email,
+        passwordHash: req.customer.password_hash,
+        mustChangePassword: Boolean(req.customer.must_change_password),
+      });
+    } catch (err) {
+      console.error('[issueHandoffToken] wellness-app password sync failed', err);
+    }
+  }
 
   res.json({ url: `${application.url}/${company.company_slug}/handoff?token=${token}` });
 });

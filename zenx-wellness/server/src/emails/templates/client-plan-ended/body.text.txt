@@ -1,0 +1,5 @@
+Hi {{client_name}}
+
+{{plan_name}} ended on {{plan_ended_on}}.
+
+Your account is now inactive, so you won't be able to sign in. Ask your dietitian or administrator if you'd like to continue on a new plan.

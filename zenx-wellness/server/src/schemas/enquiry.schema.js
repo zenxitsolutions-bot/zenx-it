@@ -1,8 +1,14 @@
 import { z } from 'zod';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { PLAN_DURATIONS } from '../constants/planDurations.js';
+import { DIET_PREFERENCES } from '../constants/dietPreferences.js';
 
 export const createEnquirySchema = z.object({
+  // Which company's funnel this lead came through — the slug from the public URL
+  // (/:companySlug/enquiry). Optional: the bare, un-slugged funnel still posts without one and
+  // falls back to LEGACY_COMPANY_ID, so existing links keep working. The controller is what
+  // resolves it to a company id and rejects a slug that matches nothing.
+  companySlug: z.string().min(1).optional(),
   goal: z.string().min(1),
   name: z.string().min(1),
   email: z.string().email(),
@@ -18,9 +24,9 @@ export const createEnquirySchema = z.object({
 // - 'new': no extra fields (rarely used — mostly a reset/undo path).
 // - 'contacted': conversation notes are required.
 // - 'closed' ("Unsuccessful" in the UI): a reason is required.
-// - 'follow-up': books a real call through the availability service, so needs a dietitian + a
-//   slot — booked directly against the enquiry (no client account exists yet; see
-//   docs/specs/2026-round2-fixes.md item 1).
+// - 'follow-up': books a real call against the enquiry (no client account yet; see
+//   docs/specs/2026-round2-fixes.md item 1). Host is an admin in the org — `assignedTo`, or
+//   legacy `dietitian`; the controller defaults to the acting admin when both are omitted.
 // - 'converted' ("Successfully Converted / Won" in the UI): the only transition that ever creates
 //   the lead's client account (planId/planDuration/password required then, checked in the
 //   controller since it depends on DB state — has this enquiry already been converted? — a static
@@ -31,7 +37,8 @@ export const updateEnquirySchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('closed'), note: z.string().min(1, 'Add a reason') }),
   z.object({
     status: z.literal('follow-up'),
-    dietitian: z.string().min(1),
+    assignedTo: z.string().min(1).optional(),
+    dietitian: z.string().min(1).optional(),
     scheduledAt: z.coerce.date(),
     note: z.string().optional(),
   }),
@@ -41,6 +48,14 @@ export const updateEnquirySchema = z.discriminatedUnion('status', [
     planDuration: z.enum(PLAN_DURATIONS).optional(),
     password: z.string().min(8).optional(),
     assignedDietitian: z.string().min(1).nullable().optional(),
+    dietPreference: z.enum(DIET_PREFERENCES).nullable().optional(),
+    allergies: z
+      .string()
+      .trim()
+      .max(1000)
+      .optional()
+      .nullable()
+      .transform((value) => (value === '' ? null : value)),
   }),
 ]);
 

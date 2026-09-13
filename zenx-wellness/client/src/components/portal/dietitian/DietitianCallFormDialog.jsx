@@ -14,7 +14,7 @@ import { useClients } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useCreateCall, useUpdateCall } from '@/hooks/useCalls';
-import { reminderValueToMinutes } from '@/lib/callScheduling';
+import { reminderValueToMinutes, DEFAULT_CALL_REMINDER_VALUE } from '@/lib/callScheduling';
 import { todayDateValue, zonedCalendarDate } from '@/lib/timezone';
 
 const scheduleSchema = z.object({
@@ -38,7 +38,7 @@ export function DietitianCallFormDialog({ open, onOpenChange, mode, call }) {
 
   const form = useForm({
     resolver: zodResolver(isReschedule ? rescheduleSchema : scheduleSchema),
-    defaultValues: { client: '', scheduledAt: '', notes: '', reminderMinutesBefore: '30' },
+    defaultValues: { client: '', scheduledAt: '', notes: '', reminderMinutesBefore: DEFAULT_CALL_REMINDER_VALUE },
   });
 
   // The client's own saved timezone, for SlotPicker's "Client will see:" preview — whichever client
@@ -52,7 +52,7 @@ export function DietitianCallFormDialog({ open, onOpenChange, mode, call }) {
   useEffect(() => {
     if (!open) return;
     const scheduledAt = isReschedule && call ? call.scheduledAt : '';
-    form.reset({ client: '', scheduledAt, notes: '', reminderMinutesBefore: '30' });
+    form.reset({ client: '', scheduledAt, notes: '', reminderMinutesBefore: DEFAULT_CALL_REMINDER_VALUE });
     setDate(scheduledAt ? zonedCalendarDate(scheduledAt, timezone) : todayDateValue(timezone));
   }, [open, isReschedule, call, form, timezone]);
 

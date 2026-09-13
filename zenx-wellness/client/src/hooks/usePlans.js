@@ -1,15 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { listPlansRequest, createPlanRequest, updatePlanRequest, updateMealStatusRequest } from '../api/plans.api';
+import {
+  listPlansRequest,
+  createPlanRequest,
+  updatePlanRequest,
+  deletePlanRequest,
+  updateMealStatusRequest,
+  downloadPlanPdfRequest,
+} from '../api/plans.api';
+import { pickCurrentPlan } from '../lib/clientPortal';
 
-// Plans are returned sorted by week desc — the first one is "this week's" plan.
-// clientId omitted → "my own plans" (client role, server auto-scopes to self).
+// Plans are returned sorted by week desc. pickCurrentPlan prefers the week that contains today
+// so a future draft does not hide this week's meals from the client.
 export function useCurrentPlan(clientId) {
   const query = useQuery({
     queryKey: ['plans', clientId ?? 'me'],
     queryFn: () => listPlansRequest(clientId ? { client: clientId } : undefined),
     enabled: clientId !== null,
+    refetchInterval: 15_000,
   });
-  return { ...query, plan: query.data?.[0] ?? null };
+  return { ...query, plan: pickCurrentPlan(query.data) };
 }
 
 // Every plan a client has (not just the current week) — the client profile's meal history can
@@ -41,6 +50,12 @@ export function useUpdateMealStatus() {
   });
 }
 
+export function useDownloadPlanPdf() {
+  return useMutation({
+    mutationFn: (planId) => downloadPlanPdfRequest(planId),
+  });
+}
+
 // Dietitian/admin: create a brand-new weekly plan for a client.
 export function useCreatePlan() {
   const queryClient = useQueryClient();
@@ -55,6 +70,30 @@ export function useUpdatePlan() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ planId, ...payload }) => updatePlanRequest(planId, payload),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plans'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      queryClient.invalidateQueries({ queryKey: ['insights'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+// Every weekly plan this dietitian (or the admin's company) has saved — the builder's titled
+// library, so a week can be reused or reassigned without hunting by client/date.
+export function useSavedPlans() {
+  return useQuery({
+    queryKey: ['plans', 'library'],
+    queryFn: () => listPlansRequest({ reusable: true }),
+  });
+}
+
+export function useDeletePlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (planId) => deletePlanRequest(planId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['plans'] });
+      queryClient.invalidateQueries({ queryKey: ['insights'] });
+    },
   });
 }

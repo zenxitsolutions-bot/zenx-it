@@ -14,6 +14,7 @@ const lazyNamed = (loader, name) => lazy(() => loader().then((m) => ({ default: 
 const HomePage = lazyNamed(() => import('@/pages/HomePage'), 'HomePage');
 const LoginPage = lazyNamed(() => import('@/pages/LoginPage'), 'LoginPage');
 const HandoffPage = lazyNamed(() => import('@/pages/HandoffPage'), 'HandoffPage');
+const EnquiryPage = lazyNamed(() => import('@/pages/EnquiryPage'), 'EnquiryPage');
 const ForgotPasswordPage = lazyNamed(() => import('@/pages/ForgotPasswordPage'), 'ForgotPasswordPage');
 const ResetPasswordPage = lazyNamed(() => import('@/pages/ResetPasswordPage'), 'ResetPasswordPage');
 const ChangePasswordPage = lazyNamed(() => import('@/pages/ChangePasswordPage'), 'ChangePasswordPage');
@@ -32,12 +33,15 @@ const ClientProfilePage = lazyNamed(() => import('@/pages/app/ClientProfilePage'
 const UsersPage = lazyNamed(() => import('@/pages/app/UsersPage'), 'UsersPage');
 const DietitianProfilePage = lazyNamed(() => import('@/pages/app/DietitianProfilePage'), 'DietitianProfilePage');
 const PlanPage = lazyNamed(() => import('@/pages/app/PlanPage'), 'PlanPage');
+const SavedWeeklyPlansPage = lazyNamed(() => import('@/pages/app/SavedWeeklyPlansPage'), 'SavedWeeklyPlansPage');
 const PlansPage = lazyNamed(() => import('@/pages/app/PlansPage'), 'PlansPage');
 const RecipesPage = lazyNamed(() => import('@/pages/app/RecipesPage'), 'RecipesPage');
+const RecipeDetailPage = lazyNamed(() => import('@/pages/app/RecipeDetailPage'), 'RecipeDetailPage');
 const EnquiriesPage = lazyNamed(() => import('@/pages/app/EnquiriesPage'), 'EnquiriesPage');
 const InsightsPage = lazyNamed(() => import('@/pages/app/InsightsPage'), 'InsightsPage');
 const EmailLogPage = lazyNamed(() => import('@/pages/app/EmailLogPage'), 'EmailLogPage');
 const OrganisationPage = lazyNamed(() => import('@/pages/app/OrganisationPage'), 'OrganisationPage');
+const SupportPage = lazyNamed(() => import('@/pages/app/SupportPage'), 'SupportPage');
 
 // Wraps a single /app/<path> route in the RoleRoute guard for the roles that route belongs to
 // (sourced from ROUTE_ROLES, which is derived from the nav config — never hand-duplicated).
@@ -55,6 +59,10 @@ export const router = createBrowserRouter([
       { path: '/login', element: <LoginPage /> },
       { path: '/:companySlug/login', element: <LoginPage /> },
       { path: '/:companySlug/handoff', element: <HandoffPage /> },
+      // Public per-company enquiry funnel. Sits here with the other unauthenticated slug routes,
+      // NOT under the '/:companySlug' ProtectedRoute branch below — a prospective client has no
+      // account yet, so requiring auth would send every lead to the login page.
+      { path: '/:companySlug/enquiry', element: <EnquiryPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/:companySlug/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },
@@ -103,6 +111,10 @@ export const router = createBrowserRouter([
                       guarded('progress', <ProgressPage />),
                       guarded('calls', <CallsPage />),
                       guarded('messages', <MessagesPage />),
+                      {
+                        element: <RoleRoute roles={['dietitian']} />,
+                        children: [{ path: 'support', element: <SupportPage /> }],
+                      },
                       guarded('reports', <ReportsPage />),
                       guarded('clients', <ClientsPage />),
                       // Not a nav entry (reached by clicking a client, not the sidebar) but guarded by the
@@ -116,8 +128,16 @@ export const router = createBrowserRouter([
                         children: [{ path: 'users/dietitians/:id', element: <DietitianProfilePage /> }],
                       },
                       guarded('plan', <PlanPage />),
+                      {
+                        element: <RoleRoute roles={['dietitian', 'admin']} />,
+                        children: [{ path: 'saved-plans', element: <SavedWeeklyPlansPage /> }],
+                      },
                       guarded('plans', <PlansPage />),
                       guarded('recipes', <RecipesPage />),
+                      {
+                        element: <RoleRoute roles={ROUTE_ROLES.recipes} />,
+                        children: [{ path: 'recipes/:recipeId', element: <RecipeDetailPage /> }],
+                      },
                       guarded('enquiries', <EnquiriesPage />),
                       guarded('insights', <InsightsPage />),
                       guarded('email-log', <EmailLogPage />),

@@ -41,9 +41,15 @@ async function partnerIdsFor(user) {
     const me = await findUserById(user.id);
     return me.assignedDietitian ? [String(me.assignedDietitian)] : [];
   }
-  if (user.role === 'dietitian' && user.companyId) {
+  if (!user.companyId) return [];
+  if (user.role === 'dietitian') {
     const clients = await listUsers({ companyId: user.companyId, role: 'client', assignedDietitian: user.id });
-    return clients.map((client) => client.id);
+    const admins = await listUsers({ companyId: user.companyId, role: 'admin' });
+    return [...clients.map((client) => client.id), ...admins.map((admin) => admin.id)];
+  }
+  if (user.role === 'admin') {
+    const dietitians = await listUsers({ companyId: user.companyId, role: 'dietitian' });
+    return dietitians.map((dietitian) => dietitian.id);
   }
   return [];
 }

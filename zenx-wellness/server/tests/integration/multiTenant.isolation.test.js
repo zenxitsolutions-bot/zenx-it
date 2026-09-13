@@ -87,10 +87,32 @@ test('listUsers/countUsers scoped to one company never returns the other company
 
 test('listRecipes scoped to one company excludes a recipe created inside the other company', async () => {
   const recipesInB = await listRecipes({ companyId: companyB });
-  assert.equal(recipesInB.length, 0, 'company A\'s recipe leaked into company B listRecipes');
+  assert.ok(!recipesInB.some((r) => r.title === 'A-only recipe'), 'company A\'s recipe leaked into company B listRecipes');
 
   const recipesInA = await listRecipes({ companyId: companyA });
-  assert.equal(recipesInA.length, 1);
+  assert.ok(recipesInA.some((r) => r.title === 'A-only recipe'));
+});
+
+test('shared catalog recipes are visible to every company', async () => {
+  await createRecipe({
+    title: 'Shared catalog recipe',
+    mealType: 'Lunch',
+    prepTime: '10 min',
+    ingredients: 'x',
+    instructions: 'x',
+    createdBy: dietitianA.id,
+    visibility: 'shared',
+  });
+
+  const recipesInB = await listRecipes({ companyId: companyB });
+  assert.ok(
+    recipesInB.some((r) => r.title === 'Shared catalog recipe'),
+    'shared catalog recipe missing from company B listRecipes'
+  );
+
+  const recipesInA = await listRecipes({ companyId: companyA });
+  assert.ok(recipesInA.some((r) => r.title === 'Shared catalog recipe'));
+  assert.ok(recipesInA.some((r) => r.title === 'A-only recipe'));
 });
 
 test('listEnquiries scoped to one company excludes the other company\'s enquiry', async () => {
