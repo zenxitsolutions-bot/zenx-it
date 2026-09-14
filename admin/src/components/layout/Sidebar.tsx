@@ -107,11 +107,11 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       >
         <div className={cn("flex items-center gap-2.5 px-5 py-5", collapsed && "lg:justify-center lg:px-0")}>
           <img src="/logo-icon.png" alt="" className="h-8 w-auto shrink-0 object-contain" />
-          <span className={cn("font-display text-lg tracking-wide text-white", collapsed && "lg:hidden")}>
+          <span className={cn("font-display text-lg tracking-wide text-offwhite", collapsed && "lg:hidden")}>
             ZENX<span className="text-brand2">.</span>
           </span>
           <button
-            className="ml-auto text-sidebarText/70 transition hover:text-white lg:hidden"
+            className="ml-auto text-sidebarText/70 transition hover:text-offwhite lg:hidden"
             onClick={onCloseMobile}
             aria-label="Close menu"
           >
@@ -133,8 +133,8 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                     "group relative mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition duration-150",
                     collapsed && "lg:justify-center lg:px-0",
                     isActive
-                      ? "bg-lime text-white shadow-sm"
-                      : "text-sidebarText hover:bg-sidebarHover hover:text-white"
+                      ? "bg-sidebarHover text-offwhite shadow-none"
+                      : "text-sidebarText hover:bg-sidebarHover hover:text-offwhite"
                   )
                 }
               >
@@ -146,7 +146,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
                       <span
                         className={cn(
                           "flex h-5 min-w-5 items-center justify-center rounded-pill px-1.5 text-[10px] font-bold",
-                          isActive ? "bg-white/25 text-white" : "bg-white/10 text-sidebarText",
+                          isActive ? "bg-offwhite/10 text-offwhite" : "bg-brandSoft text-sidebarText",
                           // Collapsed, a number won't fit beside a centred icon — it becomes a dot
                           // pinned to the corner, which still says "there is something here".
                           collapsed && "lg:absolute lg:right-2.5 lg:top-1.5 lg:h-2 lg:min-w-0 lg:p-0 lg:text-[0px]"
@@ -165,7 +165,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
         <div className="border-t border-sidebarBorder p-3">
           {!collapsed && (
             <div className="mb-3 rounded-lg border border-sidebarBorder bg-sidebarHover p-3.5">
-              <div className="flex items-center gap-2 text-xs font-semibold text-white">
+              <div className="flex items-center gap-2 text-xs font-semibold text-offwhite">
                 <LifeBuoy size={14} className="text-brand2" />
                 Need a hand?
               </div>
@@ -184,7 +184,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
           <button
             onClick={() => setCollapsed((v) => !v)}
             className={cn(
-              "hidden w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebarText/80 transition hover:bg-sidebarHover hover:text-white lg:flex",
+              "hidden w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium text-sidebarText/80 transition hover:bg-sidebarHover hover:text-offwhite lg:flex",
               collapsed && "lg:justify-center lg:px-0"
             )}
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}

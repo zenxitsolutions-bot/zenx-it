@@ -4,17 +4,17 @@ import { cn } from "../../utils/cn";
 
 /**
  * Status colors, per the design system:
- *   New → blue · Contacted → purple · Follow-up → orange · Converted → green · Lost → red
+ *   New → sage · Contacted → purple · Follow-up → orange · Converted → green · Lost → red
  *
  * Each badge is a soft tint of its hue with a darker shade of the *same* hue for the label. The
- * pure status colors (#3478D8 / #7C5CE1 / #F59E42 / #22A06B / #E85D5D) are the right values for
+ * pure status colors (#415D4B / #7C5CE1 / #F59E42 / #22A06B / #E85D5D) are the right values for
  * dots, chart series and solid fills, but as small text on a light tint they range from marginal
  * to unreadable — the orange lands at 2.13:1 against white. The label shades below are the same
  * hues darkened until they clear 4.5:1 on their own tint, so the badge keeps its identity and
  * stays legible. `bg-*`/dot usages elsewhere continue to use the pure values.
  */
 const STATUS_STYLES: Record<EnquiryStatus, string> = {
-  NEW: "bg-tintBlue text-[#2563B8]",
+  NEW: "bg-tintBlue text-[#344E3C]",
   CONTACTED: "bg-tintPurple text-[#5B3FC4]",
   FOLLOW_UP: "bg-tintOrange text-[#A35700]",
   CONVERTED: "bg-tintGreen text-[#157A4E]",
@@ -32,7 +32,7 @@ export function StatusBadge({ status, className }: { status: EnquiryStatus; clas
    system: neutral → blue → orange → red. */
 const PRIORITY_STYLES: Record<LeadPriority, string> = {
   LOW: "bg-surface text-muted",
-  MEDIUM: "bg-tintBlue text-[#2563B8]",
+  MEDIUM: "bg-tintBlue text-[#344E3C]",
   HIGH: "bg-tintOrange text-[#A35700]",
   HOT: "bg-tintRed text-[#B93232]",
 };

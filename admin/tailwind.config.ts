@@ -4,25 +4,25 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      // Light SaaS theme: cool blue-grey page, white cards, dark-navy sidebar, modern blue brand.
+      // Oat-and-sage theme, shared with the marketing site and wellness portal.
       //
       // The keys keep their original names because ~250 utility usages across the app read them
       // (`bg-lime` as "the accent", `ink` as "the page/behind color", `offwhite` as "the text
       // color"). Re-pointing the values here re-skins everything at once; renaming the keys would
       // mean touching every call site for no visual gain.
       colors: {
-        ink: "#F5F7FB", // page background
+        ink: "#F7F5EF", // cream page background
         panel: "#FFFFFF", // cards, modals, topbar
-        surface: "#F5F7FB", // faintly recessed areas inside a white card (inputs, table headers)
-        border: "#E5EAF2",
-        borderStrong: "#DCE3EC",
-        offwhite: "#1B2B42", // primary heading/text
-        muted: "#6B7A90", // secondary text
-        dim: "#9AA6B5", // tertiary text and icons
-        lime: "#3478D8", // primary brand blue. Name kept — 75+ usages read it as "the accent".
-        limeDim: "#2563B8", // primary hover
-        brandSoft: "#EAF2FF", // light blue fill behind blue icons/badges
-        brand2: "#5B9BF3", // secondary blue, for chart series
+        surface: "#F7F5EF", // faintly recessed areas inside a white card (inputs, table headers)
+        border: "#E5E5DC",
+        borderStrong: "#E1E5D8",
+        offwhite: "#29382E", // forest heading/text
+        muted: "#707A69", // secondary text
+        dim: "#8A9084", // tertiary text and icons
+        lime: "#415D4B", // forest green accent. Name kept — 75+ usages read it as "the accent".
+        limeDim: "#344E3C", // primary hover
+        brandSoft: "#E9EDDF", // sage fill behind icons/badges
+        brand2: "#829571", // secondary sage, for chart series
         purple: "#7C5CE1", // Contacted status + secondary chart series
 
         // Status/semantic FILL colors, exactly as specified. These are correct for dots, chart
@@ -37,42 +37,34 @@ export default {
         warnInk: "#A35700",
         okInk: "#157A4E",
 
-        // Dark sidebar rail. It is the one surface in the app that stays dark, so it carries its
-        // own scale rather than borrowing the light one.
-        sidebar: "#0F1F35",
-        sidebarHover: "#162B47",
-        sidebarText: "#D1D9E6",
-        sidebarBorder: "#1C3251",
+        // Light botanical rail, matching the wellness portal.
+        sidebar: "#F5F6EF",
+        sidebarHover: "#E4E9DC",
+        sidebarText: "#56634E",
+        sidebarBorder: "#E1E5D8",
 
         // Soft pastel grounds for KPI icons and status tints.
-        tintBlue: "#EAF2FF",
+        tintBlue: "#E9EDDF",
         tintPurple: "#F1EBFF",
         tintOrange: "#FFF3E5",
         tintGreen: "#E8F7F0",
         tintRed: "#FDECEC",
       },
-      // One family for the whole portal. `display` is kept as a separate key pointing at the same
-      // stack so the ~40 existing `font-display` usages keep compiling — it now means "the heavier
-      // typographic role", not "a second typeface", and the weight is what distinguishes it.
+      // Display is Caslon for titles/wordmark; body copy is DM Sans.
       fontFamily: {
-        display: ["'Plus Jakarta Sans'", "system-ui", "sans-serif"],
-        sans: ["'Plus Jakarta Sans'", "system-ui", "sans-serif"],
+        display: ["'Libre Caslon Display'", "Georgia", "serif"],
+        sans: ["'DM Sans'", "system-ui", "sans-serif"],
       },
       boxShadow: {
         // A 0.45-alpha black shadow reads as a dark smudge against white — on a light ground the
         // lift has to come from a hairline border plus a short, warm-cast shadow.
-        panel: "0 1px 2px rgba(27,43,66,0.04), 0 8px 24px rgba(27,43,66,0.06)",
-        // Resting/hover pair for cards. The hover state lifts the shadow rather than growing it,
-        // so a grid of cards doesn't visibly reflow when the pointer crosses it.
-        card: "0 1px 2px rgba(27,43,66,0.04), 0 4px 12px rgba(27,43,66,0.05)",
-        cardHover: "0 2px 4px rgba(27,43,66,0.06), 0 12px 28px rgba(27,43,66,0.10)",
-        // Popovers and dropdowns sit above the page and need to read as detached.
-        float: "0 12px 32px rgba(27,43,66,0.14), 0 2px 8px rgba(27,43,66,0.08)",
+        panel: "0 1px 2px rgba(55,64,43,0.04), 0 8px 24px rgba(55,64,43,0.06)",
+        card: "0 1px 2px rgba(55,64,43,0.04), 0 4px 12px rgba(55,64,43,0.05)",
+        cardHover: "0 2px 4px rgba(55,64,43,0.06), 0 12px 28px rgba(55,64,43,0.10)",
+        float: "0 12px 32px rgba(55,64,43,0.14), 0 2px 8px rgba(55,64,43,0.08)",
       },
       borderRadius: {
-        // 14px sits in the spec's 12–16px band. `xl2` is the app's card radius in ~13 places, so
-        // retuning it here modernises every card at once rather than touching each call site.
-        xl2: "14px",
+        xl2: "16px",
         pill: "999px",
       },
       keyframes: {
@@ -90,8 +82,8 @@ export default {
           "100%": { transform: "translateX(100%)" },
         },
         pulseGlow: {
-          "0%, 100%": { boxShadow: "0 0 0 0 rgba(52,120,216,0.35)" },
-          "50%": { boxShadow: "0 0 0 6px rgba(52,120,216,0)" },
+          "0%, 100%": { boxShadow: "0 0 0 0 rgba(65,93,75,0.35)" },
+          "50%": { boxShadow: "0 0 0 6px rgba(65,93,75,0)" },
         },
       },
       animation: {

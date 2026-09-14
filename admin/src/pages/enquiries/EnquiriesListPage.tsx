@@ -27,9 +27,8 @@ export default function EnquiriesListPage() {
   // box afterwards are ordinary component state — the URL is only the entry point.
   const initialSearch = searchParams.get("q") ?? "";
 
-  // A search arriving from the topbar should show matches across every stage, so it opens on the
-  // table rather than the pipeline board, where a hit in a collapsed column is easy to miss.
-  const [view, setView] = useState<"pipeline" | "table">(initialSearch ? "table" : "pipeline");
+  // List is the default. Pipeline/grid is opt-in from the view toggle when someone wants the board.
+  const [view, setView] = useState<"pipeline" | "table">("table");
   const [addOpen, setAddOpen] = useState(false);
 
   useEffect(() => {
@@ -93,7 +92,11 @@ export default function EnquiriesListPage() {
   return (
     <div className="flex flex-col gap-5">
       <PageHeader
-        description="Every lead in the pipeline. Drag a card between columns to change its stage."
+        description={
+          view === "pipeline"
+            ? "Every lead in the pipeline. Drag a card between columns to change its stage."
+            : "Every lead in one list. Switch to grid when you want the pipeline board."
+        }
         meta={
           <MetaChip>
             {filtered.length}

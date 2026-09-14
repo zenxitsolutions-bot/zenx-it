@@ -8,7 +8,7 @@ import { STATUS_LABELS, type EnquiryStatus } from "../../types/domain";
    on every table row. Reusing SERIES here would have coloured "Lost" with whatever hue happened to
    sit at that index. */
 const STAGE_COLOR: Record<EnquiryStatus, string> = {
-  NEW: "#3478D8", // blue
+  NEW: "#415D4B", // sage
   CONTACTED: "#7C5CE1", // purple
   FOLLOW_UP: "#F59E42", // orange
   CONVERTED: "#22A06B", // green
