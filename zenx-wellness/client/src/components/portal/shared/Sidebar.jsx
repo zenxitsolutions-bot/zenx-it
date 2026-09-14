@@ -1,5 +1,6 @@
+import { SidebarAccountFooter } from './SidebarAccountFooter';
 import { Link, NavLink } from 'react-router-dom';
-import { ExternalLink, MessageCircle } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnreadMessageCount } from '@/hooks/useMessages';
 import { useSupportUnreadCount } from '@/hooks/useSupportMessages';
@@ -24,13 +25,6 @@ export function Sidebar({ onNavigate }) {
   const { data: supportUnread } = useSupportUnreadCount(canSupportMessage);
   const unreadCount = unread?.count ?? 0;
   const supportUnreadCount = supportUnread?.count ?? 0;
-  const widgetTo =
-    user.role === 'dietitian'
-      ? `/${user.companySlug}/app/support`
-      : user.role === 'admin'
-        ? `/${user.companySlug}/app/messages`
-        : `/${user.companySlug}/app/messages`;
-  const widgetUnread = user.role === 'client' ? unreadCount : supportUnreadCount;
   // Mirrored from ZenX on SSO handoff (server: models/Company.js). Undefined while loading and
   // null for an account whose company was never mirrored — both fall back to ZenX Dietitian's own
   // branding rather than flashing an empty header.
@@ -103,31 +97,7 @@ export function Sidebar({ onNavigate }) {
         ))}
       </nav>
 
-      <div className="mt-auto grid gap-4 pt-4">
-        <Link to="/" className="text-xs text-sidebar-text hover:text-forest">
-          ← Back to website
-        </Link>
-
-        <div className="rounded-lg border border-sidebar-line bg-sidebar-hover p-4 text-sm">
-          <span className="mb-2.5 grid size-9 place-items-center rounded-full bg-sidebar-bg text-brand-2">
-            <MessageCircle className="size-4.5" aria-hidden="true" />
-          </span>
-          <p className="font-semibold text-forest">Need a hand?</p>
-          <p className="mt-1 text-xs text-sidebar-text">Your care team is here.</p>
-          <Link
-            to={widgetTo}
-            onClick={onNavigate}
-            className="relative mt-3 block w-full rounded-full bg-coral py-2 text-center text-xs font-semibold text-white shadow-sm transition-colors hover:bg-brand-strong"
-          >
-            Message us
-            {widgetUnread > 0 && (
-              <span className="absolute top-1/2 right-3 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-white/25 text-[10px] font-bold">
-                {widgetUnread > 9 ? '9+' : widgetUnread}
-              </span>
-            )}
-          </Link>
-        </div>
-      </div>
+      <SidebarAccountFooter />
     </div>
   );
 }
