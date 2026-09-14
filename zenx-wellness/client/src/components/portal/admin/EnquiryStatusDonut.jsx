@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { CHART } from '@/lib/chartColors';
 
 const STAGE_COLOR = {
-  new: '#3478D8',
+  new: '#415D4B',
   contacted: '#7C5CE1',
   'follow-up': '#F59E42',
   converted: '#22A06B',
