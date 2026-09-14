@@ -1,4 +1,3 @@
-import { ProfilePhotoSettings } from './ProfilePhotoSettings';
 import { useEffect, useState } from 'react';
 import { isValidPhoneNumber } from 'libphonenumber-js';
 import { toast } from 'sonner';
@@ -14,6 +13,7 @@ import { toE164OrEmpty } from '@/lib/phone';
 import { DIET_PREFERENCES } from '@/lib/dietPreferences';
 import { PreferencesFields } from './PreferencesFields';
 import { isKnownTimezone } from '@/components/shared/TimezoneSelect';
+import { ProfilePhotoSettings } from './ProfilePhotoSettings';
 
 function toFormValues(user) {
   return {
@@ -83,8 +83,9 @@ export function PreferencesDialog({ open, onOpenChange }) {
           <DialogDescription>
             {isClient
               ? 'Update your photo, contact details, diet notes, and display preferences.'
-              : isDietitian ? 'Update your photo, phone number, and display preferences.'
-              : 'Timezone and display preferences for how dates and times show up for you.'}
+              : isDietitian
+                ? 'Update your photo, phone number, and display preferences.'
+                : 'Timezone and display preferences for how dates and times show up for you.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -193,4 +194,3 @@ export function PreferencesDialog({ open, onOpenChange }) {
     </Dialog>
   );
 }
-

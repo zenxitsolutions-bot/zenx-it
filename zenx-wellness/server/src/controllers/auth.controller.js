@@ -77,7 +77,7 @@ export const login = asyncHandler(async (req, res) => {
   const resolvedSlug = companySlug || ownCompany?.slug || null;
   if (!resolvedSlug) {
     throw ApiError.forbidden('Sign in from your company\'s login page.', {
-      companyLoginPath: null,
+      companyLoginPath: ownCompany?.slug ? `/${ownCompany.slug}/login` : null,
     });
   }
 

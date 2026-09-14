@@ -99,6 +99,7 @@ export function EnquiryPipelineScreen() {
         <Button variant={view === 'list' ? 'default' : 'outline'} aria-pressed={view === 'list'} onClick={() => setView('list')}><List className="size-4" aria-hidden="true" />List</Button>
       </div>
 
+
       {isLoading ? (
         <Skeleton className="h-96 w-full" />
       ) : isError ? (

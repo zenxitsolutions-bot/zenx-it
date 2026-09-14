@@ -1,6 +1,6 @@
+import { Router } from 'express';
 import { getMyPhoto, putMyPhoto, removeMyPhoto } from '../controllers/userPhoto.controller.js';
 import { uploadProfilePhoto } from '../middleware/uploadProfilePhoto.js';
-import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -39,4 +39,3 @@ userRouter.delete('/me/device-token', validate(registerDeviceTokenSchema), unreg
 userRouter.patch('/:id', authorize('admin', 'dietitian'), validate(updateUserSchema), updateUser);
 userRouter.patch('/:id/password', authorize('admin'), validate(resetUserPasswordSchema), resetUserPassword);
 userRouter.post('/', authorize('admin'), validate(createUserSchema), createUser);
-

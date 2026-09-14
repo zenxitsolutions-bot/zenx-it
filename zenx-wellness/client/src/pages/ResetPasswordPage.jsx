@@ -38,7 +38,7 @@ export function ResetPasswordPage() {
   // company's, not a generic product-branded one. Resolves to null on the bare /reset-password.
   const { data: company } = usePublicCompany(companySlug);
   // Where to send someone once they're done. Prefer the company login page when we have a slug;
-  // bare /login also works after a password check, but keeps the user on the branded URL.
+  // bare /login also signs the user into their own company after a password check.
   const loginPath = companySlug ? `/${companySlug}/login` : '/login';
   const forgotPath = companySlug ? `/${companySlug}/forgot-password` : '/forgot-password';
 

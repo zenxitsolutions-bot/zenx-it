@@ -22,7 +22,8 @@ export function ForgotPasswordPage() {
   const [serverError, setServerError] = useState(null);
   const { companySlug } = useParams();
   // Branding and the back-link both follow the slug, so a user who starts at /{slug}/login stays
-  // inside their company for the whole reset round-trip instead of dropping to generic pages.
+  // inside their company for the whole reset round-trip instead of dropping to generic
+  // pages and, at the end, to a bare /login.
   const { data: company } = usePublicCompany(companySlug);
   const loginPath = companySlug ? `/${companySlug}/login` : '/login';
 

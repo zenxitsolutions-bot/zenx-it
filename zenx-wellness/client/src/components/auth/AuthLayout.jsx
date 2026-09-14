@@ -69,10 +69,10 @@ export function AuthLayout({ eyebrow, title, subtitle, company, children }) {
           <p className="font-display text-3xl leading-snug text-white">
             “A routine I actually love — more energy for my kids, and for myself.”
           </p>
-          <footer className="mt-4 text-sm text-white/80">Priya S., down 8 kg, up in confidence</footer>
+          <footer className="mt-4 text-sm text-sidebar-text">Priya S., down 8 kg, up in confidence</footer>
         </blockquote>
 
-        <div className="relative flex items-center gap-6 text-sm text-white/80">
+        <div className="relative flex items-center gap-6 text-sm text-sidebar-text">
           <span className="flex items-center gap-1.5">
             <Leaf className="size-4 text-brand-2" aria-hidden="true" /> 12,000+ lives supported
           </span>
@@ -84,4 +84,3 @@ export function AuthLayout({ eyebrow, title, subtitle, company, children }) {
     </div>
   );
 }
-
