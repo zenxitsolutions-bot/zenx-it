@@ -1,19 +1,18 @@
+import { handleAppLink } from "../lib/navigate";
+
 export default function Cta() {
   return (
     <section className="final-cta">
-      <div className="final-cta-sky" aria-hidden="true"></div>
-      <div className="final-cta-inner">
-        <h2>Ready to Build Something That Grows?</h2>
-        <p>Tell us what you’re building. We’ll help you figure out the next step.</p>
-        <div className="hero-actions">
-          <a className="btn btn-primary" href="#contact">
-            Start Your Project <span>→</span>
-          </a>
-          <a className="btn btn-ghost" href="mailto:hello@zenxitsolutions.com">
-            Contact Us
-          </a>
-        </div>
+      <div className="final-cta-copy">
+        <p className="eyebrow">Let’s build together</p>
+        <h2>
+          Your next chapter starts here.
+        </h2>
+        <p>Tell us about your idea. We’d love to hear from you.</p>
       </div>
+      <a className="btn btn-white" href="/enquiry" onClick={(e) => handleAppLink(e, "/enquiry")}>
+        Let’s talk <span>→</span>
+      </a>
     </section>
   );
 }

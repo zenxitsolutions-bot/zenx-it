@@ -1,47 +1,44 @@
 import { useState } from "react";
+import { handleAppLink } from "../lib/navigate";
 import { ADMIN_URL } from "../lib/adminUrl";
 
 const LINKS = [
-  { href: "#top", label: "Home" },
   { href: "#services", label: "Services" },
-  { href: "#products", label: "Solutions" },
-  { href: "#process", label: "Work" },
-  { href: "#about", label: "About" },
-  { href: "#contact", label: "Contact" },
+  { href: "#products", label: "Products" },
+  { href: "#company", label: "Company" },
 ];
 
-export default function Navbar() {
+export default function Navbar({ enquiry = false }) {
   const [open, setOpen] = useState(false);
+
+  const go = (event, href) => {
+    handleAppLink(event, href);
+    setOpen(false);
+  };
 
   return (
     <header className="nav">
-      <a className="brand" href="#top" aria-label="ZenX home">
-        <img src="/logo-icon.png" alt="" className="brand-mark" />
-        <span>
-          ZenX <span className="brand-rest">IT SOLUTIONS</span>
-        </span>
-      </a>
-      <nav className={`nav-links${open ? " mobile-open" : ""}`}>
+      <div className="nav-brand">
+        <a className="brand" href="/" aria-label="ZenX home" onClick={(e) => go(e, "/")}>
+          ZenX
+        </a>
+      </div>
+      <nav className={`nav-links${open ? " is-open" : ""}`}>
         {LINKS.map((link) => (
-          <a key={link.href} href={link.href} onClick={() => setOpen(false)}>
+          <a key={link.href} href={enquiry ? `/${link.href}` : link.href} onClick={(e) => go(e, link.href)}>
             {link.label}
           </a>
         ))}
-        <a
-          href={ADMIN_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="nav-admin-link"
-          onClick={() => setOpen(false)}
-        >
+        <a className="nav-admin" href={ADMIN_URL} onClick={() => setOpen(false)}>
           Admin Login
         </a>
       </nav>
-      <a className="nav-cta" href="#contact" onClick={() => setOpen(false)}>
-        Get Started
+      <a className="nav-cta" href="/enquiry" onClick={(e) => go(e, "/enquiry")}>
+        Let’s talk
       </a>
       <button
         className="menu-btn"
+        type="button"
         aria-label={open ? "Close menu" : "Open menu"}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}

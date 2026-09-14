@@ -1,29 +1,39 @@
 const STEPS = [
-  { no: "01", title: "Discover", icon: "⌕", desc: "We start with your business, customers, and the result you want." },
-  { no: "02", title: "Design", icon: "✎", desc: "We turn the idea into a clear, memorable digital experience." },
-  { no: "03", title: "Build", icon: "</>", desc: "We develop a fast, responsive product that works across devices." },
-  { no: "04", title: "Launch", icon: "▲", desc: "We ship cleanly — live, tested, and ready for real customers." },
-  { no: "05", title: "Grow", icon: "▦", desc: "We keep improving visibility, conversions, and the tools behind the business." },
+  {
+    no: "01",
+    title: "Discover",
+    desc: "We learn about your goals, challenges, and opportunities.",
+  },
+  {
+    no: "02",
+    title: "Design",
+    desc: "We craft solutions that are human-centered, practical, and beautiful.",
+  },
+  {
+    no: "03",
+    title: "Develop",
+    desc: "We build, refine, and support — turning ideas into real-world impact.",
+  },
 ];
 
 export default function Process() {
   return (
-    <section id="process" className="process section">
-      <div className="section-center">
-        <p className="eyebrow">HOW WE WORK</p>
-        <h2>
-          How We Grow <em>Your Business</em>
-        </h2>
-      </div>
-      <div className="process-track">
-        {STEPS.map((step, i) => (
-          <div className="process-step" key={step.no}>
-            {i < STEPS.length - 1 && <span className="process-line" aria-hidden="true"></span>}
-            <span className="process-icon">{step.icon}</span>
-            <small>{step.no}</small>
+    <section id="process" className="process">
+      <p className="eyebrow">How we work</p>
+      <h2>
+        Simple process.
+        <br />
+        Exceptional outcomes.
+      </h2>
+      <div className="process-grid">
+        {STEPS.map((step) => (
+          <article key={step.no}>
+            <span>
+              {step.no} <i />
+            </span>
             <h3>{step.title}</h3>
             <p>{step.desc}</p>
-          </div>
+          </article>
         ))}
       </div>
     </section>

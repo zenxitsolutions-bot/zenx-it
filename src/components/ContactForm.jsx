@@ -47,8 +47,11 @@ function validate(form) {
   return errors;
 }
 
-export default function ContactForm() {
-  const [form, setForm] = useState(EMPTY_FORM);
+export default function ContactForm({ defaultService = "" }) {
+  const [form, setForm] = useState({
+    ...EMPTY_FORM,
+    lookingFor: LOOKING_FOR_OPTIONS.includes(defaultService) ? defaultService : "",
+  });
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);

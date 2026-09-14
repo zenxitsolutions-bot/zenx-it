@@ -23,7 +23,7 @@ export const env = {
 
   // Comma-separated: this backend serves both the admin portal origin and the public marketing
   // site's origin (its contact form hits the one public enquiry route).
-  clientOrigins: (process.env.CLIENT_ORIGINS || 'http://localhost:5174,http://localhost:5173')
+  clientOrigins: (process.env.CLIENT_ORIGINS || 'http://localhost:5174,http://localhost:5175,http://localhost:5173')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
