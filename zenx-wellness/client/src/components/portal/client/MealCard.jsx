@@ -5,7 +5,7 @@ import { RecipeDetails } from './RecipeDetails';
 import { RecipeMedia } from '@/components/portal/dietitian/RecipeMedia';
 import { nutritionSummary } from '@/lib/recipeNutrition';
 
-export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
+export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending, canRequestSwap = true }) {
   const [open, setOpen] = useState(false);
   const recipe = meal.recipe;
   const title = recipe?.title ?? meal.customTitle ?? `${meal.mealType} — recipe TBD`;
@@ -66,7 +66,7 @@ export function MealCard({ meal, onToggleEaten, onToggleSwap, isPending }) {
         <button
           type="button"
           onClick={onToggleSwap}
-          disabled={isPending}
+          disabled={isPending || !canRequestSwap}
           aria-pressed={meal.swapRequested}
           title={meal.swapRequested ? 'Swap requested — your dietitian has been notified' : 'Ask for a swap'}
           className={cn(

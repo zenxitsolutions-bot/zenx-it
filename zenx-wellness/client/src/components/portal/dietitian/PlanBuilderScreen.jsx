@@ -68,6 +68,7 @@ export function PlanBuilderScreen() {
     return searchParams.get('weekEnd') || (weekFromUrl ? endOfWeek(weekFromUrl) : '');
   });
   const [title, setTitle] = useState('');
+  const [titleFocused, setTitleFocused] = useState(false);
   const [meals, setMeals] = useState([]);
   const [planId, setPlanId] = useState(null);
   const [dietitianId, setDietitianId] = useState('');
@@ -316,11 +317,11 @@ export function PlanBuilderScreen() {
   // Autosave: debounce 800ms after the last edit. Skipped (silently, not an error toast) while
   // admin hasn't picked a dietitian yet for a brand-new plan — save() would 400 without one.
   useEffect(() => {
-    if (!dirtyRef.current || needsDietitianChoice || isPublished) return;
+    if (!dirtyRef.current || needsDietitianChoice || isPublished || titleFocused) return;
     saveTimerRef.current = setTimeout(() => save(), 800);
     return () => clearTimeout(saveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, meals, weekEnd, needsDietitianChoice]);
+  }, [title, meals, weekEnd, needsDietitianChoice, titleFocused]);
 
   function updateMeal(localId, patch) {
     markDirty(
@@ -678,6 +679,8 @@ export function PlanBuilderScreen() {
                   Plan title
                   <Input
                     value={title}
+                    onFocus={() => setTitleFocused(true)}
+                    onBlur={() => setTitleFocused(false)}
                     onChange={(e) => {
                       if (isPublished) return;
                       dirtyRef.current = true;

@@ -5,7 +5,7 @@ export default function Footer() {
     <footer className="footer" id="company">
       <div className="footer-top">
         <a className="footer-brand" href="/" onClick={(e) => handleAppLink(e, "/")}>
-          ZenX <span>IT Solutions</span>
+          <img className="footer-logo" src="/zenx-it-solutions-logo.png" alt="ZenX IT Solutions" />
         </a>
         <nav>
           <a href="#services" onClick={(e) => handleAppLink(e, "#services")}>

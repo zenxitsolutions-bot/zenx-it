@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useCurrentPlan, useUpdateMealStatus } from '@/hooks/usePlans';
 import { getDayKeyForDate, groupMealsByDay, computeMealCompletion } from '@/lib/clientPortal';
-import { formatCalendarDate, planRangeDates } from '@/lib/calendarDate';
+import { formatCalendarDate, planRangeDates, toLocalCalendarDate } from '@/lib/calendarDate';
 import { DayTabs } from './DayTabs';
 import { MealCard } from './MealCard';
 import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
@@ -31,6 +31,7 @@ export function MealsScreen() {
 
   const mealsByDay = groupMealsByDay(plan);
   const dayMeals = mealsByDay[selectedDay] ?? [];
+  const canRequestSwap = selectedDay >= toLocalCalendarDate();
   const { completed, total } = computeMealCompletion(plan);
 
   function toggle(meal, field) {
@@ -100,6 +101,7 @@ export function MealsScreen() {
                     key={`${meal.day}-${meal.time}-${meal.mealType}`}
                     meal={meal}
                     isPending={updateMeal.isPending}
+                    canRequestSwap={canRequestSwap}
                     onToggleEaten={() => toggle(meal, 'completed')}
                     onToggleSwap={() => toggle(meal, 'swapRequested')}
                   />

@@ -9,6 +9,8 @@ import { useCalls } from '@/hooks/useCalls';
 import { groupCallsByTab } from '@/lib/clientPortal';
 import { CallCard } from './CallCard';
 import { CallFormDialog } from './CallFormDialog';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 const EMPTY = {
   all: { title: 'No calls yet', description: "Book a check-in whenever you're ready." },
@@ -25,6 +27,7 @@ export function CallsScreen() {
 
   const groups = groupCallsByTab(data);
   const calls = groups[tab] ?? [];
+  const pagination = usePagination(calls, { pageSize: 10, resetKey: tab });
   const canBook = Boolean(user.assignedDietitian);
 
   return (
@@ -75,7 +78,7 @@ export function CallsScreen() {
             {calls.length === 0 ? (
               <EmptyState icon={PhoneOff} title={EMPTY[tab].title} description={EMPTY[tab].description} />
             ) : (
-              calls.map((call) => (
+              pagination.pageItems.map((call) => (
                 <CallCard
                   key={call._id}
                   call={call}
@@ -90,6 +93,7 @@ export function CallsScreen() {
               ))
             )}
           </div>
+          <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="calls" />
         </>
       )}
 

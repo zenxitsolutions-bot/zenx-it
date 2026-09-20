@@ -7,6 +7,8 @@ import { useReports } from '@/hooks/useReports';
 import { useClients } from '@/hooks/useClients';
 import { cn } from '@/lib/utils';
 import { DietitianReportCard } from './DietitianReportCard';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 const FILTERS = ['All', 'Pending', 'Reviewed'];
 
@@ -27,6 +29,7 @@ export function DietitianReportsScreen() {
   const { data, isLoading, isError, refetch } = useReports(clientId || null);
 
   const visible = (data ?? []).filter((r) => filter === 'All' || r.status === filter.toLowerCase());
+  const pagination = usePagination(visible, { pageSize: 12, resetKey: `${clientId}:${filter}` });
 
   return (
     <div className="mx-auto max-w-3xl p-9">
@@ -98,11 +101,12 @@ export function DietitianReportsScreen() {
             <EmptyState icon={FileText} title="Nothing here" description="Reports your clients upload will show up here." />
           ) : (
             <div className="grid gap-4">
-              {visible.map((report) => (
+              {pagination.pageItems.map((report) => (
                 <DietitianReportCard key={report._id} report={report} />
               ))}
             </div>
           )}
+          <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="reports" />
         </>
       )}
     </div>

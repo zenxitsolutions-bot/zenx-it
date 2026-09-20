@@ -64,7 +64,10 @@ export function EnquiryPage() {
       <div className="w-full max-w-[540px] rounded-card border border-line bg-white p-6 shadow-lift min-[520px]:p-9">
         {/* No onDismiss: there is nothing to dismiss on a page whose only purpose is this form,
             so EnquiryFlow hides its "Maybe later" button. */}
-        <EnquiryFlow companySlug={companySlug} />
+        <EnquiryFlow
+          companySlug={companySlug}
+          onSuccess={() => window.location.assign(`/${companySlug}/thank-you`)}
+        />
       </div>
     </main>
   );

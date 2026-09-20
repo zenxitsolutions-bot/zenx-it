@@ -4,9 +4,12 @@ import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useReports } from '@/hooks/useReports';
 import { ReportUploadCard } from './ReportUploadCard';
 import { ReportCard } from './ReportCard';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 export function ReportsScreen() {
   const { data, isLoading, isError, refetch } = useReports();
+  const pagination = usePagination(data ?? [], { pageSize: 12 });
 
   return (
     <div className="mx-auto max-w-3xl px-5 py-7 min-[1050px]:px-9 min-[1050px]:py-9">
@@ -38,11 +41,12 @@ export function ReportsScreen() {
           <EmptyState icon={FileText} title="No reports yet" description="Anything you upload will show up here." />
         ) : (
           <div className="grid gap-4">
-            {data.map((report) => (
+            {pagination.pageItems.map((report) => (
               <ReportCard key={report._id} report={report} />
             ))}
           </div>
         )}
+        <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="reports" />
       </div>
     </div>
   );

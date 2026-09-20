@@ -1,10 +1,13 @@
 import { formatDate } from '@/lib/format';
 import { PROGRESS_MEASUREMENTS } from '@/lib/clientPortal';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 // Append-only: no edit/delete affordance here by design — a record is a fact about a date that
 // already passed, so the only way to "fix" one is to log a new entry, not rewrite history.
 export function ProgressHistoryTable({ entries }) {
   const rows = [...entries].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const pagination = usePagination(rows, { pageSize: 12 });
 
   return (
     <div className="overflow-x-auto">
@@ -20,7 +23,7 @@ export function ProgressHistoryTable({ entries }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((entry) => (
+          {pagination.pageItems.map((entry) => (
             <tr key={entry._id} className="border-b border-line/60 last:border-0">
               <td className="py-2 pr-4 font-medium text-forest">{formatDate(entry.date)}</td>
               {PROGRESS_MEASUREMENTS.map((m) => (
@@ -32,6 +35,7 @@ export function ProgressHistoryTable({ entries }) {
           ))}
         </tbody>
       </table>
+      <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="progress entries" />
     </div>
   );
 }

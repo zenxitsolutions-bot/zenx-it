@@ -14,6 +14,8 @@ import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_BADGE_VARIANT } from '@/lib/accoun
 import { UserFormDialog } from './UserFormDialog';
 import { UserEditDialog } from './UserEditDialog';
 import { ResetUserPasswordDialog } from './ResetUserPasswordDialog';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 const ROLE_TABS = [
   { value: 'all', label: 'All' },
@@ -47,6 +49,7 @@ export function UsersScreen() {
   const { data: dietitians } = useDietitians();
 
   const visible = (data ?? []).filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
+  const pagination = usePagination(visible, { pageSize: 20, resetKey: `${roleFilter}:${search}` });
   const dietitianName = (id) => dietitians?.find((d) => d._id === id)?.name;
 
   // Dietitians get their own richer page (spec §2026-round2-fixes item 2 — personal/contact
@@ -115,7 +118,7 @@ export function UsersScreen() {
         />
       ) : (
         <div className="grid gap-2">
-          {visible.map((u) => (
+          {pagination.pageItems.map((u) => (
             <div key={u._id} className="flex items-center gap-3 rounded-card bg-white p-4 shadow-soft">
               <div className="grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
                 {u.name[0]}
@@ -174,6 +177,8 @@ export function UsersScreen() {
           ))}
         </div>
       )}
+
+      <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="users" />
 
       <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />
       {editing && (

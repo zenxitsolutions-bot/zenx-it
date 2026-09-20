@@ -27,7 +27,7 @@ const DEFAULT_VALUES = { goal: '', name: '', email: '', phone: '', preferredSlot
 // `onDismiss` is optional: the modal passes its close handler, the page passes nothing (there is
 // nothing to dismiss on a page whose only purpose is this form), and the dismiss button is hidden
 // when it's absent.
-export function EnquiryFlow({ companySlug, onDismiss, dismissLabel = 'Maybe later' }) {
+export function EnquiryFlow({ companySlug, onDismiss, dismissLabel = 'Maybe later', onSuccess }) {
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
   const createEnquiry = useCreateEnquiry();
@@ -54,7 +54,13 @@ export function EnquiryFlow({ companySlug, onDismiss, dismissLabel = 'Maybe late
     createEnquiry.mutate(
       { ...form.getValues(), ...(companySlug ? { companySlug } : {}) },
       {
-        onSuccess: () => setSubmitted(true),
+        onSuccess: () => {
+          if (onSuccess) {
+            onSuccess();
+            return;
+          }
+          setSubmitted(true);
+        },
         onError: (error) =>
           toast.error(
             error?.response?.status === 404

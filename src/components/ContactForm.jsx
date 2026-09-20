@@ -53,7 +53,6 @@ export default function ContactForm({ defaultService = "" }) {
     lookingFor: LOOKING_FOR_OPTIONS.includes(defaultService) ? defaultService : "",
   });
   const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -94,7 +93,7 @@ export default function ContactForm({ defaultService = "" }) {
         source: form.source,
         notes: form.message,
       });
-      setSubmitted(true);
+      window.location.assign("/thank-you");
     } catch (err) {
       setSubmitError(
         err?.message && !/failed to submit enquiry/i.test(err.message)
@@ -105,29 +104,6 @@ export default function ContactForm({ defaultService = "" }) {
       setSubmitting(false);
     }
   };
-
-  const handleReset = () => {
-    setForm(EMPTY_FORM);
-    setErrors({});
-    setSubmitted(false);
-  };
-
-  if (submitted) {
-    return (
-      <div className="contact-form-card form-success">
-        <span className="pulse"></span>
-        <h3>Enquiry received.</h3>
-        <p>
-          Thanks, {form.name.split(" ")[0]}. We've got your enquiry about{" "}
-          <strong>{form.lookingFor.toLowerCase()}</strong> and will get back
-          to you shortly.
-        </p>
-        <button type="button" className="btn btn-light" onClick={handleReset}>
-          Send another enquiry
-        </button>
-      </div>
-    );
-  }
 
   return (
     <form className="contact-form-card" noValidate onSubmit={handleSubmit}>

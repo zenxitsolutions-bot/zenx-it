@@ -6,6 +6,7 @@ import Services from "./components/Services.jsx";
 import Cta from "./components/Cta.jsx";
 import Footer from "./components/Footer.jsx";
 import EnquiryPage from "./components/EnquiryPage.jsx";
+import ThankYouPage from "./components/ThankYouPage.jsx";
 
 function currentPath() {
   return window.location.pathname.replace(/\/+$/, "") || "/";
@@ -25,6 +26,11 @@ export default function App() {
   }, []);
 
   const enquiry = isEnquiryPath(path);
+  const thankYou = path === "/thank-you";
+
+  useEffect(() => {
+    if (thankYou) document.title = "Thank you - ZenX IT Solutions";
+  }, [thankYou]);
 
   useEffect(() => {
     document.title = enquiry
@@ -37,8 +43,10 @@ export default function App() {
 
   return (
     <div className="site">
-      <Navbar enquiry={enquiry} />
-      {enquiry ? (
+      <Navbar enquiry={enquiry || thankYou} />
+      {thankYou ? (
+        <ThankYouPage />
+      ) : enquiry ? (
         <EnquiryPage key={typeof window === "undefined" ? path : window.location.search} />
       ) : (
         <>

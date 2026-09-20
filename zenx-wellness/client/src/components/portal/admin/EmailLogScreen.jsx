@@ -7,6 +7,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { formatDateTime } from '@/lib/format';
 import { useEmailLogs, useResendEmailLog } from '@/hooks/useEmailLogs';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 const STATUS_FILTERS = [
   { value: undefined, label: 'All' },
@@ -25,6 +27,7 @@ export function EmailLogScreen() {
   const [expandedId, setExpandedId] = useState(null);
   const { data, isLoading, isError, refetch } = useEmailLogs(status ? { status } : undefined);
   const resend = useResendEmailLog();
+  const pagination = usePagination(data ?? [], { pageSize: 25, resetKey: status ?? 'all' });
 
   function handleResend(row) {
     resend.mutate(row.id, {
@@ -76,7 +79,7 @@ export function EmailLogScreen() {
         <EmptyState icon={Mail} title="No emails here" description="Nothing matches this filter yet." />
       ) : (
         <div className="grid gap-2">
-          {data.map((row) => (
+          {pagination.pageItems.map((row) => (
             <div key={row._id} className="rounded-card bg-white p-4 shadow-soft">
               <div className="flex flex-wrap items-center gap-3">
                 <div className="min-w-0 flex-1">
@@ -120,6 +123,8 @@ export function EmailLogScreen() {
           ))}
         </div>
       )}
+
+      <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="emails" />
     </div>
   );
 }

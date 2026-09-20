@@ -20,7 +20,7 @@ export default function Navbar({ enquiry = false }) {
     <header className="nav">
       <div className="nav-brand">
         <a className="brand" href="/" aria-label="ZenX home" onClick={(e) => go(e, "/")}>
-          ZenX
+          <img className="brand-logo" src="/zenx-it-solutions-logo.png" alt="ZenX IT Solutions" />
         </a>
       </div>
       <nav className={`nav-links${open ? " is-open" : ""}`}>

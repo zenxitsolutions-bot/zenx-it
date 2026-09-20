@@ -15,6 +15,7 @@ const HomePage = lazyNamed(() => import('@/pages/HomePage'), 'HomePage');
 const LoginPage = lazyNamed(() => import('@/pages/LoginPage'), 'LoginPage');
 const HandoffPage = lazyNamed(() => import('@/pages/HandoffPage'), 'HandoffPage');
 const EnquiryPage = lazyNamed(() => import('@/pages/EnquiryPage'), 'EnquiryPage');
+const EnquiryThankYouPage = lazyNamed(() => import('@/pages/EnquiryThankYouPage'), 'EnquiryThankYouPage');
 const ForgotPasswordPage = lazyNamed(() => import('@/pages/ForgotPasswordPage'), 'ForgotPasswordPage');
 const ResetPasswordPage = lazyNamed(() => import('@/pages/ResetPasswordPage'), 'ResetPasswordPage');
 const ChangePasswordPage = lazyNamed(() => import('@/pages/ChangePasswordPage'), 'ChangePasswordPage');
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
       // NOT under the '/:companySlug' ProtectedRoute branch below — a prospective client has no
       // account yet, so requiring auth would send every lead to the login page.
       { path: '/:companySlug/enquiry', element: <EnquiryPage /> },
+      { path: '/:companySlug/thank-you', element: <EnquiryThankYouPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/:companySlug/forgot-password', element: <ForgotPasswordPage /> },
       { path: '/reset-password', element: <ResetPasswordPage /> },

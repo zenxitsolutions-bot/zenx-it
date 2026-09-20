@@ -6,6 +6,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
+import { usePagination } from '@/hooks/usePagination';
+import { PaginationControls } from '@/components/portal/shared/PaginationControls';
 
 export function ClientsScreen() {
   const { user } = useAuth();
@@ -15,6 +17,7 @@ export function ClientsScreen() {
   const navigate = useNavigate();
 
   const visible = (data ?? []).filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
+  const pagination = usePagination(visible, { pageSize: 20, resetKey: search });
 
   return (
     <div className="mx-auto max-w-4xl p-9">
@@ -62,7 +65,7 @@ export function ClientsScreen() {
         />
       ) : (
         <div className="grid gap-2">
-          {visible.map((client) => (
+          {pagination.pageItems.map((client) => (
             <button
               key={client._id}
               type="button"
@@ -80,6 +83,8 @@ export function ClientsScreen() {
           ))}
         </div>
       )}
+
+      <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="clients" />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from '../services/planNotifications.js';
 import { markNotificationsReadByType } from '../models/Notification.js';
 import { planPdfFileName, renderPlanPdf } from '../services/planPdf.js';
+import { dateForWeekdaySlot, todayCalendarDate } from '../utils/calendarDate.js';
 
 function scopeToOwner(req, filter = {}) {
   if (req.user.role === 'client') filter.client = req.user.id;
@@ -175,6 +176,10 @@ export const updateMealStatus = asyncHandler(async (req, res) => {
   if (!meal) throw ApiError.notFound('Meal not found');
 
   const turningSwapOn = req.body.swapRequested === true && !meal.swapRequested;
+  const mealDate = dateForWeekdaySlot(existing.week, meal.day);
+  if (turningSwapOn && mealDate && mealDate < todayCalendarDate()) {
+    throw ApiError.badRequest('Swap requests are only available for today and upcoming meals');
+  }
 
   const plan = await updatePlanMealByIndex(req.params.id, mealIndex, {
     completed: req.body.completed,

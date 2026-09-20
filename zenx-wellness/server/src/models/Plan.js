@@ -3,7 +3,7 @@ import { newId } from '../db/id.js';
 import { buildSetClause } from '../db/helpers.js';
 import { mapRecipeRow, tagsByRecipeIds } from './Recipe.js';
 import { toClientShape } from '../utils/serialize.js';
-import { dateForWeekdaySlot } from '../utils/calendarDate.js';
+import { dateForWeekdaySlot, todayCalendarDate } from '../utils/calendarDate.js';
 import { mergeRecipeWithOverride, parseRecipeOverride } from '../lib/planMealRecipe.js';
 
 const PLAN_COLUMNS = {
@@ -313,6 +313,7 @@ export async function clearResolvedSwapRequests({ clientId, plan, resolutions = 
 }
 
 export async function listSwapRequestsForDietitian(dietitianId) {
+  const today = todayCalendarDate();
   const [rows] = await pool.query(
     `SELECT
        p.id AS plan_id,
@@ -332,15 +333,19 @@ export async function listSwapRequestsForDietitian(dietitianId) {
      ORDER BY p.week DESC, pm.idx`,
     [dietitianId]
   );
-  return rows.map((row) => ({
-    planId: row.plan_id,
-    clientId: row.client_id,
-    clientName: row.client_name,
-    week: row.week,
-    day: row.day,
-    time: row.time,
-    mealType: row.meal_type,
-    mealTitle: row.recipe_title || row.custom_title || row.meal_type,
-    mealDate: dateForWeekdaySlot(row.week, row.day),
-  }));
+  return rows
+    .map((row) => ({
+      planId: row.plan_id,
+      clientId: row.client_id,
+      clientName: row.client_name,
+      week: row.week,
+      day: row.day,
+      time: row.time,
+      mealType: row.meal_type,
+      mealTitle: row.recipe_title || row.custom_title || row.meal_type,
+      mealDate: dateForWeekdaySlot(row.week, row.day),
+    }))
+    // Past meals are no longer actionable, so keep their history but remove them from the
+    // dietitian dashboard's active attention queue.
+    .filter((request) => !request.mealDate || request.mealDate >= today);
 }
