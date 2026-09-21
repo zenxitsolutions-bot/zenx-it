@@ -1,15 +1,23 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { axiosClient } from '@/api/axiosClient';
+import { GENERATED_RECIPE_IMAGES } from '@/lib/generatedRecipeImages';
 
 export function RecipeMedia({ recipe, className }) {
-  const remote = /^https?:\/\//i.test(recipe?.imageUrl || '');
+  const originalUrl = recipe?.imageUrl || '';
+  const catalogPhoto = recipe?.visibility === 'shared' && (
+    !originalUrl || originalUrl.startsWith('/images/recipe-catalog/') ||
+    /^https:\/\/(images\.unsplash\.com|commons\.wikimedia\.org)\//i.test(originalUrl)
+  );
+  const imageUrl = catalogPhoto ? GENERATED_RECIPE_IMAGES[recipe.title] || '' : originalUrl;
+  const remote = /^https?:\/\//i.test(imageUrl);
+  const localCatalogImage = imageUrl.startsWith('/images/recipe-catalog/');
   const [blobUrl, setBlobUrl] = useState(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setFailed(false);
-    if (!recipe?._id || !recipe.imageUrl || remote) {
+    if (!recipe?._id || !imageUrl || remote || localCatalogImage) {
       setBlobUrl(null);
       return undefined;
     }
@@ -29,9 +37,9 @@ export function RecipeMedia({ recipe, className }) {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [recipe?._id, recipe?.imageUrl, remote]);
+  }, [recipe?._id, imageUrl, remote, localCatalogImage]);
 
-  const src = remote ? recipe.imageUrl : blobUrl;
+  const src = remote || localCatalogImage ? imageUrl : blobUrl;
   if (src && !failed) {
     return (
       <img

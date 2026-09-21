@@ -1,6 +1,9 @@
 import { axiosClient } from './axiosClient';
 
-export const getMyPhotoRequest = () => axiosClient.get('/users/me/photo', { responseType: 'blob' })
+export const getMyPhotoRequest = ({ signal } = {}) => axiosClient.get('/users/me/photo', { responseType: 'blob', signal })
+  .then((response) => response.status === 204 ? null : response.data);
+
+export const getUserPhotoRequest = (userId, { signal } = {}) => axiosClient.get(`/users/${encodeURIComponent(userId)}/photo`, { responseType: 'blob', signal })
   .then((response) => response.status === 204 ? null : response.data);
 
 export const uploadMyPhotoRequest = (file) => {

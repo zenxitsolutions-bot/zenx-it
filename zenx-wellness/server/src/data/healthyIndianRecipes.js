@@ -1,5 +1,8 @@
 import { CATALOG_DETAILS, catalogImageFor } from './healthyIndianRecipeContent.js';
 import { buildExpandedHealthyIndianRecipes } from './healthyIndianRecipeExpand.js';
+import { detailDrinkOrSnack } from './recipeDetails/drinksAndSnacks.js';
+import { detailMeal } from './recipeDetails/meals.js';
+import { detailBreakfast } from './recipeDetails/breakfast.js';
 
 function imageFor(mealType, title) {
   return catalogImageFor(title, mealType);
@@ -2149,4 +2152,4 @@ Fold through a 1 tsp oil vegetable masala and rest covered 5 minutes.`,
 export const HEALTHY_INDIAN_RECIPES = [
   ...CORE_HEALTHY_INDIAN_RECIPES,
   ...buildExpandedHealthyIndianRecipes(CORE_HEALTHY_INDIAN_RECIPES.map((item) => item.title)),
-];
+].map((item) => detailBreakfast(detailDrinkOrSnack(detailMeal(item))));

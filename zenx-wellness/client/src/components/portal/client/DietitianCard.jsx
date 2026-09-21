@@ -1,6 +1,6 @@
-import { UserRound } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDietitians } from '@/hooks/useClients';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 export function DietitianCard() {
   const { user } = useAuth();
@@ -14,9 +14,7 @@ export function DietitianCard() {
 
       {user.assignedDietitian ? (
         <div className="mt-4 flex items-center gap-3">
-          <div className="grid size-12 shrink-0 place-items-center rounded-full bg-sage text-lg font-semibold text-brand-strong">
-            {assigned ? assigned.name[0] : <UserRound className="size-5" aria-hidden="true" />}
-          </div>
+          <UserAvatar userId={assigned?._id ?? user.assignedDietitian} name={assigned?.name ?? 'Your dietitian'} className="size-12 text-lg" />
           <div className="min-w-0 flex-1">
             <strong className="block truncate font-semibold text-forest">{assigned?.name ?? 'Loading…'}</strong>
             {assigned?.email && <span className="block truncate text-xs text-muted-foreground">{assigned.email}</span>}

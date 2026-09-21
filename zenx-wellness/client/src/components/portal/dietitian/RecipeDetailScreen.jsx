@@ -7,9 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useDuplicateRecipe, useRecipe, useToggleRecipeFavorite } from '@/hooks/useRecipes';
-import { recipeIngredientList, recipeInstructionSteps } from '@/lib/clientPortal';
 import { recipeCategoryLabel, isNoCookTime } from '@/lib/recipeMeta';
-import { scaledNutrition, servingFactor, scaleIngredientLine } from '@/lib/recipeNutrition';
+import { scaledNutrition } from '@/lib/recipeNutrition';
+import { RecipeCookingGuide } from '@/components/portal/shared/RecipeCookingGuide';
 import { RecipeMedia } from './RecipeMedia';
 import { RecipeFormDialog } from './RecipeFormDialog';
 
@@ -27,15 +27,12 @@ export function RecipeDetailScreen() {
 
   useEffect(() => {
     if (recipe?.servings) setServings(Number(recipe.servings) || 1);
-  }, [recipe?._id, recipe?.servings]);
+  }, [recipe?._id, recipe?.id, recipe?.servings]);
 
-  const factor = recipe ? servingFactor(recipe, servings) : 1;
   const macros = recipe ? scaledNutrition(recipe, servings) : {};
-  const ingredients = recipeIngredientList(recipe?.ingredients).map((line) => scaleIngredientLine(line, factor));
-  const steps = recipeInstructionSteps(recipe?.instructions);
 
   return (
-    <div className="mx-auto max-w-3xl p-9">
+    <div className="mx-auto max-w-4xl p-4 sm:p-7 lg:p-9">
       <Link to={`/${companySlug}/app/recipes`} className="inline-flex items-center gap-1 text-sm font-semibold text-forest hover:underline">
         <ArrowLeft className="size-4" /> Recipe library
       </Link>
@@ -55,7 +52,7 @@ export function RecipeDetailScreen() {
       ) : (
         <article className="mt-5 overflow-hidden rounded-card bg-white shadow-soft">
           <RecipeMedia recipe={recipe} className="h-64 w-full" />
-          <div className="p-6">
+          <div className="p-4 sm:p-7">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -110,13 +107,12 @@ export function RecipeDetailScreen() {
               </div>
             )}
 
-            <dl className="mt-5 grid grid-cols-2 gap-3 text-sm min-[640px]:grid-cols-5">
+            <dl className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
                 ['Prep time', recipe.prepTime],
-                ['Cook time', isNoCookTime(recipe.cookTime) ? 'No cooking' : recipe.cookTime],
+                ['Cook time', recipe.cookTime ? (isNoCookTime(recipe.cookTime) ? 'No cooking' : recipe.cookTime) : 'Not specified'],
                 ['Total time', recipe.totalTime],
-                ['Servings', `${recipe.servings || 1}`],
-                ['Portion size', recipe.portionSize || '1 serving'],
+                ['Recipe serves', `${recipe.servings || 1}`],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-cream px-3 py-2">
                   <dt className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</dt>
@@ -125,40 +121,41 @@ export function RecipeDetailScreen() {
               ))}
             </dl>
 
-            <label className="mt-6 flex items-center gap-3 text-sm">
+            <label className="mt-6 flex flex-wrap items-center gap-3 text-sm">
               <span className="font-semibold text-forest">Adjust servings</span>
               <input
                 type="number"
                 min="0.5"
                 step="0.5"
                 value={servings}
-                onChange={(e) => setServings(Number(e.target.value) || 1)}
+                onChange={(e) => setServings(Math.max(0.5, Number(e.target.value) || 1))}
                 className="w-20 rounded-md border border-line px-2 py-1"
               />
-              <span className="text-muted-foreground">Ingredient amounts and nutrition scale from {recipe.servings || 1} serving</span>
+              <span className="text-muted-foreground">Ingredient amounts and estimated nutrition scale from {recipe.servings || 1} serving{Number(recipe.servings || 1) === 1 ? '' : 's'}.</span>
             </label>
 
-            <dl className="mt-4 grid grid-cols-3 gap-3 text-sm min-[640px]:grid-cols-6">
+            <h2 className="mt-6 text-sm font-semibold text-forest">Estimated nutrition for {servings} serving{servings === 1 ? '' : 's'}</h2>
+            <dl className="mt-3 grid grid-cols-3 gap-3 text-sm sm:grid-cols-6">
               {[
-                ['Calories', macros.kcal, 'kcal'],
-                ['Protein', macros.protein, 'g'],
-                ['Carbs', macros.carbs, 'g'],
-                ['Fat', macros.fat, 'g'],
-                ['Fibre', macros.fiber, 'g'],
-                ['Sugar', macros.sugar, 'g'],
-              ].map(([label, value, unit]) => (
+                ['Calories', macros.kcal, 'kcal', 'kcal'],
+                ['Protein', macros.protein, 'g', 'protein'],
+                ['Carbs', macros.carbs, 'g', 'carbs'],
+                ['Fat', macros.fat, 'g', 'fat'],
+                ['Fibre', macros.fiber, 'g', 'fiber'],
+                ['Sugar', macros.sugar, 'g', 'sugar'],
+              ].map(([label, value, unit, field]) => (
                 <div key={label} className="rounded-xl bg-cream px-3 py-2">
                   <dt className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</dt>
-                  <dd className="font-semibold text-forest">{value ? `${value}${unit}` : '—'}</dd>
+                  <dd className="font-semibold text-forest">{recipe[field] != null && recipe[field] !== '' ? `${value} ${unit}` : '—'}</dd>
                 </div>
               ))}
             </dl>
 
-            <p className="mt-4 text-sm text-muted-foreground">
-              Portion: {recipe.portionSize || '1 serving'}
-              {recipe.allergens ? ` · Allergens: ${recipe.allergens}` : ''}
-              {recipe.suitableMealType ? ` · Best for ${recipeCategoryLabel(recipe.suitableMealType)}` : ''}
-            </p>
+            <dl className="mt-5 space-y-3 border-y border-line py-4 text-sm leading-6">
+              <div><dt className="font-semibold text-forest">Original portion</dt><dd className="text-muted-foreground">{recipe.portionSize || '1 serving'}</dd></div>
+              <div><dt className="font-semibold text-forest">Listed allergens</dt><dd className="text-muted-foreground">{recipe.allergens || 'Not specified'}. Check the labels of packaged ingredients too.</dd></div>
+              {recipe.suitableMealType && <div><dt className="font-semibold text-forest">Best for</dt><dd className="text-muted-foreground">{recipeCategoryLabel(recipe.suitableMealType)}</dd></div>}
+            </dl>
 
             {recipe.healthNotes && (
               <p className="mt-4 rounded-xl bg-sage/30 px-4 py-3 text-sm text-forest">{recipe.healthNotes}</p>
@@ -170,20 +167,7 @@ export function RecipeDetailScreen() {
               </p>
             ) : null}
 
-            <h2 className="mt-6 text-lg text-forest">Ingredients</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Quantities below are for {servings} serving{servings === 1 ? '' : 's'}.</p>
-            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-forest">
-              {ingredients.map((item, index) => (
-                <li key={`${item}-${index}`}>{item}</li>
-              ))}
-            </ul>
-
-            <h2 className="mt-6 text-lg text-forest">Method</h2>
-            <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm leading-relaxed text-forest">
-              {steps.map((step, index) => (
-                <li key={index}>{step}</li>
-              ))}
-            </ol>
+            <RecipeCookingGuide recipe={recipe} servings={servings} />
           </div>
         </article>
       )}

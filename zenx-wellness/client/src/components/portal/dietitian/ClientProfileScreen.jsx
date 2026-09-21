@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useClient } from '@/hooks/useClients';
 
 // Same named-export adapter router.jsx uses for React.lazy — each tab is its own chunk, loaded
@@ -58,9 +59,7 @@ export function ClientProfileScreen() {
       ) : (
         <>
           <div className="mb-6 flex items-center gap-4">
-            <div className="grid size-14 shrink-0 place-items-center rounded-full bg-sage text-xl font-semibold text-forest">
-              {client.name[0]}
-            </div>
+            <UserAvatar userId={client._id ?? null} name={client.name} className="size-14 text-xl text-forest" />
             <div>
               <h1 className="text-3xl text-forest">{client.name}</h1>
               <p className="text-muted-foreground">

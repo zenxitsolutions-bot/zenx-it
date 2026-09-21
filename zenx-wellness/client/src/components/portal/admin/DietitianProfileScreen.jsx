@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useClient } from '@/hooks/useClients';
 import { useAuth } from '@/hooks/useAuth';
 import { ACCOUNT_STATUS_LABEL, ACCOUNT_STATUS_BADGE_VARIANT } from '@/lib/accountStatus';
@@ -61,9 +62,7 @@ export function DietitianProfileScreen() {
         <>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="grid size-14 shrink-0 place-items-center rounded-full bg-sage text-xl font-semibold text-forest">
-                {dietitian.name[0]}
-              </div>
+              <UserAvatar userId={dietitian._id ?? null} name={dietitian.name} className="size-14 text-xl text-forest" />
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-3xl text-forest">{dietitian.name}</h1>

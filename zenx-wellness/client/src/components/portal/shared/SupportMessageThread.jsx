@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { PresenceDot } from '@/components/portal/shared/PresenceDot';
+import { UserAvatar } from './UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useSupportMessages, useSendSupportMessage, useMarkSupportMessagesRead } from '@/hooks/useSupportMessages';
@@ -43,7 +44,10 @@ export function SupportMessageThread({ dietitianId, title, peerId }) {
     <div className="flex h-[32rem] flex-col">
       {(title || peerId) && (
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <strong className="text-forest">{title}</strong>
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar userId={peerId ?? null} name={title ?? 'Support'} className="size-9" />
+            <strong className="min-w-0 break-words text-forest">{title}</strong>
+          </div>
           {peerId && <PresenceDot userId={peerId} />}
         </div>
       )}

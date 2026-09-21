@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { StatCard } from '@/components/portal/shared/StatCard';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useDietitianOverview } from '@/hooks/useInsights';
 import { useClients } from '@/hooks/useClients';
@@ -30,12 +31,10 @@ function SectionHeader({ title, subtitle, to, linkLabel }) {
   );
 }
 
-function PersonRow({ initial, name, meta, trailing }) {
+function PersonRow({ userId = null, name, meta, trailing }) {
   return (
     <div className="flex items-center gap-3 rounded-xl bg-cream p-3">
-      <div className="grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
-        {initial}
-      </div>
+      <UserAvatar userId={userId} name={name} className="size-9 text-forest" />
       <div className="min-w-0 flex-1">
         <strong className="block truncate text-sm text-forest">{name}</strong>
         <span className="text-xs text-muted-foreground">{meta}</span>
@@ -134,7 +133,7 @@ export function DietitianOverviewScreen() {
                   return (
                     <PersonRow
                       key={`${item.planId}-${item.day}-${item.time}-${i}`}
-                      initial={item.clientName?.[0] ?? 'C'}
+                      userId={item.clientId ?? null}
                       name={item.clientName ?? 'Client'}
                       meta={`${item.mealTitle} · ${item.mealType} · ${dateLabel} · ${item.time}`}
                       trailing={
@@ -171,7 +170,7 @@ export function DietitianOverviewScreen() {
                     return (
                       <PersonRow
                         key={call._id}
-                        initial={person?.name?.[0] ?? 'C'}
+                        userId={call.client?._id ?? null}
                         name={person?.name ?? 'Client'}
                         meta={formatTime(call.scheduledAt)}
                         trailing={
@@ -214,7 +213,7 @@ export function DietitianOverviewScreen() {
                   {recentClients.map((client) => (
                     <PersonRow
                       key={client._id}
-                      initial={client.name[0]}
+                      userId={client._id ?? null}
                       name={client.name}
                       meta={client.email}
                       trailing={

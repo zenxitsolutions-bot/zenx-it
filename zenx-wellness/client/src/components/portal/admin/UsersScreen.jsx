@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useUsers } from '@/hooks/useUsers';
 import { useDietitians } from '@/hooks/useClients';
@@ -120,9 +121,7 @@ export function UsersScreen() {
         <div className="grid gap-2">
           {pagination.pageItems.map((u) => (
             <div key={u._id} className="flex items-center gap-3 rounded-card bg-white p-4 shadow-soft">
-              <div className="grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
-                {u.name[0]}
-              </div>
+              <UserAvatar userId={u.role === 'client' || u.role === 'dietitian' ? (u._id ?? null) : null} name={u.name} className="size-9 text-forest" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <strong className="text-forest">{u.name}</strong>

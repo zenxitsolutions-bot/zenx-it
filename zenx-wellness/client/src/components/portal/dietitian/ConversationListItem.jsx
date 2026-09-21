@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/badge';
 import { PresenceDot } from '@/components/portal/shared/PresenceDot';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { formatDate, formatTime } from '@/lib/format';
 
@@ -21,8 +22,8 @@ export function ConversationListItem({ conversation, active, onClick }) {
         active ? 'bg-sage/40' : 'hover:bg-cream'
       }`}
     >
-      <div className="relative grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
-        {client.name[0]}
+      <div className="relative size-9 shrink-0">
+        <UserAvatar userId={client._id ?? null} name={client.name} className="size-9 text-forest" />
         <span className="absolute -right-0.5 -bottom-0.5">
           <PresenceDot userId={client._id} showLabel={false} />
         </span>

@@ -4,6 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { formatDate, formatTime } from '@/lib/format';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 export function NextCallCard({ call, isLoading }) {
   const { companySlug } = useParams();
@@ -28,9 +29,7 @@ export function NextCallCard({ call, isLoading }) {
           </div>
 
           <div className="mt-4 flex items-center gap-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-full bg-sage font-semibold text-brand-strong">
-              {call.dietitian?.name?.[0] ?? 'D'}
-            </div>
+            <UserAvatar userId={call.dietitian ?? null} name={call.dietitian?.name ?? 'Your dietitian'} />
             <div className="min-w-0">
               <strong className="block truncate text-sm text-forest">{call.dietitian?.name ?? 'Your dietitian'}</strong>
               <span className="text-xs text-muted-foreground">Your dietitian</span>

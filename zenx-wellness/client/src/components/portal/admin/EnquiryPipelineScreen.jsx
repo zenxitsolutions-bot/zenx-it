@@ -81,7 +81,7 @@ export function EnquiryPipelineScreen() {
   const PendingDialog = pendingTransition ? DIALOG_FOR_STATUS[pendingTransition.status] : null;
 
   return (
-    <div className="mx-auto max-w-6xl p-9">
+    <div className="@container w-full min-w-0 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-muted-foreground">{enquiries.length} conversations in the pipeline</p>
@@ -127,7 +127,8 @@ export function EnquiryPipelineScreen() {
       ) : (
         view === 'list' ? <EnquiryList enquiries={enquiries} pendingId={updateEnquiry.isPending ? updateEnquiry.variables?.enquiryId : null} onStatusChange={requestStatusChange} onOpenDetail={setDetailEnquiry} /> :
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 overflow-x-auto pb-2">
+          {/* Respond to the space left beside the sidebar, not just the viewport. */}
+          <div aria-label="Enquiry stages" className="grid min-w-0 grid-cols-1 gap-3 @[30rem]:grid-cols-2 @[42rem]:grid-cols-3 @[52rem]:grid-cols-5">
             {COLUMNS.map(({ status, label }) => (
               <EnquiryColumn
                 key={status}

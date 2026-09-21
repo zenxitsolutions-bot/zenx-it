@@ -13,6 +13,7 @@
     "test:email": "node src/scripts/sendTestEmail.js",
     "db:migrate": "node src/db/migrate.js",
     "catalog:sync": "node src/scripts/syncHealthyIndianCatalog.js",
+    "catalog:details": "node src/scripts/syncCatalogRecipeDetails.js",
     "audit:converted-accounts": "node src/db/auditConvertedAccounts.js",
     "migrate:from-mongo": "node src/db/migrate-from-mongo.mjs",
     "test:unit": "node --test tests/unit/**/*.test.js",

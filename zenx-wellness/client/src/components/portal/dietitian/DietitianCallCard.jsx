@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUpdateCall } from '@/hooks/useCalls';
 import { formatDate, formatTime } from '@/lib/format';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
@@ -31,9 +32,7 @@ export function DietitianCallCard({ call, onReschedule, showAssignee = false }) 
     <article className="rounded-card bg-white p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
-            {person?.name?.[0] ?? 'C'}
-          </div>
+          <UserAvatar userId={call.client?._id ?? null} name={person?.name ?? 'Client'} className="size-9 text-forest" />
           <div>
             <div className="flex items-center gap-1.5">
               <strong className="text-sm text-forest">{person?.name ?? 'Client'}</strong>

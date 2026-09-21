@@ -49,14 +49,14 @@ describe('catalog image families', () => {
     const eggCurry = catalogImageFor('Egg Curry with Brown Rice', 'Lunch');
     const eggBhurji = catalogImageFor('Egg Bhurji', 'Breakfast');
 
-    assert.match(sandwich, /Vegetable%20sandwich/i);
-    assert.match(wrap, /Vegetable%20sandwich/i);
-    assert.match(omelette, /Indian%20Omelette/i);
-    assert.match(chaas, /Lassi/i);
+    assert.match(sandwich, /^\/images\/recipe-catalog\/\d{4}-cucumber-mint-sandwich\.png$/);
+    assert.match(wrap, /^\/images\/recipe-catalog\/\d{4}-healthy-wraps\.png$/);
+    assert.match(omelette, /^\/images\/recipe-catalog\/\d{4}-masala-omelette-with-toast\.png$/);
+    assert.match(chaas, /^\/images\/recipe-catalog\/\d{4}-jeera-chaas\.png$/);
     assert.notEqual(paneerBiryani, paneerCurry);
-    assert.match(alooGobi, /Aloo%20gobi/i);
+    assert.match(alooGobi, /aloo-gobi-light-with-brown-rice\.png$/);
     assert.match(rajma, /Rajma/i);
-    assert.match(chole, /Chana%20masala/i);
+    assert.match(chole, /chole-with-brown-rice\.png$/);
     assert.match(hummus, /Hummus/i);
     assert.match(sprouts, /Sprouts/i);
     assert.match(yogurt, /Yogurt/i);

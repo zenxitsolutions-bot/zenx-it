@@ -4,6 +4,7 @@ import { Users } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
+import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { usePagination } from '@/hooks/usePagination';
@@ -72,9 +73,7 @@ export function ClientsScreen() {
               onClick={() => navigate(`/${user.companySlug}/app/clients/${client._id}`)}
               className="flex items-center gap-3 rounded-card bg-white p-4 text-left shadow-soft transition-shadow hover:shadow-md"
             >
-              <div className="grid size-9 shrink-0 place-items-center rounded-full bg-sage font-semibold text-forest">
-                {client.name[0]}
-              </div>
+              <UserAvatar userId={client._id ?? null} name={client.name} className="size-9 text-forest" />
               <div className="min-w-0 flex-1">
                 <strong className="block text-forest">{client.name}</strong>
                 <span className="text-xs text-muted-foreground">{client.email}</span>

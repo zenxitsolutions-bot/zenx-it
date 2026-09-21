@@ -117,6 +117,21 @@ export async function findCallById(id, conn = pool) {
   return mapCall(rows[0]);
 }
 
+// Photo visibility follows an existing client/dietitian call relationship, including history
+// after reassignment. Both accounts must still belong to the requesting company.
+export async function hasCallBetween({ client, dietitian, companyId }) {
+  if (!client || !dietitian || !companyId) return false;
+  const [rows] = await pool.execute(
+    `SELECT c.id FROM calls c
+     JOIN users cu ON cu.id = c.client_id
+     JOIN users du ON du.id = c.dietitian_id
+     WHERE c.client_id = ? AND c.dietitian_id = ?
+       AND cu.company_id = ? AND du.company_id = ? LIMIT 1`,
+    [client, dietitian, companyId, companyId]
+  );
+  return rows.length > 0;
+}
+
 // reminderScheduler.js's due-window query: a scheduled call whose reminder hasn't fired yet, whose
 // reminder window has now opened (scheduled_at - reminder_minutes_before <= now), and which hasn't
 // started yet (scheduled_at > now — a poll-interval-sized safety margin against reminding about a

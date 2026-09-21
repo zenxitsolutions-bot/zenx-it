@@ -23,13 +23,13 @@ export function EnquiryCard({ enquiry, onStatusChange, onOpenDetail, isPending }
       {...attributes}
       style={{ transform: CSS.Translate.toString(transform) }}
       className={cn(
-        'grid cursor-grab gap-2 rounded-xl border border-line bg-white p-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-sage-deep active:cursor-grabbing',
+        'grid min-w-0 cursor-grab gap-2 rounded-xl border border-line bg-white p-3 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-sage-deep active:cursor-grabbing',
         isDragging && 'opacity-40'
       )}
     >
-      <button type="button" onClick={onOpenDetail} className="grid gap-2 text-left">
-        <div className="flex items-start justify-between gap-2">
-          <strong className="text-sm text-forest">{enquiry.name}</strong>
+      <button type="button" onClick={onOpenDetail} className="grid min-w-0 gap-2 text-left [overflow-wrap:anywhere]">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <strong className="min-w-0 text-sm text-forest">{enquiry.name}</strong>
           <GripVertical className="size-4 shrink-0 text-sage-deep" aria-hidden="true" />
         </div>
         <span className="text-xs text-muted-foreground">{enquiry.goal}</span>
@@ -37,7 +37,7 @@ export function EnquiryCard({ enquiry, onStatusChange, onOpenDetail, isPending }
       </button>
 
       <Select value={enquiry.status} onValueChange={(status) => onStatusChange(status)} disabled={isPending}>
-        <SelectTrigger className="h-7 w-full text-[11px]" aria-label={`Move ${enquiry.name} to a different stage`}>
+        <SelectTrigger size="sm" className="min-h-9 w-full min-w-0 px-2 py-1.5 text-left text-[11px] whitespace-normal data-[size=sm]:h-auto [&>[data-slot=select-value]]:block [&>[data-slot=select-value]]:min-w-0 [&>[data-slot=select-value]]:line-clamp-none [&>[data-slot=select-value]]:[overflow-wrap:anywhere]" aria-label={`Move ${enquiry.name} to a different stage`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>

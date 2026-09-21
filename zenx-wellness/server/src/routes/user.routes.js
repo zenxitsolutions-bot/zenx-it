@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getMyPhoto, putMyPhoto, removeMyPhoto } from '../controllers/userPhoto.controller.js';
+import { getMyPhoto, getUserPhoto, putMyPhoto, removeMyPhoto } from '../controllers/userPhoto.controller.js';
 import { uploadProfilePhoto } from '../middleware/uploadProfilePhoto.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
@@ -30,6 +30,7 @@ userRouter.get('/', authorize('admin', 'dietitian', 'client'), listUsers);
 userRouter.get('/me/photo', authorize('client', 'dietitian'), getMyPhoto);
 userRouter.put('/me/photo', authorize('client', 'dietitian'), uploadProfilePhoto, putMyPhoto);
 userRouter.delete('/me/photo', authorize('client', 'dietitian'), removeMyPhoto);
+userRouter.get('/:id/photo', authorize('client', 'dietitian', 'admin'), getUserPhoto);
 userRouter.get('/:id', getUser);
 userRouter.patch('/me', validate(updateMeSchema), updateMe);
 userRouter.post('/me/device-token', validate(registerDeviceTokenSchema), registerDeviceToken);

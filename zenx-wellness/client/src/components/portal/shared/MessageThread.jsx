@@ -10,6 +10,7 @@ import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useMessages, useSendMessage, useMarkMessagesRead } from '@/hooks/useMessages';
 import { formatDateTime } from '@/lib/format';
 import { PresenceDot } from './PresenceDot';
+import { UserAvatar } from './UserAvatar';
 
 // One conversation's full history + composer. `clientId` omitted means "my own conversation"
 // (client role); the dietitian passes the selected client's id. Handles its own loading/empty/
@@ -50,7 +51,10 @@ export function MessageThread({ clientId, title, peerId }) {
     <div className="flex h-[32rem] flex-col">
       {(title || peerId) && (
         <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <strong className="text-forest">{title}</strong>
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar userId={peerId ?? null} name={title ?? 'Conversation participant'} className="size-9" />
+            <strong className="min-w-0 break-words text-forest">{title}</strong>
+          </div>
           {peerId && <PresenceDot userId={peerId} />}
         </div>
       )}
