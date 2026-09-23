@@ -4,13 +4,16 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { useUpdateCall } from '@/hooks/useCalls';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { formatDate, formatTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
 // Spec §6 item 5: per-call notes, editable any time (before/during/after), linked to and shown
 // with that specific call in the history.
 export function ClientCallHistoryCard({ call }) {
+  const { timezone } = useViewerTimezone();
   const updateCall = useUpdateCall();
   const [notes, setNotes] = useState(call.notes ?? '');
   const dirty = notes !== (call.notes ?? '');
@@ -30,9 +33,10 @@ export function ClientCallHistoryCard({ call }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <strong className="block text-sm text-forest">
-            {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
+            {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }, timezone)}
           </strong>
-          <span className="text-xs text-muted-foreground">{formatTime(call.scheduledAt)}</span>
+          <span className="text-xs text-muted-foreground">{formatTime(call.scheduledAt, timezone)}</span>
+          <p className="mt-1 text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</p>
         </div>
         <div className="flex items-center gap-2">
           {call.isRescheduled && <Badge variant="outline">Rescheduled</Badge>}
@@ -44,7 +48,7 @@ export function ClientCallHistoryCard({ call }) {
 
       {call.isRescheduled && call.originalScheduledAt && (
         <p className="mt-1 text-xs text-muted-foreground">
-          Originally {formatDate(call.originalScheduledAt)} · {formatTime(call.originalScheduledAt)}
+          Originally {formatDate(call.originalScheduledAt, undefined, timezone)} · {formatTime(call.originalScheduledAt, timezone)} ({timezoneOffsetLabel(timezone, new Date(call.originalScheduledAt))})
         </p>
       )}
 

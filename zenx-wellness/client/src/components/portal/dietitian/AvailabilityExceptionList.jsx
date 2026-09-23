@@ -9,7 +9,7 @@ import { describeExceptionKind } from '@/lib/availability';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 export function AvailabilityExceptionList() {
-  const { timezone } = useViewerTimezone();
+  const { scheduleTimezone: timezone } = useViewerTimezone();
   const { data, isLoading } = useAvailabilityExceptions();
   const deleteException = useDeleteAvailabilityException();
 

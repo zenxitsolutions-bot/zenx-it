@@ -41,13 +41,10 @@ export function DietitianCallFormDialog({ open, onOpenChange, mode, call }) {
     defaultValues: { client: '', scheduledAt: '', notes: '', reminderMinutesBefore: DEFAULT_CALL_REMINDER_VALUE },
   });
 
-  // The client's own saved timezone, for SlotPicker's "Client will see:" preview — whichever client
-  // this call is/will be with, whether picked fresh (schedule mode) or already on the call being
-  // rescheduled. call.client (from Call.js's join) only carries {_id, name}, not timezone, so this
-  // looks the full record up in the already-fetched client list either way rather than trusting the
-  // call object to carry it.
+  // Prefer the client's most recently detected device zone for the booking preview, falling back
+  // to their profile zone when they have not opened the app since automatic detection was added.
   const selectedClientId = isReschedule ? call?.client?._id : form.watch('client');
-  const selectedClient = (clientsQuery.data ?? []).find((c) => c._id === selectedClientId);
+  const selectedClient = (clientsQuery.data ?? []).find((c) => c._id === selectedClientId) ?? (isReschedule ? call?.client : null);
 
   useEffect(() => {
     if (!open) return;
@@ -116,7 +113,7 @@ export function DietitianCallFormDialog({ open, onOpenChange, mode, call }) {
                       onDateChange={setDate}
                       value={field.value}
                       onChange={field.onChange}
-                      otherPartyTimezone={selectedClient?.timezone}
+                      otherPartyTimezone={selectedClient?.detectedTimezone || selectedClient?.timezone}
                       otherPartyLabel="Client"
                     />
                   </FormControl>

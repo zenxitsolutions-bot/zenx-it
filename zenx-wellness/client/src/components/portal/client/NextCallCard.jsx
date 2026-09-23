@@ -3,10 +3,13 @@ import { ArrowRight, CalendarDays, Video } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { formatDate, formatTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 export function NextCallCard({ call, isLoading }) {
+  const { timezone } = useViewerTimezone();
   const { companySlug } = useParams();
   return (
     <section className="rounded-card border border-line bg-white p-6 shadow-lift">
@@ -22,9 +25,10 @@ export function NextCallCard({ call, isLoading }) {
             </span>
             <div className="min-w-0">
               <p className="text-base font-semibold text-forest">
-                {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' })}
+                {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' }, timezone)}
               </p>
-              <p className="text-sm text-muted-foreground">{formatTime(call.scheduledAt)} · 30 minute video call</p>
+              <p className="text-sm text-muted-foreground">{formatTime(call.scheduledAt, timezone)} · 30 minute video call</p>
+              <p className="mt-1 text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</p>
             </div>
           </div>
 

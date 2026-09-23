@@ -1,12 +1,15 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatDateTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 // Shown only when saving an EXISTING schedule whose pattern actually changed AND it already has
 // upcoming generated calls — the explicit "ask, never silently rewrite or orphan" moment this
 // feature was built around. `onConfirm(regenerate: boolean)` is called with the user's choice;
 // the caller (ConsultationScheduleTab) does the actual save with that flag.
 export function ConsultationScheduleRegenerateDialog({ open, onOpenChange, affectedCalls, onConfirm, isPending }) {
+  const { timezone } = useViewerTimezone();
   const count = affectedCalls.length;
 
   return (
@@ -21,7 +24,8 @@ export function ConsultationScheduleRegenerateDialog({ open, onOpenChange, affec
         <ul className="grid max-h-40 gap-1 overflow-y-auto text-sm">
           {affectedCalls.map((call) => (
             <li key={call._id} className="text-forest">
-              {formatDateTime(call.scheduledAt)}
+              {formatDateTime(call.scheduledAt, timezone)}
+              <span className="block text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</span>
             </li>
           ))}
         </ul>

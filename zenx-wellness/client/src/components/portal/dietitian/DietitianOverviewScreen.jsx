@@ -6,9 +6,11 @@ import { StatCard } from '@/components/portal/shared/StatCard';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useDietitianOverview } from '@/hooks/useInsights';
 import { useClients } from '@/hooks/useClients';
 import { formatRelativeDay, formatTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
 import { formatCalendarDate } from '@/lib/calendarDate';
 import { ClientProgressChart } from './ClientProgressChart';
 import { PlansOverviewChart } from './PlansOverviewChart';
@@ -46,6 +48,7 @@ function PersonRow({ userId = null, name, meta, trailing }) {
 
 export function DietitianOverviewScreen() {
   const { user } = useAuth();
+  const { timezone } = useViewerTimezone();
   const { data, isLoading, isError, refetch } = useDietitianOverview();
   const clientsQuery = useClients();
 
@@ -172,7 +175,7 @@ export function DietitianOverviewScreen() {
                         key={call._id}
                         userId={call.client?._id ?? null}
                         name={person?.name ?? 'Client'}
-                        meta={formatTime(call.scheduledAt)}
+                        meta={`${formatTime(call.scheduledAt, timezone)} · Your local time (${timezone}, ${timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})`}
                         trailing={
                           <Badge variant={STATUS_VARIANT[call.status]} className="capitalize">
                             {call.status}

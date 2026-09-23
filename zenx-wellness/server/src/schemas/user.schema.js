@@ -86,6 +86,9 @@ export const updateMeSchema = z.object({
   dietPreference,
   allergies,
   timezone,
+  // Only the signed-in person can report their device's current zone. This field is
+  // deliberately absent from createUserSchema/updateUserSchema for other-account edits.
+  detectedTimezone: timezone,
   country,
   dateFormat,
   timeFormat,

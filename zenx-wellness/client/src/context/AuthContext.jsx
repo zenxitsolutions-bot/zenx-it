@@ -3,12 +3,36 @@ import { setAccessToken } from '../api/tokenStore';
 import { onPasswordChangeRequired } from '../api/authEvents';
 import { loginRequest, handoffRequest, changePasswordRequest, logoutRequest, meRequest, refreshRequest } from '../api/auth.api';
 import { useDeviceNotifications } from '../hooks/useDeviceNotifications';
+import { useBrowserTimezone } from '../hooks/useBrowserTimezone.js';
+import { updateMeRequest } from '../api/users.api';
+import { canonicalTimezone, mergeDetectedTimezoneUpdate } from '../lib/timezone.js';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const detectedTimezone = useBrowserTimezone();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!user || user.mustChangePassword
+      || canonicalTimezone(user.detectedTimezone) === canonicalTimezone(detectedTimezone)) return;
+    let active = true;
+    const requested = user;
+    updateMeRequest({ detectedTimezone }).then((updated) => {
+      if (!active) return;
+      setUser((current) => mergeDetectedTimezoneUpdate(current, requested, updated));
+      // First detection can initialize legacy UTC hours. Refresh any already-open queries.
+      for (const queryKey of [['calls', 'available-slots'], ['insights'], ['users']]) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+    }).catch(() => {
+      // Local conversion still works offline. Retry on the next login/reload.
+    });
+    return () => { active = false; };
+  }, [user, detectedTimezone, queryClient]);
 
   useEffect(() => {
     refreshRequest()

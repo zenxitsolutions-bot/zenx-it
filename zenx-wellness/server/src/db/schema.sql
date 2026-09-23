@@ -74,6 +74,9 @@ CREATE TABLE IF NOT EXISTS users (
   -- user who hasn't set their real timezone yet keeps exactly the pre-timezone comparison behavior
   -- (UTC-as-local) rather than being silently relocated.
   timezone VARCHAR(64) NOT NULL DEFAULT 'UTC',
+  -- Last browser-detected zone for display/notifications, separate from the stable scheduling
+  -- zone above. NULL means this account has not yet reported a browser zone.
+  detected_timezone VARCHAR(64) NULL,
   -- ISO 3166-1 alpha-2 (e.g. "US", "IN") — display/preference only, never used to derive timezone
   -- (a country spans many zones). Matches the two-letter convention already established by
   -- libphonenumber-js's country codes elsewhere in this codebase. No reliable signal to backfill

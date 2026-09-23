@@ -30,7 +30,7 @@ const exceptionSchema = z
 const defaultValues = { kind: 'closed', startAt: '', endAt: '', note: '' };
 
 export function AvailabilityExceptionFormDialog({ open, onOpenChange }) {
-  const { timezone } = useViewerTimezone();
+  const { scheduleTimezone: timezone } = useViewerTimezone();
   const createException = useCreateAvailabilityException();
   const form = useForm({ resolver: zodResolver(exceptionSchema), defaultValues });
 

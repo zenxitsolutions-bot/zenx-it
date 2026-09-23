@@ -1,4 +1,5 @@
 import { fromZonedTime, toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { calendarDayRange } from './availability.js';
 
 // Centralizes the primitives every NEW timezone-aware call site needs, so none of them hand-roll a
 // second copy of date-fns-tz usage. Deliberately does NOT touch availability.js/
@@ -44,11 +45,20 @@ export function formatInZone(date, timezone, pattern = 'EEEE, d MMM yyyy, h:mm a
   return formatInTimeZone(date, timezone, pattern);
 }
 
-// The one place that encodes "no saved timezone yet -> treat as UTC" — every consumer that reads a
-// user/attendee's timezone for display should go through this instead of repeating `?? 'UTC'`.
-// Accepts a full user row or a bare {name, email} enquiry-contact stand-in (no timezone field at
-// all, e.g. callNotifications.js's not-yet-converted-lead attendee) — both fall back to UTC, since
-// neither has a reliable per-person zone signal until they have a real account.
+// Display and notifications follow the person's most recently detected device zone. Weekly
+// availability and recurring schedules deliberately continue to use the separate saved timezone.
+// A not-yet-converted enquiry has neither field, so its honest fallback remains labelled UTC.
 export function effectiveTimezone(entity) {
-  return entity?.timezone || 'UTC';
+  if (isValidTimezone(entity?.detectedTimezone)) return entity.detectedTimezone;
+  return isValidTimezone(entity?.timezone) ? entity.timezone : 'UTC';
+}
+
+// Inclusive query bounds for the viewer's civil day. Offset CALENDAR days before conversion,
+// never UTC milliseconds: a daylight-saving transition can make a day 23 or 25 hours long.
+export function zonedDayBounds(date, timezone, dayOffset = 0) {
+  const zone = isValidTimezone(timezone) ? timezone : 'UTC';
+  const [year, month, day] = formatInZone(date, zone, 'yyyy-MM-dd').split('-').map(Number);
+  const civilDate = new Date(Date.UTC(year, month - 1, day + dayOffset)).toISOString().slice(0, 10);
+  const { dayStart, dayEnd } = calendarDayRange(civilDate, zone);
+  return { dayStart, dayEnd: new Date(dayEnd.getTime() - 1) };
 }

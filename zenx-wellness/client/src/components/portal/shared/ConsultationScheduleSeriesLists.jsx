@@ -1,10 +1,13 @@
 import { AlertTriangle, CalendarClock } from 'lucide-react';
 import { formatDateTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 // Read-only admin view: "a client's upcoming generated series and any occurrences that couldn't be
 // placed" — both lists this schedule's own generation run already produces, just actually shown
 // instead of only being used internally for the regenerate-confirm dialog.
 export function ConsultationScheduleSeriesLists({ upcomingCalls, gaps }) {
+  const { timezone } = useViewerTimezone();
   return (
     <div className="grid gap-6 sm:grid-cols-2">
       <div>
@@ -18,7 +21,8 @@ export function ConsultationScheduleSeriesLists({ upcomingCalls, gaps }) {
           <ul className="grid gap-1 text-sm">
             {upcomingCalls.map((call) => (
               <li key={call._id} className="text-forest">
-                {formatDateTime(call.scheduledAt)}
+                {formatDateTime(call.scheduledAt, timezone)}
+                <span className="block text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</span>
               </li>
             ))}
           </ul>
@@ -36,8 +40,8 @@ export function ConsultationScheduleSeriesLists({ upcomingCalls, gaps }) {
           <ul className="grid gap-2 text-sm">
             {gaps.map((gap) => (
               <li key={gap._id}>
-                <span className="font-medium text-forest">{formatDateTime(gap.occurrenceAt)}</span>
-                <br />
+                <span className="font-medium text-forest">{formatDateTime(gap.occurrenceAt, timezone)}</span>
+                <span className="block text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(gap.occurrenceAt))})</span>
                 <span className="text-muted-foreground">{gap.reason}</span>
               </li>
             ))}

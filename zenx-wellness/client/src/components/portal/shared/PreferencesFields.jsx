@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 const DATE_FORMATS = [
   { value: 'MMM d, yyyy', label: 'Sep 15, 2026' },
@@ -22,14 +23,22 @@ const DATE_FORMATS = [
 // the dropdown in the same tick (looks like "clicking does nothing"). Every other Select in this
 // app already avoids this via the shadcn FormLabel/FormControl pattern (siblings inside FormItem,
 // never nested) — this file just needs to follow the same rule by hand.
-export function PreferencesFields({ timezone, onTimezoneChange, country, onCountryChange, dateFormat, onDateFormatChange, timeFormat, onTimeFormatChange }) {
+export function PreferencesFields({ timezone, onTimezoneChange, country, onCountryChange, dateFormat, onDateFormatChange, timeFormat, onTimeFormatChange, isDietitian }) {
+  const { timezone: localTimezone } = useViewerTimezone();
   return (
     <div className="grid gap-4">
+      <p className="rounded-lg bg-cream p-3 text-sm text-forest">
+        Calls and messages automatically use your device time zone: <strong>{localTimezone}</strong>.
+        Each person sees the same appointment in their own local time.
+      </p>
       <div className="grid gap-1.5">
         <label className="text-sm font-medium text-forest" htmlFor="pref-timezone">
-          Timezone
+          {isDietitian ? 'Working-hours time zone' : 'Home time zone (fallback)'}
         </label>
         <TimezoneSelect id="pref-timezone" value={timezone} onChange={onTimezoneChange} />
+        <p className="text-xs text-muted-foreground">
+          {isDietitian ? 'Weekly availability uses this saved zone, even when you travel.' : 'Used before a device time zone has been detected.'}
+        </p>
       </div>
 
       <div className="grid gap-1.5">

@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useAvailableSlots } from '@/hooks/useCalls';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
-import { formatTime } from '@/lib/format';
-import { timezoneOffsetLabel, formatInZone, todayDateValue } from '@/lib/timezone';
+import { createCallSlotOptions } from '@/lib/callSlotLabels';
+import { timezoneOffsetLabel, formatInZone, todayDateValue, zonedTimeToUtcIso } from '@/lib/timezone';
 
 export { todayDateValue };
 
@@ -16,17 +16,31 @@ export { todayDateValue };
 //
 // dietitianId: whose availability to query. excludeCallId: pass the call's own id when
 // rescheduling so its current slot doesn't count against itself (server returns it as available).
-// otherPartyTimezone/otherPartyLabel (both optional — spec item 6/18): when the caller knows who
-// the OTHER person on this call is and that person's saved timezone, showing "{Label} sees: {time}"
-// next to the selected slot makes a cross-timezone booking mistake obvious before saving, instead
-// of only surfacing after the fact in a confirmation email.
+// The other participant's latest detected zone is only a preview: their device can change zones
+// after we last saw it. Booking always sends the unchanged UTC instant selected from the API.
 export function SlotPicker({ dietitianId, excludeCallId, date, onDateChange, value, onChange, otherPartyTimezone, otherPartyLabel }) {
   const { timezone } = useViewerTimezone();
   const { data, isLoading, isError } = useAvailableSlots({ dietitianId, date, excludeCallId, timezone });
+  const slotOptions = createCallSlotOptions(data?.slots, timezone);
+  // A future appointment can have a different GMT offset from today's (US daylight saving).
+  // Before selecting a slot, use midday on the chosen date rather than the current date.
+  const offsetDate = value
+    ? new Date(value)
+    : date
+      ? new Date(zonedTimeToUtcIso(`${date}T12:00`, timezone))
+      : new Date();
+
+  function changeDate(nextDate) {
+    if (nextDate !== date) onChange('');
+    onDateChange(nextDate);
+  }
 
   return (
     <div className="grid gap-3">
-      <Input type="date" min={todayDateValue(timezone)} value={date} onChange={(e) => onDateChange(e.target.value)} />
+      <Input type="date" min={todayDateValue(timezone)} value={date} onChange={(e) => changeDate(e.target.value)} />
+      <p className="text-xs text-muted-foreground">
+        Your local time · {timezone} ({timezoneOffsetLabel(timezone, offsetDate)}). Converted automatically.
+      </p>
 
       {isLoading ? (
         <div className="flex flex-wrap gap-2">
@@ -43,12 +57,12 @@ export function SlotPicker({ dietitianId, excludeCallId, date, onDateChange, val
         // whose dietitian somehow can't be resolved) — surface it instead of crashing the dialog
         // silently, which is exactly the "dead button" failure mode this was auditing for.
         <p className="text-sm text-destructive">Couldn't determine who this call is with — please try again.</p>
-      ) : data.slots.length === 0 ? (
+      ) : !data?.slots?.length ? (
         <EmptyState title="No available times" description="Try a different date." />
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
-            {data.slots.map((slot) => (
+            {slotOptions.map(({ value: slot, label }) => (
               <Button
                 key={slot}
                 type="button"
@@ -56,16 +70,13 @@ export function SlotPicker({ dietitianId, excludeCallId, date, onDateChange, val
                 variant={slot === value ? 'default' : 'outline'}
                 onClick={() => onChange(slot)}
               >
-                {formatTime(slot, timezone)}
+                {label}
               </Button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Times shown in your timezone ({timezone}, {timezoneOffsetLabel(timezone)})
-          </p>
           {value && otherPartyTimezone && otherPartyTimezone !== timezone && (
             <p className="rounded-lg bg-sage/30 px-2.5 py-1.5 text-xs text-forest">
-              {otherPartyLabel ?? 'They'} will see: <strong>{formatInZone(value, otherPartyTimezone)}</strong> ({otherPartyTimezone})
+              {otherPartyLabel ?? 'Other participant'} time (last-known timezone): <strong>{formatInZone(value, otherPartyTimezone)}</strong> ({otherPartyTimezone}, {timezoneOffsetLabel(otherPartyTimezone, new Date(value))})
             </p>
           )}
         </>

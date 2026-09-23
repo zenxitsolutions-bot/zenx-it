@@ -170,6 +170,7 @@ export function PreferencesDialog({ open, onOpenChange }) {
         )}
 
         <PreferencesFields
+          isDietitian={isDietitian}
           timezone={values.timezone}
           onTimezoneChange={(timezone) => setValues((v) => ({ ...v, timezone }))}
           country={values.country}

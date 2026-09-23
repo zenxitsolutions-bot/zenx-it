@@ -40,12 +40,28 @@ export function useResetUserPassword() {
 // §2026-round2-fixes item 7). Callers should also feed the returned user into
 // useAuth().updateUser so AuthContext stays in sync without a reload.
 export function useUpdateTimezone() {
-  return useMutation({ mutationFn: (timezone) => updateMeRequest({ timezone }) });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (timezone) => updateMeRequest({ timezone }),
+    onSuccess: () => {
+      for (const queryKey of [['calls', 'available-slots'], ['insights'], ['users']]) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
 }
 
 // Any role: timezone/country/dateFormat/timeFormat together (PreferencesFields.jsx). Callers should
 // also feed the returned user into useAuth().updateUser so AuthContext stays in sync without a
 // reload — same convention as useUpdateTimezone above.
 export function useUpdatePreferences() {
-  return useMutation({ mutationFn: (patch) => updateMeRequest(patch) });
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (patch) => updateMeRequest(patch),
+    onSuccess: () => {
+      for (const queryKey of [['calls', 'available-slots'], ['insights'], ['users']]) {
+        queryClient.invalidateQueries({ queryKey });
+      }
+    },
+  });
 }

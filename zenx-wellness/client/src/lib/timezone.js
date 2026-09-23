@@ -9,18 +9,56 @@ export const TIMEZONES = typeof Intl.supportedValuesOf === 'function' ? Intl.sup
 // slots needs to know which timezone the times are shown in (their own browser's), since the
 // dietitian's configured hours are stored in a different zone entirely.
 export function browserTimezone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+  } catch {
+    return 'UTC';
+  }
+}
+
+// IANA aliases such as Asia/Kolkata and Asia/Calcutta describe the same time zone.
+export function canonicalTimezone(value) {
+  if (!value || typeof value !== 'string') return null;
+  try {
+    return new Intl.DateTimeFormat('en-US', { timeZone: value }).resolvedOptions().timeZone;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveViewerTimezone(user, detected = browserTimezone()) {
+  const timezone = canonicalTimezone(detected) || canonicalTimezone(user?.detectedTimezone)
+    || canonicalTimezone(user?.timezone) || 'UTC';
+  // Only the legacy, never-initialized UTC default falls back to the device. After first
+  // detection, even a saved UTC schedule stays UTC when its owner travels.
+  const saved = canonicalTimezone(user?.timezone);
+  const scheduleTimezone = saved && (saved !== 'UTC' || user?.detectedTimezone) ? saved : timezone;
+  return { timezone, scheduleTimezone, browserTimezone: timezone, source: 'browser', mismatch: scheduleTimezone !== timezone };
+}
+
+// Do not let a slow automatic update replace a newer profile edit or another signed-in user.
+export function mergeDetectedTimezoneUpdate(current, requested, updated) {
+  const id = (user) => user?._id ?? user?.id;
+  if (!current || id(current) !== id(requested) || id(updated) !== id(requested)
+    || !canonicalTimezone(updated.detectedTimezone)) return current;
+  return {
+    ...current,
+    detectedTimezone: updated.detectedTimezone,
+    timezone: current.timezone === requested.timezone ? updated.timezone : current.timezone,
+  };
 }
 
 // Civil YYYY-MM-DD of `value` as seen in `timezone` — used for the booking date picker so
 // "today" and a rescheduled call's day follow the viewer, not UTC's date slice.
 export function zonedCalendarDate(value = new Date(), timezone = browserTimezone()) {
-  return new Intl.DateTimeFormat('en-CA', {
+  const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: timezone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).format(new Date(value));
+  }).formatToParts(new Date(value));
+  const part = (type) => parts.find((entry) => entry.type === type).value;
+  return `${part('year')}-${part('month')}-${part('day')}`;
 }
 
 export function todayDateValue(timezone = browserTimezone()) {

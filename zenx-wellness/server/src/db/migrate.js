@@ -79,6 +79,7 @@ const ALTERS = [
   // Timezone fix (docs/specs/2026-round2-fixes.md item 7): default 'UTC', not a guessed real
   // zone — see the comment on this column in schema.sql for why that's the non-breaking choice.
   "ALTER TABLE users ADD COLUMN timezone VARCHAR(64) NOT NULL DEFAULT 'UTC' AFTER plan_duration",
+  'ALTER TABLE users ADD COLUMN detected_timezone VARCHAR(64) NULL AFTER timezone',
   // Enquiry-linked calls (spec §2026-round2-fixes item 1): a Follow-up call no longer force-creates
   // a client account, so calls.client_id must accept NULL, paired with a new enquiry_id — see the
   // comment on these columns in schema.sql. Order matters: widen client_id to NULL first, then add

@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isValidTimezone, wallClockToUtc, utcToZonedParts, formatInZone, effectiveTimezone } from '../../src/services/timezoneService.js';
+import { isValidTimezone, wallClockToUtc, utcToZonedParts, formatInZone, effectiveTimezone, zonedDayBounds } from '../../src/services/timezoneService.js';
+import { updateMeSchema, updateUserSchema, createUserSchema } from '../../src/schemas/user.schema.js';
 
 test('isValidTimezone accepts real IANA names and rejects garbage', () => {
   assert.equal(isValidTimezone('America/Chicago'), true);
@@ -89,4 +90,44 @@ test('effectiveTimezone falls back to UTC for a user with no saved preference, a
   assert.equal(effectiveTimezone({ timezone: null }), 'UTC');
   assert.equal(effectiveTimezone({ name: 'Lead Contact', email: 'lead@example.com' }), 'UTC');
   assert.equal(effectiveTimezone(null), 'UTC');
+});
+
+test('notifications use detected India/USA zones instead of stale saved UTC or a scheduling zone', () => {
+  const instant = '2026-09-15T14:00:00.000Z';
+  const dietitian = { timezone: 'UTC', detectedTimezone: 'Asia/Kolkata' };
+  const client = { timezone: 'Asia/Kolkata', detectedTimezone: 'America/Chicago' };
+  assert.match(formatInZone(instant, effectiveTimezone(dietitian)), /7:30 PM/);
+  assert.match(formatInZone(instant, effectiveTimezone(client)), /9:00 AM/);
+  assert.equal(effectiveTimezone({ timezone: 'Asia/Kolkata', detectedTimezone: 'Not/AZone' }), 'Asia/Kolkata');
+});
+
+test('only self updates accept a detected zone, and it must be a valid IANA zone', () => {
+  assert.equal(updateMeSchema.parse({ detectedTimezone: 'Asia/Kolkata' }).detectedTimezone, 'Asia/Kolkata');
+  assert.equal(updateMeSchema.safeParse({ detectedTimezone: 'Not/AZone' }).success, false);
+  assert.equal(updateMeSchema.safeParse({ detectedTimezone: null }).success, false);
+  assert.deepEqual(updateUserSchema.parse({ detectedTimezone: 'Asia/Kolkata' }), {});
+  const created = createUserSchema.parse({
+    name: 'Client', email: 'client@example.com', password: 'example-password', role: 'client', detectedTimezone: 'Asia/Kolkata',
+  });
+  assert.equal('detectedTimezone' in created, false);
+});
+
+test('India and USA dashboard today boundaries reflect different local calendar dates', () => {
+  const now = new Date('2026-09-15T01:00:00.000Z');
+  const india = zonedDayBounds(now, 'Asia/Kolkata');
+  const chicago = zonedDayBounds(now, 'America/Chicago');
+  assert.equal(india.dayStart.toISOString(), '2026-09-14T18:30:00.000Z');
+  assert.equal(india.dayEnd.toISOString(), '2026-09-15T18:29:59.999Z');
+  assert.equal(chicago.dayStart.toISOString(), '2026-09-14T05:00:00.000Z');
+  assert.equal(chicago.dayEnd.toISOString(), '2026-09-15T04:59:59.999Z');
+});
+
+test('dashboard day bounds and last-week comparison handle 23/25-hour DST days', () => {
+  const spring = zonedDayBounds(new Date('2026-03-08T18:00:00Z'), 'America/Chicago');
+  const autumn = zonedDayBounds(new Date('2026-11-01T18:00:00Z'), 'America/Chicago');
+  assert.equal(spring.dayEnd - spring.dayStart + 1, 23 * 60 * 60 * 1000);
+  assert.equal(autumn.dayEnd - autumn.dayStart + 1, 25 * 60 * 60 * 1000);
+  const lastWeek = zonedDayBounds(new Date('2026-03-15T18:00:00Z'), 'America/Chicago', -7);
+  assert.equal(lastWeek.dayStart.toISOString(), spring.dayStart.toISOString());
+  assert.equal(lastWeek.dayEnd.toISOString(), spring.dayEnd.toISOString());
 });

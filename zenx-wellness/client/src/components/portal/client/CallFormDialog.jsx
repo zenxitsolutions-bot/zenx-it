@@ -34,7 +34,7 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
   const [date, setDate] = useState(() => todayDateValue(timezone));
   const dietitianId = isReschedule ? (call?.dietitian?._id ?? call?.dietitian) : user.assignedDietitian;
   const dietitiansQuery = useDietitians();
-  const dietitian = (dietitiansQuery.data ?? []).find((d) => d._id === dietitianId);
+  const dietitian = (dietitiansQuery.data ?? []).find((d) => d._id === dietitianId) ?? call?.dietitian;
 
   const form = useForm({
     resolver: zodResolver(isReschedule ? rescheduleSchema : bookSchema),
@@ -113,7 +113,7 @@ export function CallFormDialog({ open, onOpenChange, mode, call }) {
                       onDateChange={setDate}
                       value={field.value}
                       onChange={field.onChange}
-                      otherPartyTimezone={dietitian?.timezone}
+                      otherPartyTimezone={dietitian?.detectedTimezone || dietitian?.timezone}
                       otherPartyLabel="Your dietitian"
                     />
                   </FormControl>

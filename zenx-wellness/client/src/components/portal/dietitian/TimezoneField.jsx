@@ -1,23 +1,18 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateTimezone } from '@/hooks/useUsers';
-import { browserTimezone } from '@/lib/timezone';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { TimezoneSelect, isKnownTimezone } from '@/components/shared/TimezoneSelect';
 
-const BROWSER_TIMEZONE = browserTimezone();
-
-// Spec §2026-round2-fixes item 7: the IANA zone weekly hours/exceptions below are interpreted in —
-// stored on the dietitian's own profile (`users.timezone`), not inferred silently from whichever
-// browser happens to submit the weekly-hours form. Pre-fills with the browser's detected zone only
-// when nothing's been saved yet ("UTC", the column default) — still requires an explicit Save, so
-// a dietitian never gets relocated without noticing.
+// Saved separately from automatically detected display time, so travel cannot move weekly hours.
 export function TimezoneField() {
   const { user, updateUser } = useAuth();
   const updateTimezone = useUpdateTimezone();
-  const savedTimezone = user.timezone && user.timezone !== 'UTC' ? user.timezone : BROWSER_TIMEZONE;
+  const { scheduleTimezone: savedTimezone } = useViewerTimezone();
   const [value, setValue] = useState(savedTimezone);
+  useEffect(() => setValue(savedTimezone), [savedTimezone]);
 
   const dirty = value !== (user.timezone || 'UTC');
   const isValid = isKnownTimezone(value);
@@ -35,7 +30,7 @@ export function TimezoneField() {
   return (
     <div className="rounded-xl bg-cream p-3">
       <label className="block text-xs font-bold text-muted-foreground" htmlFor="dietitian-timezone">
-        Your timezone
+        Working-hours time zone
       </label>
       <p className="mt-0.5 text-xs text-muted-foreground">
         Weekly hours and blocks below are set in this timezone — clients always see them converted to their own.

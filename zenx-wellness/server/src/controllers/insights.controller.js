@@ -21,6 +21,7 @@ import {
 import { countProgressByDayForClients, latestProgressByClientIds } from '../models/Progress.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { toClientShape } from '../utils/serialize.js';
+import { effectiveTimezone, zonedDayBounds } from '../services/timezoneService.js';
 
 function startOfDay(date = new Date()) {
   const d = new Date(date);
@@ -59,8 +60,8 @@ function localMonthKey(date) {
 
 export const adminOverview = asyncHandler(async (req, res) => {
   const companyId = req.user.companyId;
+  const appointmentDay = zonedDayBounds(new Date(), effectiveTimezone(req.user));
   const dayStart = startOfDay();
-  const dayEnd = endOfDay();
   const monthStart = new Date(dayStart.getFullYear(), dayStart.getMonth() - 5, 1);
   const thirtyDaysAgo = new Date(dayStart.getTime() - 29 * 24 * 60 * 60 * 1000);
 
@@ -86,8 +87,8 @@ export const adminOverview = asyncHandler(async (req, res) => {
     countUsers({ companyId, role: 'client' }),
     listUsers({ companyId, role: 'dietitian' }),
     countEnquiriesByStatus(companyId),
-    countCalls({ companyId, status: 'scheduled', from: dayStart, to: dayEnd }),
-    countCalls({ companyId, status: 'scheduled', to: new Date(dayStart.getTime() - 1) }),
+    countCalls({ companyId, status: 'scheduled', from: appointmentDay.dayStart, to: appointmentDay.dayEnd }),
+    countCalls({ companyId, status: 'scheduled', to: new Date(appointmentDay.dayStart.getTime() - 1) }),
     listEnquiryTimelineSince(companyId, monthStart),
     listEnquiries({ companyId }, { limit: 6 }),
   ]);
@@ -194,6 +195,10 @@ const STAT_WINDOW_DAYS = 30;
 export const dietitianOverview = asyncHandler(async (req, res) => {
   const dietitianId = req.user.id;
   const companyId = req.user.companyId;
+  const now = new Date();
+  const viewerZone = effectiveTimezone(req.user);
+  const appointmentDay = zonedDayBounds(now, viewerZone);
+  const appointmentDayLastWeek = zonedDayBounds(now, viewerZone, -7);
   const dayStart = startOfDay();
   const dayEnd = endOfDay();
   const day = 24 * 60 * 60 * 1000;
@@ -218,7 +223,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     callsSameDayLastWeek,
     swapRequests,
   ] = await Promise.all([
-    listCallsForDietitianInRange(dietitianId, dayStart, dayEnd),
+    listCallsForDietitianInRange(dietitianId, appointmentDay.dayStart, appointmentDay.dayEnd),
     latestProgressByClientIds(clientIds),
     countUsers({ companyId, role: 'client', assignedDietitian: dietitianId }),
     countClientsCreatedBetween(dietitianId, windowStart, new Date()),
@@ -226,12 +231,12 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     countPlanStatesForDietitian(dietitianId, dayStart),
     countPublishedPlansCreatedBetween(dietitianId, windowStart, new Date()),
     countPublishedPlansCreatedBetween(dietitianId, prevWindowStart, windowStart),
-    countCalls({ companyId, dietitian: dietitianId, from: dayStart, to: dayEnd }),
+    countCalls({ companyId, dietitian: dietitianId, from: appointmentDay.dayStart, to: appointmentDay.dayEnd }),
     countCalls({
       companyId,
       dietitian: dietitianId,
-      from: new Date(dayStart.getTime() - 7 * day),
-      to: new Date(dayEnd.getTime() - 7 * day),
+      from: appointmentDayLastWeek.dayStart,
+      to: appointmentDayLastWeek.dayEnd,
     }),
     listSwapRequestsForDietitian(dietitianId),
   ]);

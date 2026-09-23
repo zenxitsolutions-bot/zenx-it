@@ -3,12 +3,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard } from '@/components/portal/shared/StatCard';
 import { computeMealCompletion } from '@/lib/clientPortal';
 import { formatDate } from '@/lib/format';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 // The summary strip at the top of the client dashboard. Every figure here is read straight off
 // data the screen already has — the current plan, the calls list and the progress entries. A
 // metric with no underlying record renders an em dash rather than a placeholder number, so the
 // row never implies a check-in that never happened.
 export function ClientStatsRow({ plan, stats, nextCall, isLoading }) {
+  const { timezone } = useViewerTimezone();
   if (isLoading) {
     return (
       <div className="mb-5 grid gap-3 min-[600px]:grid-cols-2 min-[1100px]:grid-cols-4">
@@ -64,7 +66,7 @@ export function ClientStatsRow({ plan, stats, nextCall, isLoading }) {
         label="Next check-in"
         icon={CalendarClock}
         accent="hydration"
-        value={nextCall ? formatDate(nextCall.scheduledAt, { day: 'numeric', month: 'short' }) : '—'}
+        value={nextCall ? formatDate(nextCall.scheduledAt, { day: 'numeric', month: 'short' }, timezone) : '—'}
         hint={
           nextCall
             ? `with ${nextCall.dietitian?.name ?? 'your dietitian'}`

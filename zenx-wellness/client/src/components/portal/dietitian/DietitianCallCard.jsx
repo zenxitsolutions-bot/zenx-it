@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { useUpdateCall } from '@/hooks/useCalls';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { formatDate, formatTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
 export function DietitianCallCard({ call, onReschedule, showAssignee = false }) {
+  const { timezone } = useViewerTimezone();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const updateCall = useUpdateCall();
   const isScheduled = call.status === 'scheduled';
@@ -31,9 +34,9 @@ export function DietitianCallCard({ call, onReschedule, showAssignee = false }) 
   return (
     <article className="rounded-card bg-white p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <UserAvatar userId={call.client?._id ?? null} name={person?.name ?? 'Client'} className="size-9 text-forest" />
-          <div>
+          <div className="min-w-0 break-words">
             <div className="flex items-center gap-1.5">
               <strong className="text-sm text-forest">{person?.name ?? 'Client'}</strong>
               {call.enquiry && (
@@ -43,8 +46,9 @@ export function DietitianCallCard({ call, onReschedule, showAssignee = false }) 
               )}
             </div>
             <span className="text-xs text-muted-foreground">
-              {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' })} · {formatTime(call.scheduledAt)}
+              {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' }, timezone)} · {formatTime(call.scheduledAt, timezone)}
             </span>
+            <p className="mt-1 text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</p>
           </div>
         </div>
         <Badge variant={STATUS_VARIANT[call.status]} className="capitalize">

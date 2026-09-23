@@ -1,5 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TIMEZONES, browserTimezone } from '@/lib/timezone';
+import { TIMEZONES, browserTimezone, canonicalTimezone } from '@/lib/timezone';
 
 // A real dropdown (shadcn/Radix Select, same component every other <select>-shaped field in the
 // app uses) — was previously an <input list>+<datalist>, which several users reported as "not a
@@ -10,7 +10,8 @@ import { TIMEZONES, browserTimezone } from '@/lib/timezone';
 export function TimezoneSelect({ id, value, onChange, className }) {
   // TIMEZONES can be empty on a runtime without Intl.supportedValuesOf (old Safari/Node<18) — fall
   // back to at least offering the browser's own detected zone so the dropdown is never empty.
-  const options = TIMEZONES.length > 0 ? TIMEZONES : [browserTimezone()];
+  const options = [...new Set(['UTC', ...(TIMEZONES.length > 0 ? TIMEZONES : [browserTimezone()]),
+    ...(canonicalTimezone(value) ? [value] : [])])].sort();
   return (
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger id={id} className={className ?? 'w-full'}>
@@ -28,5 +29,5 @@ export function TimezoneSelect({ id, value, onChange, className }) {
 }
 
 export function isKnownTimezone(value) {
-  return TIMEZONES.length === 0 || TIMEZONES.includes(value);
+  return Boolean(canonicalTimezone(value));
 }

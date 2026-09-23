@@ -26,6 +26,7 @@ function mapUser(row) {
     dietPreference: row.diet_preference,
     allergies: row.allergies,
     timezone: row.timezone,
+    detectedTimezone: row.detected_timezone ?? null,
     country: row.country,
     dateFormat: row.date_format,
     timeFormat: row.time_format,
@@ -158,12 +159,22 @@ export async function updateUser(id, patch, conn = pool) {
     dietPreference: 'diet_preference',
     allergies: 'allergies',
     timezone: 'timezone',
+    detectedTimezone: 'detected_timezone',
     country: 'country',
     dateFormat: 'date_format',
     timeFormat: 'time_format',
   };
   const sets = [];
   const params = [];
+  if (patch.detectedTimezone !== undefined && patch.timezone === undefined) {
+    // UTC was the legacy "not configured" sentinel. Initialize it on FIRST detection only,
+    // atomically against the CURRENT row, not the potentially stale authentication snapshot.
+    // MySQL evaluates SET assignments left-to-right: this must precede detected_timezone below.
+    // An explicit timezone in this request wins; later travel never moves working hours.
+    // Legacy explicitly chosen UTC is indistinguishable from the old unconfigured default.
+    sets.push("timezone = CASE WHEN detected_timezone IS NULL AND timezone = 'UTC' THEN ? ELSE timezone END");
+    params.push(patch.detectedTimezone);
+  }
   for (const [key, column] of Object.entries(columns)) {
     if (patch[key] !== undefined) {
       sets.push(`${column} = ?`);

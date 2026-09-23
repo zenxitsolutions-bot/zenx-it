@@ -2,13 +2,16 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { useUpdateCall } from '@/hooks/useCalls';
+import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { formatDate, formatTime } from '@/lib/format';
+import { timezoneOffsetLabel } from '@/lib/timezone';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
 export function CallCard({ call, onReschedule }) {
+  const { timezone } = useViewerTimezone();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const updateCall = useUpdateCall();
   const isPast = call.status !== 'scheduled';
@@ -29,12 +32,13 @@ export function CallCard({ call, onReschedule }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-lg font-semibold text-forest">
-            {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' })}
+            {formatDate(call.scheduledAt, { weekday: 'long', day: 'numeric', month: 'short' }, timezone)}
           </p>
           <div className="mt-2 flex items-center gap-2.5">
             <UserAvatar userId={call.dietitian ?? null} name={call.dietitian?.name ?? 'Your dietitian'} className="size-9" />
-            <p className="min-w-0 text-sm text-muted-foreground">{formatTime(call.scheduledAt)} · with {call.dietitian?.name ?? 'your dietitian'}</p>
+            <p className="min-w-0 text-sm text-muted-foreground">{formatTime(call.scheduledAt, timezone)} · with {call.dietitian?.name ?? 'your dietitian'}</p>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">Your local time · {timezone} ({timezoneOffsetLabel(timezone, new Date(call.scheduledAt))})</p>
           {call.notes && <p className="mt-1 text-sm text-forest">{call.notes}</p>}
         </div>
         <Badge variant={STATUS_VARIANT[call.status]} className="capitalize">
