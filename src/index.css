@@ -251,6 +251,86 @@ img {
   flex-wrap: wrap;
 }
 
+.consultation-offer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 32px;
+  max-width: 1280px;
+  width: calc(100% - 64px);
+  margin: 32px auto 0;
+  padding: 32px 40px;
+  border: 1px solid #50624e;
+  border-radius: 20px;
+  background: radial-gradient(ellipse at 90% 0%, #516b4d 0%, transparent 65%), #263f35;
+  color: #fbfaf5;
+  box-shadow: 0 14px 35px #263f351a;
+}
+
+.consultation-offer::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -85px;
+  bottom: -170px;
+  width: 360px;
+  height: 360px;
+  border: 1px solid #d9e5c122;
+  border-radius: 50%;
+  box-shadow: 0 0 0 45px #d9e5c109, 0 0 0 90px #d9e5c107;
+  pointer-events: none;
+}
+
+.consultation-offer-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 6px 10px;
+  border: 1px solid #dce9b440;
+  border-radius: 100px;
+  color: #e2efbd;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.consultation-offer-label svg { width: 14px; height: 14px; }
+.consultation-offer h2 { font-size: clamp(26px, 2.5vw, 36px); line-height: 1.16; letter-spacing: -0.04em; }
+.consultation-offer h2 span { display: block; color: #e2efbd; }
+.consultation-offer-description { max-width: 510px; margin-top: 12px; font-size: 14px; line-height: 1.6; color: #e1e8df; }
+.consultation-offer-topics { display: flex; flex-wrap: wrap; gap: 8px 18px; list-style: none; padding: 0; margin: 16px 0 0; color: #e1e8df; font-size: 11px; }
+.consultation-offer-topics li { display: flex; align-items: center; gap: 7px; }
+.consultation-offer-topics li::before { content: ""; width: 4px; height: 4px; border-radius: 50%; background: #e2efbd; }
+.consultation-offer-action { display: grid; justify-items: center; gap: 12px; min-width: 0; }
+.consultation-offer-flourish { width: 85px; height: 48px; color: #e2efbd; }
+.consultation-offer-button { justify-content: center; gap: 16px; max-width: 100%; padding: 14px 18px; border-color: #e2efbd; background: #e2efbd; color: #20362b; text-align: center; line-height: 1.5; transition: background 160ms ease, transform 160ms ease; }
+.consultation-offer-button:hover { background: #f0f7d8; transform: translateY(-2px); }
+.consultation-offer-button:focus-visible { outline: 3px solid #fff; outline-offset: 5px; }
+.consultation-offer-arrow { flex-shrink: 0; font-size: 22px; }
+.consultation-offer-action > p { color: #e1e8df; font-size: 11px; text-align: center; }
+
+@media (max-width: 900px) {
+  .consultation-offer { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .consultation-offer-action { justify-items: start; }
+  .consultation-offer-flourish { display: none; }
+}
+
+@media (max-width: 640px) {
+  .consultation-offer { width: calc(100% - 32px); padding: 28px 24px; margin-top: 24px; border-radius: 18px; }
+  .consultation-offer-button { width: 100%; font-size: 13px; gap: 8px; padding: 13px 12px; }
+  .consultation-offer-action { justify-items: stretch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .consultation-offer-button { transition: none; }
+  .consultation-offer-button:hover { transform: none; }
+}
+
 .product-stage {
   --stage-scale: 1;
   position: relative;

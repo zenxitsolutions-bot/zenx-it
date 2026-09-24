@@ -1,5 +1,6 @@
 import { handleAppLink } from "../lib/navigate";
 import ProductStage from "./ProductStage.jsx";
+import ConsultationOffer from "./ConsultationOffer.jsx";
 
 export default function Hero() {
   return (
@@ -23,6 +24,7 @@ export default function Hero() {
           </a>
         </div>
       </div>
+      <ConsultationOffer />
       <ProductStage />
     </section>
   );

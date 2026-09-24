@@ -8,8 +8,11 @@ import Footer from "./components/Footer.jsx";
 import EnquiryPage from "./components/EnquiryPage.jsx";
 import ThankYouPage from "./components/ThankYouPage.jsx";
 
-function currentPath() {
-  return window.location.pathname.replace(/\/+$/, "") || "/";
+function currentLocation() {
+  return {
+    path: window.location.pathname.replace(/\/+$/, "") || "/",
+    search: window.location.search,
+  };
 }
 
 function isEnquiryPath(path) {
@@ -17,10 +20,10 @@ function isEnquiryPath(path) {
 }
 
 export default function App() {
-  const [path, setPath] = useState(currentPath);
+  const [{ path, search }, setLocation] = useState(currentLocation);
 
   useEffect(() => {
-    const onPop = () => setPath(currentPath());
+    const onPop = () => setLocation(currentLocation());
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
@@ -47,7 +50,7 @@ export default function App() {
       {thankYou ? (
         <ThankYouPage />
       ) : enquiry ? (
-        <EnquiryPage key={typeof window === "undefined" ? path : window.location.search} />
+        <EnquiryPage key={search} />
       ) : (
         <>
           <Hero />
