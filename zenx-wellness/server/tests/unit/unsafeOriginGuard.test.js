@@ -52,4 +52,3 @@ test('GET OAuth callbacks, HEAD and OPTIONS preflight remain unaffected', () => 
     assert.equal(check(method, { 'sec-fetch-site': 'cross-site' }), undefined);
   }
 });
-

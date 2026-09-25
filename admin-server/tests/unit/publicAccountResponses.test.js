@@ -82,4 +82,3 @@ test('customer provisioning response sanitizes the newly created nested account'
   assert.equal(result.company.id, 'company');
   assert.deepEqual(result.grants, []);
 });
-

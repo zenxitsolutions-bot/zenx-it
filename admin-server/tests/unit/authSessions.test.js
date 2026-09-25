@@ -182,4 +182,3 @@ for (const realm of realms) {
     assert.equal((await invoke(realm.refresh, { cookies: { [realm.cookie]: old.refreshToken } })).error?.status, 401);
   });
 }
-

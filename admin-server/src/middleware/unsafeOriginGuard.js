@@ -17,4 +17,3 @@ export function unsafeOriginGuard(allowedOrigins) {
     return next();
   };
 }
-

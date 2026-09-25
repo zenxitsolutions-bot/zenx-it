@@ -29,4 +29,3 @@ export function safeDownloadType(filename) {
   const extension = String(filename).split('.').at(-1).toLowerCase();
   return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' }[extension] || 'application/octet-stream';
 }
-

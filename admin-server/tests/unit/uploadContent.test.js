@@ -34,4 +34,3 @@ test('oversized buffers and unsupported legacy file types fail closed', () => {
   assert.equal(safeDownloadType('old-report.pdf'), 'application/pdf');
   assert.equal(safeDownloadType('old-photo.jpg'), 'image/jpeg');
 });
-
