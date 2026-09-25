@@ -195,6 +195,8 @@ export interface Followup {
  */
 export interface Company {
   id: string;
+  // Resolved by the API from this company's application grants, not the admin browser host.
+  customer_login_url?: string | null;
   enquiry_id: string | null;
   company_name: string;
   company_slug: string;

@@ -194,3 +194,27 @@ explicit `RUN_INTEGRATION_TESTS=1` opt-in, reject production, and must point onl
 disposable database; the profile-photo suite additionally requires `TEST_PROFILE_PHOTOS=1`.
 Zero reported dependency vulnerabilities is useful evidence, not proof that the application is
 free of security defects.
+
+## Customer login links (2026-09-24)
+
+Deploy the updated admin API and rebuild/deploy the admin frontend together. No database
+migration is required for this change. Authenticated `GET /api/companies/:id` now includes
+`customer_login_url`, which the customer detail page displays and copies verbatim.
+
+For companies granted `zenx-dietitian` (including mixed-application companies), both this
+field and future welcome-email links use the registered application's URL, falling back to
+`ZENX_DIETITIAN_URL` only if that URL is absent. In production, configure the Dietitian
+application URL as `https://dietitian.zenxitsolutions.com`; the resulting `divyatest` login
+is `https://dietitian.zenxitsolutions.com/divyatest/login`. Production links require HTTPS.
+Missing or invalid Dietitian configuration disables copying and prevents sending a misleading
+welcome email. Other applications retain the existing ZenX launcher behavior.
+
+Direct password login also requires the Wellness account mirror to exist. Configure
+`WELLNESS_MYSQL_URL` and verify successful provisioning; changing the URL does not repair a
+missing mirrored account. Provisioning now attempts the mirror before sending the welcome
+email, while retaining existing non-fatal error handling. Staff invitation and password-reset
+links are unchanged. Previously delivered emails are not modified or automatically resent.
+
+Local verification: 137 admin API unit tests and 5 admin frontend tests passed, as did the
+admin TypeScript check and production build (existing bundle-size advisory remains). Email
+tests use a mock transport. No production configuration, database, or email delivery was changed.

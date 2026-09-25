@@ -156,6 +156,7 @@ for (const status of ['ACTIVE', 'INACTIVE']) {
     const events = [];
     const company = { id: 'company', company_name: 'Company', company_slug: 'company', status, main_admin_user_id: null };
     const query = async (sql, values) => {
+      if (sql.includes('FROM applications')) return [[{ url: 'https://wellness.example.test' }]];
       if (sql.includes('WHERE company_slug') || sql.includes('WHERE email')) return [[]];
       if (sql.includes('FROM companies')) return [[{ ...company }]];
       if (sql.includes('FROM users')) return [[customer]];

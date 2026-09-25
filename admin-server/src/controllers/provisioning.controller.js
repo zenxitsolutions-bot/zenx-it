@@ -107,12 +107,6 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
   // successful provisioning call into a 500. Welcome-email failure (e.g. Resend sandbox
   // restrictions in dev) and the wellness-app eager-create (a best-effort mirror — the SSO handoff
   // still creates it lazily on first login if this is skipped or fails) are both non-fatal.
-  try {
-    await sendCustomerWelcomeEmail({ to: email, name: firstName, companyName, companySlug });
-  } catch (err) {
-    console.error('[provisionCustomerAccount] welcome email failed', safeErrorMeta(err));
-  }
-
   if (applicationSlugs.includes('zenx-dietitian')) {
     try {
       await provisionWellnessUser({
@@ -132,6 +126,13 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
     } catch (err) {
       console.error('[provisionCustomerAccount] wellness-app eager create failed', safeErrorMeta(err));
     }
+  }
+
+  // Attempt the direct-login account mirror before delivering its sign-in link.
+  try {
+    await sendCustomerWelcomeEmail({ to: email, name: firstName, companyName, companySlug, applicationSlugs });
+  } catch (err) {
+    console.error('[provisionCustomerAccount] welcome email failed', safeErrorMeta(err));
   }
 
   res.status(201).json({ company, user: toPublicAccount(user), grants });

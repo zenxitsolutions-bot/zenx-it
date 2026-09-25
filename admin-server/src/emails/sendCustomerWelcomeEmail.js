@@ -1,11 +1,14 @@
 import { sendEmail } from './sendEmail.js';
-import { env } from '../config/env.js';
 import { renderEmailLayout } from './layout.js';
+import { resolveCompanyLoginUrl } from '../services/companyLoginUrl.js';
 
-export async function sendCustomerWelcomeEmail({ to, name, companyName, companySlug }) {
-  // Customer login is tenant-scoped. Bare /login refuses every account.
-  const origin = env.clientOrigins[0].replace(/\/+$/, '');
-  const url = companySlug ? `${origin}/${encodeURIComponent(companySlug)}/login` : `${origin}/login`;
+export async function sendCustomerWelcomeEmail({ to, name, companyName, companySlug, applicationSlugs = [] }) {
+  const url = await resolveCompanyLoginUrl({ companySlug, applicationSlugs });
+  if (!url) {
+    const error = new Error('Configure the customer application URL before sending a welcome email');
+    error.code = 'ERR_CUSTOMER_LOGIN_URL';
+    throw error;
+  }
   await sendEmail({
     to,
     subject: `Welcome to ${companyName}'s ZenX account`,

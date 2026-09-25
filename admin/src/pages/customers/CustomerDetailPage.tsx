@@ -159,16 +159,23 @@ export default function CustomerDetailPage() {
               .join(", ")}
           </div>
         )}
-        <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
           <span className="text-xs uppercase tracking-wider text-dim">Company URL</span>
-          <code className="text-sm text-offwhite">/{company.company_slug}/login</code>
+          <code className="min-w-0 break-all text-sm text-offwhite">{company.customer_login_url || "Login URL unavailable - check the application's configured URL."}</code>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/${company.company_slug}/login`);
-              setUrlCopied(true);
-              setTimeout(() => setUrlCopied(false), 1500);
+            disabled={!company.customer_login_url}
+            onClick={async () => {
+              if (!company.customer_login_url) return;
+              try {
+                await navigator.clipboard.writeText(company.customer_login_url);
+                setUrlCopied(true);
+                setTimeout(() => setUrlCopied(false), 1500);
+              } catch {
+                setUrlCopied(false);
+                toast("Could not copy the link. Please copy the displayed URL manually.", "error");
+              }
             }}
           >
             {urlCopied ? <Check size={13} /> : <Copy size={13} />}

@@ -8,6 +8,7 @@ import { createAuditLog } from '../models/AuditLog.js';
 import { hashPassword } from '../utils/password.js';
 import { persistCompanyLogo } from '../middleware/upload.js';
 import { toPublicAccount } from '../utils/publicAccount.js';
+import { resolveCompanyLoginUrl } from '../services/companyLoginUrl.js';
 import {
   syncWellnessCompanyStatus,
   syncWellnessCompanyLogo,
@@ -32,7 +33,10 @@ export const getCompanies = asyncHandler(async (req, res) => {
 export const getCompany = asyncHandler(async (req, res) => {
   const company = await findCompanyById(req.params.id);
   if (!company) throw ApiError.notFound('Company not found');
-  res.json(company);
+  const grants = await listApplicationAccessForCompany(company.id);
+  const customerLoginUrl = await resolveCompanyLoginUrl({ companySlug: company.company_slug,
+    applicationSlugs: grants.map((grant) => grant.application) });
+  res.json({ ...company, customer_login_url: customerLoginUrl });
 });
 
 export const getCompanyApplicationAccess = asyncHandler(async (req, res) => {
