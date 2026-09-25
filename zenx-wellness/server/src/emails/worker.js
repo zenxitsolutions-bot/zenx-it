@@ -5,26 +5,39 @@ import { buildPdfAttachment } from './pdf.js';
 import { sendViaTransport } from './transport/index.js';
 import { nextAttemptDelayMs } from './backoff.js';
 import { env } from '../config/env.js';
+import { prepareWelcomeDelivery } from './welcomeDelivery.js';
+import { assertSafeQueueParams, safeEmailFailure } from './security.js';
+import { preparePermissionDelivery } from './permissionDelivery.js';
 
-async function processOne(row) {
+export async function processOne(row, dependencies = {}) {
+  const prepareWelcome = dependencies.prepareWelcomeDelivery ?? prepareWelcomeDelivery;
+  const preparePermissions = dependencies.preparePermissionDelivery ?? preparePermissionDelivery;
+  const deliver = dependencies.sendViaTransport ?? sendViaTransport;
+  const markSent = dependencies.markEmailSent ?? markEmailSent;
+  const markFailed = dependencies.markEmailRetryOrFailed ?? markEmailRetryOrFailed;
   try {
-    const { subject, html, text } = renderTemplate(row.templateKey, row.params);
+    // Old welcome rows are upgraded by prepareWelcomeDelivery (ignoring their
+    // temp password). Other legacy credential-bearing jobs fail closed: retries
+    // must not deliver an old reset token retained in the queue.
+    if (row.templateKey !== 'client-welcome') assertSafeQueueParams(row.params);
+    const params = row.templateKey === 'client-welcome' ? await prepareWelcome(row) : await preparePermissions(row);
+    const { subject, html, text } = renderTemplate(row.templateKey, params);
     const attachments = [
-      buildIcsAttachment(row.templateKey, row.params),
-      await buildPdfAttachment(row.templateKey, row.params),
+      buildIcsAttachment(row.templateKey, params),
+      await buildPdfAttachment(row.templateKey, params),
     ].filter(Boolean);
-    const { providerMessageId } = await sendViaTransport({ to: row.to, subject, html, text, attachments });
-    await markEmailSent(row.id, providerMessageId);
+    const { providerMessageId } = await deliver({ to: row.to, subject, html, text, attachments, sensitive: row.templateKey === 'client-welcome' || row.templateKey === 'password-reset' });
+    await markSent(row.id, providerMessageId);
   } catch (err) {
     const attempts = row.attempts + 1;
     const nextAttemptAt = new Date(Date.now() + nextAttemptDelayMs(attempts));
-    await markEmailRetryOrFailed(row.id, {
-      error: err.message || String(err),
+    await markFailed(row.id, {
+      error: safeEmailFailure(),
       nextAttemptAt,
       attempts,
       maxAttempts: row.maxAttempts,
     });
-    console.error(`[email:worker] send failed for ${row.id} (${row.templateKey} → ${row.to}), attempt ${attempts}/${row.maxAttempts}:`, err.message);
+    console.error(`[email:worker] send failed for ${row.id}, attempt ${attempts}/${row.maxAttempts}`);
   }
 }
 
@@ -40,7 +53,7 @@ export async function drainOnce() {
   } catch (err) {
     // A tick-level failure (e.g. a transient DB blip) must not kill the interval — the next tick
     // just tries again.
-    console.error('[email:worker] tick failed:', err);
+    console.error('[email:worker] tick failed');
     return 0;
   }
 }

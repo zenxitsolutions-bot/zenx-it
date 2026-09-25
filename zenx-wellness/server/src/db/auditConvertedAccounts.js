@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // One-off report (docs/specs/2026-round2-fixes.md item 1): the old Follow-up flow force-created a
 // client account before a lead was ever explicitly marked Converted/Won. Finds every account that
 // was created that way — every converted enquiry whose *first* history transition to reach
@@ -54,6 +55,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[audit] failed', err);
+  console.error('[audit] failed', safeErrorMeta(err));
   process.exit(1);
 });

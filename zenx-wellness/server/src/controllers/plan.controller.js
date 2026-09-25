@@ -10,6 +10,8 @@ import {
 import { findUserById } from '../models/User.js';
 import { findCompanyById } from '../models/Company.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { assertPermission } from '../middleware/permissions.js';
+import { hasPermission } from '../../../shared/permissions.js';
 import { ApiError } from '../utils/ApiError.js';
 import { assertDietitianOwnsClient, assertUserInCompany } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
@@ -22,6 +24,7 @@ import {
 import { markNotificationsReadByType } from '../models/Notification.js';
 import { planPdfFileName, renderPlanPdf } from '../services/planPdf.js';
 import { dateForWeekdaySlot, todayCalendarDate } from '../utils/calendarDate.js';
+import { redactContactDetails } from '../utils/contactPrivacy.js';
 
 function scopeToOwner(req, filter = {}) {
   if (req.user.role === 'client') filter.client = req.user.id;
@@ -73,7 +76,7 @@ export const downloadPlanPdf = asyncHandler(async (req, res) => {
     findUserById(plan.dietitian),
     findCompanyById(req.user.companyId),
   ]);
-  const buffer = await renderPlanPdf({ plan, client, dietitian, company });
+  const buffer = await renderPlanPdf(redactContactDetails({ plan, client, dietitian, company }, req.user));
   const fileName = planPdfFileName({ plan, client });
 
   res.setHeader('Content-Type', 'application/pdf');
@@ -85,6 +88,7 @@ export const downloadPlanPdf = asyncHandler(async (req, res) => {
 
 export const createPlan = asyncHandler(async (req, res) => {
   let { client, dietitian, ...rest } = req.body;
+  if (rest.published) assertPermission(req, 'diet_plans.publish');
 
   if (req.user.role === 'dietitian') {
     // A dietitian can only ever author a plan as themselves, for one of their own clients —
@@ -108,10 +112,18 @@ export const createPlan = asyncHandler(async (req, res) => {
 });
 
 export const updatePlan = asyncHandler(async (req, res) => {
+  const publicationOnly = Object.keys(req.body).length === 1 && typeof req.body.published === 'boolean';
+  if (!publicationOnly) assertPermission(req, 'diet_plans.edit');
+  if (publicationOnly) assertPermission(req, 'diet_plans.publish');
   const existing = await findPlanById(req.params.id);
   if (!existing) throw ApiError.notFound('Plan not found');
   await assertUserInCompany(req, existing.dietitian);
   if (req.user.role === 'dietitian' && String(existing.dietitian) !== req.user.id) throw ApiError.forbidden();
+
+  // Editing or withdrawing a live plan changes what the client sees, just as publishing does.
+  if (existing.published || req.body.published === true || req.body.notifySwaps) {
+    assertPermission(req, 'diet_plans.publish');
+  }
 
   // A genuine publish (false/undefined → true) — not every autosave, and not a repeat "publish" of
   // an already-published plan. See docs/API.md for why this is what "published" means here.
@@ -137,7 +149,7 @@ export const updatePlan = asyncHandler(async (req, res) => {
     }
   }
 
-  const plan = await updatePlanById(req.params.id, patch);
+  const plan = await updatePlanById(req.params.id, patch, { allowPublished: hasPermission(req.user, 'diet_plans.publish') });
   if (isPublishing || (notifySwaps && !existing.published)) await notifyPlanPublished(plan);
   if (notifySwaps) {
     await clearResolvedSwapRequests({
@@ -159,8 +171,9 @@ export const deletePlan = asyncHandler(async (req, res) => {
   if (!existing) throw ApiError.notFound('Plan not found');
   await assertUserInCompany(req, existing.dietitian);
   if (req.user.role === 'dietitian' && String(existing.dietitian) !== req.user.id) throw ApiError.forbidden();
+  if (existing.published) assertPermission(req, 'diet_plans.publish');
 
-  await deletePlanById(req.params.id);
+  await deletePlanById(req.params.id, { allowPublished: hasPermission(req.user, 'diet_plans.publish') });
   res.status(204).send();
 });
 

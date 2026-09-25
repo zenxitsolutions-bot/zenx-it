@@ -43,6 +43,7 @@ const InsightsPage = lazyNamed(() => import('@/pages/app/InsightsPage'), 'Insigh
 const EmailLogPage = lazyNamed(() => import('@/pages/app/EmailLogPage'), 'EmailLogPage');
 const OrganisationPage = lazyNamed(() => import('@/pages/app/OrganisationPage'), 'OrganisationPage');
 const SupportPage = lazyNamed(() => import('@/pages/app/SupportPage'), 'SupportPage');
+const PermissionsPage = lazyNamed(() => import('@/pages/app/PermissionsPage'), 'PermissionsPage');
 
 // Wraps a single /app/<path> route in the RoleRoute guard for the roles that route belongs to
 // (sourced from ROUTE_ROLES, which is derived from the nav config — never hand-duplicated).
@@ -144,6 +145,7 @@ export const router = createBrowserRouter([
                       guarded('insights', <InsightsPage />),
                       guarded('email-log', <EmailLogPage />),
                       guarded('organisation', <OrganisationPage />),
+                      guarded('permissions', <PermissionsPage />),
                     ],
                   },
                 ],

@@ -16,7 +16,7 @@ async function withServer(run) {
   finally { server.close(); server.closeAllConnections(); await once(server, 'close'); }
 }
 
-const auth = (id) => ({ Authorization: `Bearer ${signAccessToken({ id, role: 'client', companyId: 'test' })}` });
+const auth = (id) => ({ Authorization: `Bearer ${signAccessToken({ id, role: 'client', companyId: 'test' }, `session-${id}`)}` });
 
 test('exhausted dashboard reads do not block login or writes; writes remain limited', () => withServer(async (request) => {
   assert.equal((await request('/api/notifications')).status, 200);

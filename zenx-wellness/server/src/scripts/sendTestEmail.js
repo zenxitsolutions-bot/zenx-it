@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // Manual test tool for the notification engine foundation — fires one real send (through the same
 // sendEmail() entry point everything else will eventually use) using built-in sample data, then
 // drains the queue once immediately so this script is self-contained (no separately running server
@@ -13,6 +14,8 @@ import { sendEmail } from '../emails/sendEmail.js';
 import { drainOnce } from '../emails/worker.js';
 import { findEmailLogById } from '../models/EmailLog.js';
 import { SAMPLE_DATA, TEMPLATE_KEYS } from '../emails/sampleData.js';
+import { renderTemplate } from '../emails/renderTemplate.js';
+import { sendViaTransport } from '../emails/transport/index.js';
 
 const [, , templateKey, to] = process.argv;
 
@@ -25,6 +28,15 @@ function printUsageAndExit() {
 
 async function main() {
   if (!templateKey || !to || !SAMPLE_DATA[templateKey]) printUsageAndExit();
+
+  // Authentication examples must not enqueue a raw bearer link or mint a real
+  // user's token. Deliver only the inert sample directly; console previews hide it.
+  if (templateKey === 'client-welcome' || templateKey === 'password-reset') {
+    await sendViaTransport({ to, ...renderTemplate(templateKey, SAMPLE_DATA[templateKey]), sensitive: true });
+    console.log('[test-email] Authentication sample handled directly; not stored in email_log.');
+    await pool.end();
+    return;
+  }
 
   const queued = await sendEmail(to, templateKey, SAMPLE_DATA[templateKey]);
   console.log(`[test-email] queued email_log row ${queued.id} (status: ${queued.status})`);
@@ -40,6 +52,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[test-email] failed', err);
+  console.error('[test-email] failed', safeErrorMeta(err));
   process.exit(1);
 });

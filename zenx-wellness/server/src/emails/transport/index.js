@@ -49,5 +49,11 @@ export async function sendViaTransport(message) {
     ...(message.attachment ? [message.attachment] : []),
     ...(Array.isArray(message.attachments) ? message.attachments : []),
   ];
-  return TRANSPORTS[kind]({ ...message, attachments });
+  try {
+    return await TRANSPORTS[kind]({ ...message, attachments });
+  } catch {
+    // Provider errors can include rendered credential links or SMTP authentication
+    // details. Do not let callers retain those in console/error/queue logs.
+    throw new Error('Email delivery failed');
+  }
 }

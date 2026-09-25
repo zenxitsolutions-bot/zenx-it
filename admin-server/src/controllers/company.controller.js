@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { listCompanies, findCompanyById, updateCompanyStatus, updateCompanyLogo, updateCompany } from '../models/Company.js';
@@ -5,6 +6,8 @@ import { listApplicationAccessForCompany, updateApplicationAccessStatus } from '
 import { listUsersByIds, updateUserPassword, findUserByEmail, updateUserProfile } from '../models/ZenxUser.js';
 import { createAuditLog } from '../models/AuditLog.js';
 import { hashPassword } from '../utils/password.js';
+import { persistCompanyLogo } from '../middleware/upload.js';
+import { toPublicAccount } from '../utils/publicAccount.js';
 import {
   syncWellnessCompanyStatus,
   syncWellnessCompanyLogo,
@@ -42,23 +45,17 @@ function laterIso(a, b) {
   return new Date(a) >= new Date(b) ? a : b;
 }
 
-function withoutPassword(user) {
-  if (!user) return user;
-  const { password_hash, ...rest } = user;
-  return rest;
-}
-
 export const getCompanyUsers = asyncHandler(async (req, res) => {
   const grants = await listApplicationAccessForCompany(req.params.id);
   const userIds = [...new Set(grants.map((g) => g.user_id))];
-  const users = (await listUsersByIds(userIds)).map(withoutPassword);
+  const users = (await listUsersByIds(userIds)).map(toPublicAccount);
   try {
     const wellnessLogins = await listWellnessLastLoginsByZenxIds(userIds);
     for (const user of users) {
       user.last_login = laterIso(user.last_login, wellnessLogins.get(user.id) ?? null);
     }
   } catch (err) {
-    console.error('[getCompanyUsers] wellness last-login lookup failed', err);
+    console.error('[getCompanyUsers] wellness last-login lookup failed', safeErrorMeta(err));
   }
   res.json(users);
 });
@@ -97,7 +94,7 @@ export const patchCompany = asyncHandler(async (req, res) => {
         status: nextCompany.status,
       });
     } catch (err) {
-      console.error('[patchCompany] wellness-app status sync failed', err);
+      console.error('[patchCompany] wellness-app status sync failed', safeErrorMeta(err));
     }
   }
 
@@ -109,7 +106,7 @@ export const patchCompany = asyncHandler(async (req, res) => {
       website: nextCompany.website,
     });
   } catch (err) {
-    console.error('[patchCompany] wellness-app profile sync failed', err);
+    console.error('[patchCompany] wellness-app profile sync failed', safeErrorMeta(err));
   }
 
   if (contact?.userId) {
@@ -138,7 +135,7 @@ export const patchCompany = asyncHandler(async (req, res) => {
         phone: updatedUser.phone,
       });
     } catch (err) {
-      console.error('[patchCompany] wellness-app contact sync failed', err);
+      console.error('[patchCompany] wellness-app contact sync failed', safeErrorMeta(err));
     }
   }
 
@@ -168,7 +165,7 @@ export const patchCompanyStatus = asyncHandler(async (req, res) => {
       status: company.status,
     });
   } catch (err) {
-    console.error('[patchCompanyStatus] wellness-app status sync failed', err);
+    console.error('[patchCompanyStatus] wellness-app status sync failed', safeErrorMeta(err));
   }
   res.json(company);
 });
@@ -196,7 +193,7 @@ export const patchApplicationAccessStatus = asyncHandler(async (req, res) => {
         status: nextStatus,
       });
     } catch (err) {
-      console.error('[patchApplicationAccessStatus] wellness-app status sync failed', err);
+      console.error('[patchApplicationAccessStatus] wellness-app status sync failed', safeErrorMeta(err));
     }
   }
 
@@ -209,7 +206,7 @@ export const getWellnessClients = asyncHandler(async (req, res) => {
   try {
     res.json(await listWellnessClients(company.id, company.company_slug));
   } catch (err) {
-    console.error('[getWellnessClients] wellness-app lookup failed', err);
+    console.error('[getWellnessClients] wellness-app lookup failed', safeErrorMeta(err));
     res.json({ clients: [], dietitians: [] });
   }
 });
@@ -252,14 +249,16 @@ export const setCustomerPassword = asyncHandler(async (req, res) => {
       mustChangePassword: true,
     });
   } catch (err) {
-    console.error('[setCustomerPassword] wellness-app password sync failed', err);
+    console.error('[setCustomerPassword] wellness-app password sync failed', safeErrorMeta(err));
   }
   res.json({ ok: true });
 });
 
 export const uploadLogo = asyncHandler(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('No file uploaded');
-  const logoUrl = `/uploads/company-logos/${req.file.filename}`;
+  if (!(await findCompanyById(req.params.id))) throw ApiError.notFound('Company not found');
+  const filename = await persistCompanyLogo(req.file);
+  const logoUrl = `/uploads/company-logos/${filename}`;
   const company = await updateCompanyLogo(req.params.id, logoUrl);
   try {
     await syncWellnessCompanyLogo({
@@ -268,7 +267,7 @@ export const uploadLogo = asyncHandler(async (req, res) => {
       logoUrl: absoluteLogoUrl(req, logoUrl),
     });
   } catch (err) {
-    console.error('[uploadLogo] wellness-app logo sync failed', err);
+    console.error('[uploadLogo] wellness-app logo sync failed', safeErrorMeta(err));
   }
   res.json(company);
 });
@@ -282,7 +281,7 @@ export const removeLogo = asyncHandler(async (req, res) => {
       logoUrl: null,
     });
   } catch (err) {
-    console.error('[removeLogo] wellness-app logo sync failed', err);
+    console.error('[removeLogo] wellness-app logo sync failed', safeErrorMeta(err));
   }
   res.json(company);
 });

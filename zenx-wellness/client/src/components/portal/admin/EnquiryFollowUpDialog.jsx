@@ -15,6 +15,7 @@ import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { useUpdateEnquiry } from '@/hooks/useEnquiries';
 import { toDatetimeLocalValue } from '@/lib/format';
 import { timezoneOffsetLabel } from '@/lib/timezone';
+import { hasPermission } from '@/lib/permissions';
 
 // Books a real call directly against the enquiry — no client account exists yet (spec
 // §2026-round2-fixes item 1: that only happens on an explicit "Successfully Converted / Won").
@@ -36,7 +37,7 @@ export function EnquiryFollowUpDialog({ open, onOpenChange, enquiry }) {
   const { user } = useAuth();
   const updateEnquiry = useUpdateEnquiry();
   const { browserTimezone: clockZone } = useViewerTimezone();
-  const { data: admins } = useUsers({ role: 'admin' });
+  const { data: admins } = useUsers({ role: 'admin' }, hasPermission(user, 'staff.view'));
 
   const adminOptions = useMemo(() => {
     const list = [...(admins ?? [])].filter((a) => !a.accountStatus || a.accountStatus === 'active');

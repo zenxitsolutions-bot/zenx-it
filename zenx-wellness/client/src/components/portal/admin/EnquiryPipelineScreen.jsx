@@ -16,6 +16,8 @@ import { EnquiryFollowUpDialog } from './EnquiryFollowUpDialog';
 import { EnquiryConvertedDialog } from './EnquiryConvertedDialog';
 import { AddEnquiryDialog } from './AddEnquiryDialog';
 import { EnquiryList } from './EnquiryList';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission, mayChangeEnquiryStatus } from '@/lib/permissions';
 
 const COLUMNS = Object.keys(STATUS_LABEL).map((status) => ({ status, label: STATUS_LABEL[status] }));
 
@@ -34,6 +36,8 @@ const DIALOG_FOR_STATUS = {
 };
 
 export function EnquiryPipelineScreen() {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'enquiries.manage');
   const { data, isLoading, isError, refetch } = useEnquiries();
   const updateEnquiry = useUpdateEnquiry();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
@@ -45,16 +49,17 @@ export function EnquiryPipelineScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1') return;
+    if (!canManage || searchParams.get('create') !== '1') return;
     setCreateOpen(true);
     const next = new URLSearchParams(searchParams);
     next.delete('create');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [canManage, searchParams, setSearchParams]);
 
   const enquiries = data?.enquiries ?? [];
 
   function requestStatusChange(enquiry, status) {
+    if (!mayChangeEnquiryStatus(user, enquiry, status)) return;
     if (status === enquiry.status) return;
     // Converted only needs its dialog (plan/duration/password) the first time an enquiry gets a
     // client account — if Follow-up already created one, this is just a label change.
@@ -88,10 +93,10 @@ export function EnquiryPipelineScreen() {
           <h1 className="mt-1 text-3xl text-forest">Enquiry pipeline</h1>
           <p className="mt-1 text-muted-foreground">{view === 'board' ? 'Drag a card — or use its dropdown — to keep every person feeling seen.' : 'Review enquiries and update stages from the list.'}</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+        {canManage && <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
           <Plus className="size-4" aria-hidden="true" />
           Add enquiry
-        </Button>
+        </Button>}
       </div>
 
       <div className="mb-4 flex gap-2" role="group" aria-label="Pipeline view">
@@ -117,7 +122,7 @@ export function EnquiryPipelineScreen() {
           icon={Inbox}
           title="No enquiries yet"
           description="New consultation requests from the website will show up here — or add one yourself."
-          action={
+          action={canManage &&
             <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
               <Plus className="size-4" aria-hidden="true" />
               Add enquiry

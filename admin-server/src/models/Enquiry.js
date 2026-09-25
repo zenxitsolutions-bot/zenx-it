@@ -2,6 +2,8 @@ import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
 import { buildSetClause } from '../db/helpers.js';
 
+const optionalValue = (value) => value?.trim() || null;
+
 export async function createEnquiry(input) {
   const id = newId();
   await pool.query(
@@ -11,25 +13,25 @@ export async function createEnquiry(input) {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
-      input.companyName,
+      optionalValue(input.companyName),
       input.contactName,
       input.phone,
       input.email,
-      input.website ?? null,
-      input.service,
-      input.source,
+      optionalValue(input.website),
+      optionalValue(input.service),
+      optionalValue(input.source),
       // The public contact form can only ever create a NEW lead — status is never accepted from
       // the caller for this insert (mirrors the RLS policy this replaces: "anon insert allowed
       // only with status='NEW'").
       'NEW',
       input.priority ?? 'MEDIUM',
-      input.addressLine1 ?? null,
-      input.addressLine2 ?? null,
-      input.city ?? null,
-      input.state ?? null,
-      input.zip ?? null,
-      input.country ?? null,
-      input.notes ?? null,
+      optionalValue(input.addressLine1),
+      optionalValue(input.addressLine2),
+      optionalValue(input.city),
+      optionalValue(input.state),
+      optionalValue(input.zip),
+      optionalValue(input.country),
+      optionalValue(input.notes),
     ]
   );
   return findEnquiryById(id);

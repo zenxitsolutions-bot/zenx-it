@@ -14,6 +14,7 @@ import { planEndDate } from '@/lib/planDurations';
 import { ACCOUNT_STATUS_LABEL } from '@/lib/accountStatus';
 import { ClientContactEditDialog } from './ClientContactEditDialog';
 import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPdfButton';
+import { hasPermission } from '@/lib/permissions';
 
 // Spec §6 item 1: client information, plan, and plan duration — plus a quick pointer at the
 // current weekly meal plan (full history of those lives in the Meal plans tab). Spec
@@ -21,11 +22,11 @@ import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPd
 // {email, phone}-only path an admin's edit dialog uses, restricted server-side to a client
 // actually assigned to the calling dietitian (see user.controller.js#updateUser).
 export function ClientOverviewTab({ client }) {
-  const planQuery = useCurrentPlan(client._id);
+  const { user } = useAuth();
+  const planQuery = useCurrentPlan(hasPermission(user, 'diet_plans.view') ? client._id : null);
   const [editingContact, setEditingContact] = useState(false);
   const { companySlug } = useParams();
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' && hasPermission(user, 'clients.edit');
   const { data: dietitians } = useDietitians(isAdmin);
   const updateUser = useUpdateUser();
   const activeDietitians = (dietitians ?? []).filter((d) => !d.accountStatus || d.accountStatus === 'active');
@@ -54,19 +55,19 @@ export function ClientOverviewTab({ client }) {
       <section className="rounded-card bg-white p-6 shadow-soft">
         <div className="flex items-center justify-between">
           <h2 className="text-xl">Client information</h2>
-          <button type="button" onClick={() => setEditingContact(true)} className="text-sm font-semibold text-forest hover:underline">
+          {hasPermission(user, 'clients.edit') && <button type="button" onClick={() => setEditingContact(true)} className="text-sm font-semibold text-forest hover:underline">
             Edit
-          </button>
+          </button>}
         </div>
         <dl className="mt-4 grid gap-3 text-sm">
-          <div className="flex justify-between gap-4">
+          {typeof client.email === 'string' && <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Email</dt>
             <dd className="text-forest">{client.email}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
+          </div>}
+          {Object.hasOwn(client, 'phone') && <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Phone</dt>
             <dd className="text-forest">{client.phone || '—'}</dd>
-          </div>
+          </div>}
           <div className="flex justify-between gap-4">
             <dt className="text-muted-foreground">Account</dt>
             <dd className="text-forest">{ACCOUNT_STATUS_LABEL[client.accountStatus ?? 'active']}</dd>
@@ -127,7 +128,7 @@ export function ClientOverviewTab({ client }) {
         </div>
       </section>
 
-      <section className="rounded-card bg-white p-6 shadow-soft min-[700px]:col-span-2">
+      {hasPermission(user, 'diet_plans.view') && <section className="rounded-card bg-white p-6 shadow-soft min-[700px]:col-span-2">
         <h2 className="text-xl">Current weekly meal plan</h2>
         {planQuery.isLoading ? (
           <Skeleton className="mt-4 h-14 w-full" />
@@ -152,6 +153,7 @@ export function ClientOverviewTab({ client }) {
         )}
       </section>
 
+      }
       <ClientContactEditDialog open={editingContact} onOpenChange={setEditingContact} client={client} />
     </div>
   );

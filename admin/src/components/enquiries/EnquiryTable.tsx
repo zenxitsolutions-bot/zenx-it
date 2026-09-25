@@ -34,12 +34,12 @@ export function EnquiryTable({ enquiries, admins }: { enquiries: Enquiry[]; admi
               <tr key={e.id} className="border-t border-border transition hover:bg-ink">
                 <td className="px-4 py-3">
                   <Link to={`/admin/enquiries/${e.id}`} className="font-semibold text-offwhite hover:text-lime">
-                    {e.company_name}
+                    {e.company_name || e.contact_name}
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted">{e.contact_name}</td>
-                <td className="px-4 py-3 text-muted">{e.service}</td>
-                <td className="px-4 py-3 text-muted">{e.source}</td>
+                <td className="px-4 py-3 text-muted">{e.service || "Not provided"}</td>
+                <td className="px-4 py-3 text-muted">{e.source || "Not provided"}</td>
                 <td className="px-4 py-3">
                   <StatusBadge status={e.status} />
                 </td>

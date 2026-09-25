@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -14,7 +15,7 @@ import { createClientNoteSchema, updateClientNoteSchema } from '../schemas/clien
 export const clientNoteRouter = Router();
 clientNoteRouter.use(authenticate, blockIfMustChangePassword, authorize('dietitian', 'admin'));
 
-clientNoteRouter.get('/', listClientNotes);
-clientNoteRouter.post('/', validate(createClientNoteSchema), createClientNote);
-clientNoteRouter.patch('/:id', validate(updateClientNoteSchema), updateClientNote);
-clientNoteRouter.delete('/:id', deleteClientNote);
+clientNoteRouter.get('/', requirePermission('clients.view'), listClientNotes);
+clientNoteRouter.post('/', requirePermission('clients.view', 'clients.edit'), validate(createClientNoteSchema), createClientNote);
+clientNoteRouter.patch('/:id', requirePermission('clients.view', 'clients.edit'), validate(updateClientNoteSchema), updateClientNote);
+clientNoteRouter.delete('/:id', requirePermission('clients.view', 'clients.edit'), deleteClientNote);

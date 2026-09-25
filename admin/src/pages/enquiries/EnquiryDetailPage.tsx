@@ -93,7 +93,7 @@ export default function EnquiryDetailPage() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <h2 className="font-display text-2xl text-offwhite">{enquiry.company_name}</h2>
+              <h2 className="font-display text-2xl text-offwhite">{enquiry.company_name || enquiry.contact_name}</h2>
               <PriorityBadge priority={enquiry.priority} />
               <StatusBadge status={enquiry.status} />
             </div>

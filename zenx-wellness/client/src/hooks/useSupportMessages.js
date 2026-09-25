@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
+import { getAuthGeneration } from '../api/tokenStore';
 import {
   listSupportMessagesRequest,
   sendSupportMessageRequest,
@@ -26,12 +27,17 @@ export function useSendSupportMessage(dietitianId) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const threadKey = user.role === 'dietitian' ? 'mine' : dietitianId;
+  const generation = getAuthGeneration();
   return useMutation({
-    mutationFn: (body) =>
-      sendSupportMessageRequest(user.role === 'dietitian' ? { body } : { dietitian: dietitianId, body }),
+    mutationFn: (body) => {
+      if (generation !== getAuthGeneration()) throw new Error('Session changed');
+      return sendSupportMessageRequest(user.role === 'dietitian' ? { body } : { dietitian: dietitianId, body });
+    },
     onMutate: async (body) => {
-      await queryClient.cancelQueries({ queryKey: ['support-messages', threadKey] });
-      const previous = queryClient.getQueryData(['support-messages', threadKey]);
+      const queryKey = ['support-messages', threadKey];
+      await queryClient.cancelQueries({ queryKey });
+      if (generation !== getAuthGeneration()) throw new Error('Session changed');
+      const previous = queryClient.getQueryData(queryKey);
       const optimistic = {
         _id: `local-${Date.now()}`,
         body,
@@ -40,14 +46,15 @@ export function useSendSupportMessage(dietitianId) {
         channel: 'support',
         createdAt: new Date().toISOString(),
       };
-      queryClient.setQueryData(['support-messages', threadKey], (old = []) => [...old, optimistic]);
-      return { previous };
+      queryClient.setQueryData(queryKey, (old = []) => [...old, optimistic]);
+      return { previous, queryKey, generation };
     },
     onError: (_error, _body, context) => {
-      if (context?.previous) queryClient.setQueryData(['support-messages', threadKey], context.previous);
+      if (context?.previous && context.generation === getAuthGeneration()) queryClient.setQueryData(context.queryKey, context.previous);
     },
-    onSuccess: (saved) => {
-      queryClient.setQueryData(['support-messages', threadKey], (old = []) => {
+    onSuccess: (saved, _body, context) => {
+      if (!context || context.generation !== getAuthGeneration()) return;
+      queryClient.setQueryData(context.queryKey, (old = []) => {
         const withoutOptimistic = old.filter((message) => !String(message._id).startsWith('local-'));
         if (withoutOptimistic.some((message) => message._id === saved._id)) return withoutOptimistic;
         return [...withoutOptimistic, saved];

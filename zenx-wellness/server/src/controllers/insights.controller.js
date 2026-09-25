@@ -22,6 +22,7 @@ import { countProgressByDayForClients, latestProgressByClientIds } from '../mode
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { toClientShape } from '../utils/serialize.js';
 import { effectiveTimezone, zonedDayBounds } from '../services/timezoneService.js';
+import { hasPermission } from '../../../shared/permissions.js';
 
 function startOfDay(date = new Date()) {
   const d = new Date(date);
@@ -60,6 +61,10 @@ function localMonthKey(date) {
 
 export const adminOverview = asyncHandler(async (req, res) => {
   const companyId = req.user.companyId;
+  const canEnquiries = hasPermission(req.user, 'enquiries.view');
+  const canClients = hasPermission(req.user, 'clients.view');
+  const canStaff = hasPermission(req.user, 'staff.view');
+  const canCalls = hasPermission(req.user, 'calls.view');
   const appointmentDay = zonedDayBounds(new Date(), effectiveTimezone(req.user));
   const dayStart = startOfDay();
   const monthStart = new Date(dayStart.getFullYear(), dayStart.getMonth() - 5, 1);
@@ -79,22 +84,22 @@ export const adminOverview = asyncHandler(async (req, res) => {
     timeline,
     recentRows,
   ] = await Promise.all([
-    countEnquiries({ companyId, status: 'new' }),
-    countEnquiries({ companyId, status: 'converted' }),
-    countEnquiries({ companyId, status: 'closed' }),
-    countEnquiries({ companyId, status: 'follow-up' }),
-    countEnquiries({ companyId }),
-    countUsers({ companyId, role: 'client' }),
-    listUsers({ companyId, role: 'dietitian' }),
-    countEnquiriesByStatus(companyId),
-    countCalls({ companyId, status: 'scheduled', from: appointmentDay.dayStart, to: appointmentDay.dayEnd }),
-    countCalls({ companyId, status: 'scheduled', to: new Date(appointmentDay.dayStart.getTime() - 1) }),
-    listEnquiryTimelineSince(companyId, monthStart),
-    listEnquiries({ companyId }, { limit: 6 }),
+    canEnquiries ? countEnquiries({ companyId, status: 'new' }) : 0,
+    canEnquiries ? countEnquiries({ companyId, status: 'converted' }) : 0,
+    canEnquiries ? countEnquiries({ companyId, status: 'closed' }) : 0,
+    canEnquiries ? countEnquiries({ companyId, status: 'follow-up' }) : 0,
+    canEnquiries ? countEnquiries({ companyId }) : 0,
+    canClients ? countUsers({ companyId, role: 'client' }) : 0,
+    canStaff && canClients ? listUsers({ companyId, role: 'dietitian' }) : [],
+    canEnquiries ? countEnquiriesByStatus(companyId) : [],
+    canCalls ? countCalls({ companyId, status: 'scheduled', from: appointmentDay.dayStart, to: appointmentDay.dayEnd }) : 0,
+    canCalls ? countCalls({ companyId, status: 'scheduled', to: new Date(appointmentDay.dayStart.getTime() - 1) }) : 0,
+    canEnquiries ? listEnquiryTimelineSince(companyId, monthStart) : [],
+    canEnquiries ? listEnquiries({ companyId }, { limit: 6 }) : [],
   ]);
 
   const clientsByDietitian = new Map(
-    (await countUsersGroupedByDietitian(companyId)).map((row) => [row.dietitianId, row.clients])
+    (canStaff && canClients ? await countUsersGroupedByDietitian(companyId) : []).map((row) => [row.dietitianId, row.clients])
   );
   const dietitianWorkload = dietitians.map((d) => ({
     dietitian: d.name,
@@ -104,7 +109,7 @@ export const adminOverview = asyncHandler(async (req, res) => {
   // Real weekly enquiry volume for the last GROWTH_WEEKS weeks (including weeks with zero
   // enquiries, so the chart's x-axis is a continuous timeline, not just weeks that had activity).
   const earliestWeek = startOfWeek(new Date(Date.now() - (GROWTH_WEEKS - 1) * 7 * 24 * 60 * 60 * 1000));
-  const createdAtRows = await listEnquiryCreatedAtSince(companyId, earliestWeek);
+  const createdAtRows = canEnquiries ? await listEnquiryCreatedAtSince(companyId, earliestWeek) : [];
   const countByWeek = new Map();
   for (const createdAt of createdAtRows) {
     const key = startOfWeek(createdAt).toISOString().slice(0, 10);
@@ -153,7 +158,7 @@ export const adminOverview = asyncHandler(async (req, res) => {
 
   const conversionRate = totalEnquiries ? Math.round((converted / totalEnquiries) * 1000) / 10 : 0;
 
-  res.json({
+  const overview = {
     newEnquiries,
     followUpsToday,
     conversionRate,
@@ -178,7 +183,18 @@ export const adminOverview = asyncHandler(async (req, res) => {
     monthly,
     daily,
     recentEnquiries: recentRows.map((e) => toClientShape(e)),
-  });
+  };
+  if (!canEnquiries) {
+    for (const key of ['newEnquiries', 'conversionRate', 'growthSeries', 'statusBreakdown', 'kpis', 'monthly', 'daily', 'recentEnquiries']) delete overview[key];
+    delete overview.today.newEnquiriesToday;
+  }
+  if (!canClients) delete overview.activeClients;
+  if (!canClients || !canStaff) delete overview.dietitianWorkload;
+  if (!canCalls) {
+    delete overview.followUpsToday;
+    for (const key of ['followupsToday', 'overdueFollowups', 'callsScheduledToday']) delete overview.today[key];
+  }
+  res.json(overview);
 });
 
 // Percentage change from `previous` to `current`, or null when there is no baseline to compare
@@ -195,6 +211,9 @@ const STAT_WINDOW_DAYS = 30;
 export const dietitianOverview = asyncHandler(async (req, res) => {
   const dietitianId = req.user.id;
   const companyId = req.user.companyId;
+  const canClients = hasPermission(req.user, 'clients.view');
+  const canCalls = hasPermission(req.user, 'calls.view');
+  const canPlans = hasPermission(req.user, 'diet_plans.view');
   const now = new Date();
   const viewerZone = effectiveTimezone(req.user);
   const appointmentDay = zonedDayBounds(now, viewerZone);
@@ -208,7 +227,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
   const windowStart = new Date(Date.now() - STAT_WINDOW_DAYS * day);
   const prevWindowStart = new Date(Date.now() - 2 * STAT_WINDOW_DAYS * day);
 
-  const clientIds = await listClientIdsByDietitian(dietitianId);
+  const clientIds = canClients ? await listClientIdsByDietitian(dietitianId) : [];
 
   const [
     todaysAppointments,
@@ -223,29 +242,29 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     callsSameDayLastWeek,
     swapRequests,
   ] = await Promise.all([
-    listCallsForDietitianInRange(dietitianId, appointmentDay.dayStart, appointmentDay.dayEnd),
-    latestProgressByClientIds(clientIds),
-    countUsers({ companyId, role: 'client', assignedDietitian: dietitianId }),
-    countClientsCreatedBetween(dietitianId, windowStart, new Date()),
-    countClientsCreatedBetween(dietitianId, prevWindowStart, windowStart),
-    countPlanStatesForDietitian(dietitianId, dayStart),
-    countPublishedPlansCreatedBetween(dietitianId, windowStart, new Date()),
-    countPublishedPlansCreatedBetween(dietitianId, prevWindowStart, windowStart),
-    countCalls({ companyId, dietitian: dietitianId, from: appointmentDay.dayStart, to: appointmentDay.dayEnd }),
-    countCalls({
+    canCalls ? listCallsForDietitianInRange(dietitianId, appointmentDay.dayStart, appointmentDay.dayEnd) : [],
+    canClients ? latestProgressByClientIds(clientIds) : [],
+    canClients ? countUsers({ companyId, role: 'client', assignedDietitian: dietitianId }) : 0,
+    canClients ? countClientsCreatedBetween(dietitianId, windowStart, new Date()) : 0,
+    canClients ? countClientsCreatedBetween(dietitianId, prevWindowStart, windowStart) : 0,
+    canPlans ? countPlanStatesForDietitian(dietitianId, dayStart) : {},
+    canPlans ? countPublishedPlansCreatedBetween(dietitianId, windowStart, new Date()) : 0,
+    canPlans ? countPublishedPlansCreatedBetween(dietitianId, prevWindowStart, windowStart) : 0,
+    canCalls ? countCalls({ companyId, dietitian: dietitianId, from: appointmentDay.dayStart, to: appointmentDay.dayEnd }) : 0,
+    canCalls ? countCalls({
       companyId,
       dietitian: dietitianId,
       from: appointmentDayLastWeek.dayStart,
       to: appointmentDayLastWeek.dayEnd,
-    }),
-    listSwapRequestsForDietitian(dietitianId),
+    }) : 0,
+    canPlans ? listSwapRequestsForDietitian(dietitianId) : [],
   ]);
 
   // Progress logs per day across the last PROGRESS_SERIES_DAYS days, gaps filled with zero so the
   // chart's x-axis is a continuous week rather than only the days that happened to have activity.
   const seriesStart = new Date(dayStart.getTime() - (PROGRESS_SERIES_DAYS - 1) * day);
   const loggedByDay = new Map(
-    (await countProgressByDayForClients(clientIds, seriesStart, dayEnd)).map((r) => [r.date, r.logs])
+    (canClients ? await countProgressByDayForClients(clientIds, seriesStart, dayEnd) : []).map((r) => [r.date, r.logs])
   );
   const progressSeries = Array.from({ length: PROGRESS_SERIES_DAYS }, (_, i) => {
     const date = new Date(seriesStart.getTime() + i * day);
@@ -253,7 +272,7 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     return { date: key, logs: loggedByDay.get(key) ?? 0 };
   });
 
-  res.json({
+  const overview = {
     todaysAppointments: todaysAppointments.map((c) => toClientShape(c)),
     attentionItems: swapRequests.map((item) => ({ type: 'swap-request', ...item })),
     clientMomentum: clientMomentum.length,
@@ -286,5 +305,20 @@ export const dietitianOverview = asyncHandler(async (req, res) => {
     },
     progressSeries,
     planBreakdown: planStates,
-  });
+  };
+  if (!canClients) {
+    delete overview.clientMomentum;
+    delete overview.progressSeries;
+    delete overview.stats.clients;
+  }
+  if (!canCalls) {
+    delete overview.todaysAppointments;
+    delete overview.stats.appointmentsToday;
+  }
+  if (!canPlans) {
+    delete overview.attentionItems;
+    delete overview.planBreakdown;
+    delete overview.stats.activePlans;
+  }
+  res.json(overview);
 });

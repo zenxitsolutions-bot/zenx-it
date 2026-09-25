@@ -4,6 +4,8 @@ import { GripVertical } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { STATUS_LABEL, STATUSES } from '@/lib/enquiryStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission, mayChangeEnquiryStatus } from '@/lib/permissions';
 
 // Two ways to move a card between stages: drag it (mouse or dnd-kit's KeyboardSensor), or use
 // the status dropdown directly — a fully independent, non-spatial keyboard/screen-reader path.
@@ -11,9 +13,12 @@ import { STATUS_LABEL, STATUSES } from '@/lib/enquiryStatus';
 // that inner block (not the whole card) so it doesn't fight the card's own drag listeners or the
 // Select's own clicks.
 export function EnquiryCard({ enquiry, onStatusChange, onOpenDetail, isPending }) {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'enquiries.manage');
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: enquiry._id,
     data: { enquiry },
+    disabled: !canManage,
   });
 
   return (
@@ -36,13 +41,13 @@ export function EnquiryCard({ enquiry, onStatusChange, onOpenDetail, isPending }
         {enquiry.preferredSlot && <span className="text-[11px] text-sage-deep">{enquiry.preferredSlot}</span>}
       </button>
 
-      <Select value={enquiry.status} onValueChange={(status) => onStatusChange(status)} disabled={isPending}>
+      <Select value={enquiry.status} onValueChange={(status) => onStatusChange(status)} disabled={isPending || !canManage}>
         <SelectTrigger size="sm" className="min-h-9 w-full min-w-0 px-2 py-1.5 text-left text-[11px] whitespace-normal data-[size=sm]:h-auto [&>[data-slot=select-value]]:block [&>[data-slot=select-value]]:min-w-0 [&>[data-slot=select-value]]:line-clamp-none [&>[data-slot=select-value]]:[overflow-wrap:anywhere]" aria-label={`Move ${enquiry.name} to a different stage`}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
           {STATUSES.map((status) => (
-            <SelectItem key={status} value={status}>
+            <SelectItem key={status} value={status} disabled={!mayChangeEnquiryStatus(user, enquiry, status)}>
               {STATUS_LABEL[status]}
             </SelectItem>
           ))}

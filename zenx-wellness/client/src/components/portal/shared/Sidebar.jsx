@@ -5,7 +5,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUnreadMessageCount } from '@/hooks/useMessages';
 import { useSupportUnreadCount } from '@/hooks/useSupportMessages';
 import { useMyCompany } from '@/hooks/useCompany';
-import { NAV_BY_ROLE } from '@/lib/portalNav';
+import { portalItemsFor } from '@/lib/portalNav';
+import { hasPermission } from '@/lib/permissions';
 
 // The href always keeps its scheme (admin-server normalises it in on the way through), but showing
 // 'https://acme.com/' in a 200px-wide sidebar wastes the space on characters nobody reads — the
@@ -18,9 +19,9 @@ function formatWebsiteLabel(website) {
 // the drawer close itself when a link is clicked.
 export function Sidebar({ onNavigate }) {
   const { user } = useAuth();
-  const items = NAV_BY_ROLE[user.role] ?? [];
-  const canCareMessage = user.role === 'client' || user.role === 'dietitian';
-  const canSupportMessage = user.role === 'dietitian' || user.role === 'admin';
+  const items = portalItemsFor(user);
+  const canCareMessage = user.role === 'client' || (user.role === 'dietitian' && hasPermission(user, 'messages.use'));
+  const canSupportMessage = (user.role === 'dietitian' || user.role === 'admin') && hasPermission(user, 'messages.use');
   const { data: unread } = useUnreadMessageCount(canCareMessage);
   const { data: supportUnread } = useSupportUnreadCount(canSupportMessage);
   const unreadCount = unread?.count ?? 0;

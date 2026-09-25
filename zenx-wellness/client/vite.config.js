@@ -3,12 +3,14 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { CONVERTED_RECIPE_IMAGE_BASENAMES } from '../shared/recipeImageAssets.js'
+import { recipeImageCompatibility } from './build/recipeImageCompatibility.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), recipeImageCompatibility({ basenames: CONVERTED_RECIPE_IMAGE_BASENAMES })],
   resolve: {
     alias: {
       '@': path.resolve(dirname, './src'),

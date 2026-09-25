@@ -49,6 +49,7 @@ export async function listUsersByIds(ids) {
 }
 
 export async function updateUserPassword(id, passwordHash, mustChangePassword) {
+  await pool.query("UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP(3) WHERE account_kind = 'customer' AND account_id = ? AND used_at IS NULL", [id]);
   await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [passwordHash, mustChangePassword, id]);
   return findUserById(id);
 }

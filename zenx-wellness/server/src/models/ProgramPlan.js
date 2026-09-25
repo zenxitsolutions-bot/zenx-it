@@ -27,8 +27,8 @@ export async function listProgramPlans({ companyId, activeOnly = false } = {}) {
   return rows.map(mapProgramPlan);
 }
 
-export async function findProgramPlanById(id) {
-  const [rows] = await pool.query('SELECT * FROM program_plans WHERE id = ? LIMIT 1', [id]);
+export async function findProgramPlanById(id, conn = pool) {
+  const [rows] = await conn.query('SELECT * FROM program_plans WHERE id = ? LIMIT 1', [id]);
   return mapProgramPlan(rows[0]);
 }
 

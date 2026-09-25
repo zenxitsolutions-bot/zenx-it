@@ -11,6 +11,8 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { assertDietitianOwnsClient } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
+import { messagePage, parseMessagePagination } from '../utils/messagePagination.js';
+import { createLiveSessionGuard } from '../services/liveSessionGuard.js';
 import {
   addLiveConnection,
   onlineUserIdsAmong,
@@ -30,7 +32,7 @@ async function resolveConversation(req) {
     if (!me.assignedDietitian) return null;
     return { client: req.user.id, dietitian: String(me.assignedDietitian) };
   }
-  const clientId = req.query.client || req.body.client;
+  const clientId = req.query.client || req.body?.client;
   if (!clientId) throw ApiError.badRequest('client is required');
   await assertDietitianOwnsClient(req, clientId);
   return { client: clientId, dietitian: req.user.id };
@@ -55,11 +57,15 @@ async function partnerIdsFor(user) {
 }
 
 export const listMessages = asyncHandler(async (req, res) => {
+  const pagination = parseMessagePagination(req.query);
+  if (req.query.client !== undefined && (typeof req.query.client !== 'string' || !req.query.client || req.query.client.length > 36)) {
+    throw ApiError.badRequest('Invalid client');
+  }
   const conversation = await resolveConversation(req);
-  if (!conversation) return res.json([]);
+  if (!conversation) return res.json({ ...messagePage(), conversation: null });
 
-  const messages = await queryMessages(conversation.client, conversation.dietitian);
-  res.json(messages.map((m) => toClientShape(m)));
+  const page = await queryMessages(conversation.client, conversation.dietitian, pagination);
+  res.json({ ...page, conversation, messages: page.messages.map((m) => toClientShape(m)) });
 });
 
 export const createMessage = asyncHandler(async (req, res) => {
@@ -74,48 +80,68 @@ export const createMessage = asyncHandler(async (req, res) => {
 });
 
 export const streamMessages = asyncHandler(async (req, res) => {
+  const isAuthorized = createLiveSessionGuard(req);
+  const partners = await partnerIdsFor(req.user);
+  if (!(await isAuthorized())) throw ApiError.unauthorized('Session expired. Sign in again.');
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('X-Accel-Buffering', 'no');
   if (typeof res.flushHeaders === 'function') res.flushHeaders();
 
-  addLiveConnection(req.user.id, res);
-  let partners = [];
   let heartbeat;
+  let expiryTimer;
   let settled = false;
+  let resolveClosed;
+  const closed = new Promise((resolve) => { resolveClosed = resolve; });
 
-  const finish = (resolve) => {
+  const finish = () => {
     if (settled) return;
     settled = true;
     clearInterval(heartbeat);
+    clearTimeout(expiryTimer);
     const wentOffline = removeLiveConnection(req.user.id, res);
     if (wentOffline) {
       for (const partnerId of partners) {
         sendLiveEvent(partnerId, { type: 'presence', userId: req.user.id, online: false });
       }
     }
-    resolve();
+    try { if (!res.writableEnded) res.end(); } catch { /* socket already closed */ }
+    resolveClosed();
   };
 
-  const closed = new Promise((resolve) => {
-    req.on('close', () => finish(resolve));
-    if (req.aborted || req.socket?.destroyed) finish(resolve);
-  });
+  addLiveConnection(req.user.id, res, { isAuthorized, onUnauthorized: finish });
+  req.on('close', finish);
+  res.on('close', finish);
+  if (req.aborted || req.socket?.destroyed) finish();
 
-  partners = await partnerIdsFor(req.user);
   if (!settled && !req.aborted) {
-    res.write(`data: ${JSON.stringify({ type: 'hello', onlineUserIds: onlineUserIdsAmong(partners) })}\n\n`);
+    try {
+      res.write(`data: ${JSON.stringify({ type: 'hello', onlineUserIds: onlineUserIdsAmong(partners) })}\n\n`);
+    } catch {
+      finish();
+      return;
+    }
     for (const partnerId of partners) {
       sendLiveEvent(partnerId, { type: 'presence', userId: req.user.id, online: true });
     }
-    heartbeat = setInterval(() => {
+    let checking = false;
+    heartbeat = setInterval(async () => {
+      if (checking || settled) return;
+      checking = true;
       try {
+        if (!(await isAuthorized())) return finish();
+        if (settled) return;
         res.write(': ping\n\n');
       } catch {
-        clearInterval(heartbeat);
+        finish();
+      } finally {
+        checking = false;
       }
     }, 25_000);
+    // Expiry closes exactly at the token boundary; idle logout/reset is noticed within 25s,
+    // while every outgoing event independently checks the current session before writing.
+    expiryTimer = setTimeout(finish, Math.max(0, Math.min(2_147_483_647, req.accessTokenExpiresAt - Date.now())));
   }
 
   await closed;

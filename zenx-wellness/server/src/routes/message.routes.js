@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -15,7 +16,7 @@ import {
 import { createMessageSchema, markReadSchema } from '../schemas/message.schema.js';
 
 export const messageRouter = Router();
-messageRouter.use(authenticate, blockIfMustChangePassword);
+messageRouter.use(authenticate, blockIfMustChangePassword, requirePermission('messages.use'));
 
 messageRouter.get('/conversations', authorize('dietitian'), listConversations);
 messageRouter.get('/unread-count', authorize('client', 'dietitian'), getUnreadCount);

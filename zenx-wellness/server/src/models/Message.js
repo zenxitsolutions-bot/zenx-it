@@ -1,6 +1,7 @@
 import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
 import { isUserOnline } from '../services/messageLive.js';
+import { DEFAULT_MESSAGE_PAGE_SIZE, MAX_MESSAGE_PAGE_SIZE, messagePage } from '../utils/messagePagination.js';
 
 function mapMessage(row) {
   if (!row) return null;
@@ -15,13 +16,27 @@ function mapMessage(row) {
   };
 }
 
-// Full history for one conversation, chronological (oldest first — chat reading order).
-export async function listMessages(clientId, dietitianId) {
+// Bounded keyset pages. The id tie-break prevents gaps/duplicates when timestamps are equal.
+// Both directions return chronological chat order; one lookahead row determines hasMore.
+export async function listMessages(clientId, dietitianId, { limit = DEFAULT_MESSAGE_PAGE_SIZE, cursor = null, direction = 'before' } = {}) {
+  const size = Math.max(1, Math.min(MAX_MESSAGE_PAGE_SIZE, Number.isSafeInteger(limit) ? limit : DEFAULT_MESSAGE_PAGE_SIZE));
+  const newer = direction === 'after';
+  const comparison = newer ? '>' : '<';
+  const order = newer ? 'ASC' : 'DESC';
+  const params = [clientId, dietitianId];
+  let boundary = '';
+  if (cursor) {
+    boundary = ` AND (created_at ${comparison} ? OR (created_at = ? AND id ${comparison} ?))`;
+    params.push(cursor.time, cursor.time, cursor.id);
+  }
+  params.push(size + 1);
   const [rows] = await pool.query(
-    'SELECT * FROM messages WHERE client_id = ? AND dietitian_id = ? ORDER BY created_at ASC',
-    [clientId, dietitianId]
+    `SELECT * FROM messages WHERE client_id = ? AND dietitian_id = ?${boundary} ORDER BY created_at ${order}, id ${order} LIMIT ?`,
+    params
   );
-  return rows.map(mapMessage);
+  const messages = rows.slice(0, size).map(mapMessage);
+  if (!newer) messages.reverse();
+  return messagePage(messages, rows.length > size);
 }
 
 export async function createMessage({ client, dietitian, sender, body }) {

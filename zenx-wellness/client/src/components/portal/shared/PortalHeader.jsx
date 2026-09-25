@@ -1,15 +1,15 @@
 import { useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { NAV_BY_ROLE } from '@/lib/portalNav';
+import { portalItemsFor } from '@/lib/portalNav';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 
 export function PortalHeader({ onOpenMobileNav }) {
   const { user } = useAuth();
   const { timezone } = useViewerTimezone();
   const location = useLocation();
-  const current = (NAV_BY_ROLE[user.role] ?? []).find((item) => item.to === location.pathname);
-  const roleLabel = user.role[0].toUpperCase() + user.role.slice(1);
+  const current = portalItemsFor(user).find((item) => `/${user.companySlug}${item.to}` === location.pathname);
+  const roleLabel = user.isMainAdmin ? 'Main admin' : user.role[0].toUpperCase() + user.role.slice(1);
 
   return (
     <header className="sticky top-0 z-30 flex h-18 items-center justify-between border-b border-line bg-white/90 px-5 py-3 backdrop-blur min-[1050px]:px-9">

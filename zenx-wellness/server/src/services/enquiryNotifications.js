@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { sendEmail } from '../emails/sendEmail.js';
 import { companyDisplayName } from '../utils/companyBrand.js';
 
@@ -13,6 +14,6 @@ export async function notifyEnquirySubmitted(enquiry) {
       { idempotencyKey: `enquiry-acknowledgment:${enquiry.id}`, relatedEntity: { type: 'enquiry', id: enquiry.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue enquiry acknowledgment for ${enquiry.id}:`, err);
+    console.error(`[notifications] failed to queue enquiry acknowledgment for ${enquiry.id}:`, safeErrorMeta(err));
   }
 }

@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { format } from 'date-fns';
 import { findUserById } from '../models/User.js';
 import { sendEmail } from '../emails/sendEmail.js';
@@ -22,7 +23,7 @@ function planStartForUser(user) {
   return user.planStartedOn || (user.createdAt instanceof Date ? user.createdAt.toISOString().slice(0, 10) : user.createdAt);
 }
 
-export async function notifyClientAccountCreated(user, { plainPassword }) {
+export async function notifyClientAccountCreated(user) {
   try {
     if (!canNotifyUser(user)) return;
     const companyName = await companyDisplayName(user);
@@ -39,13 +40,12 @@ export async function notifyClientAccountCreated(user, { plainPassword }) {
         dietitian_name: dietitianName,
         plan_name: user.programPlan?.name ?? 'Not yet assigned',
         plan_duration: user.planDuration ? formatPlanDuration(user.planDuration, planStartForUser(user)) : 'Your dietitian will confirm this soon',
-        temp_password: plainPassword,
         login_url: companyLoginUrl(user),
       },
       { idempotencyKey: `client-welcome:${user.id}`, relatedEntity: { type: 'client', id: user.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue welcome email for user ${user.id}:`, err);
+    console.error(`[notifications] failed to queue welcome email for user ${user.id}`);
   }
 }
 
@@ -66,7 +66,7 @@ export async function notifyClientReactivated(user) {
       { idempotencyKey: `client-reactivated:${user.id}:${user.planStartedOn ?? Date.now()}`, relatedEntity: { type: 'client', id: user.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue reactivation email for user ${user.id}:`, err);
+    console.error(`[notifications] failed to queue reactivation email for user ${user.id}:`, safeErrorMeta(err));
   }
 }
 
@@ -87,6 +87,6 @@ export async function notifyClientPlanEnded(user) {
       { idempotencyKey: `client-plan-ended:${user.id}:${endedOn ?? Date.now()}`, relatedEntity: { type: 'client', id: user.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue plan-ended email for user ${user.id}:`, err);
+    console.error(`[notifications] failed to queue plan-ended email for user ${user.id}:`, safeErrorMeta(err));
   }
 }

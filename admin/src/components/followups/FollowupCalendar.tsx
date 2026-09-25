@@ -141,7 +141,7 @@ export function FollowupCalendar({ followups, enquiryById, timezone }: FollowupC
                     <Link
                       key={f.id}
                       to={`/admin/enquiries/${f.enquiry_id}`}
-                      title={`${enq?.company_name ?? "Unknown"} · ${formatTime(followupInstant(f).toISOString(), timezone)}`}
+                      title={`${enq?.company_name || enq?.contact_name || "Unknown"} · ${formatTime(followupInstant(f).toISOString(), timezone)}`}
                       className={cn(
                         "block truncate rounded px-1.5 py-1 text-[10px] font-medium transition",
                         overdue
@@ -151,7 +151,7 @@ export function FollowupCalendar({ followups, enquiryById, timezone }: FollowupC
                             : "bg-lime/10 text-lime hover:bg-lime/20"
                       )}
                     >
-                      {formatTime(followupInstant(f).toISOString(), timezone)} {enq?.company_name ?? "Unknown"}
+                      {formatTime(followupInstant(f).toISOString(), timezone)} {enq?.company_name || enq?.contact_name || "Unknown"}
                     </Link>
                   );
                 })}

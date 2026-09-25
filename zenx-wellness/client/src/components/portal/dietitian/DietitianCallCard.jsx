@@ -7,10 +7,14 @@ import { formatDate, formatTime } from '@/lib/format';
 import { timezoneOffsetLabel } from '@/lib/timezone';
 import { JoinMeetingButton } from '@/components/portal/shared/JoinMeetingButton';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
 export function DietitianCallCard({ call, onReschedule, showAssignee = false }) {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'calls.manage');
   const { timezone } = useViewerTimezone();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const updateCall = useUpdateCall();
@@ -21,6 +25,7 @@ export function DietitianCallCard({ call, onReschedule, showAssignee = false }) 
   const person = call.client ?? call.enquiry;
 
   function setStatus(status) {
+    if (!canManage) return;
     updateCall.mutate(
       { callId: call._id, status },
       {
@@ -65,7 +70,7 @@ export function DietitianCallCard({ call, onReschedule, showAssignee = false }) 
 
       <JoinMeetingButton call={call} className="mt-4" />
 
-      {isScheduled && (
+      {isScheduled && canManage && (
         <div className="mt-4 flex items-center gap-4">
           {confirmingCancel ? (
             <div className="flex items-center gap-3 text-sm">

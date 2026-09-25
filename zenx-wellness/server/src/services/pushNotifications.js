@@ -1,14 +1,17 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { findUserById } from '../models/User.js';
 import { listTokensForUser, deleteToken } from '../models/DeviceToken.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { channels } from '../notifications/channels/index.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
+import { canViewNotification } from '../utils/notificationPermissions.js';
 
 // Best-effort push: never throws to the caller (booking/status changes must not fail because a
 // token is stale). Skips inactive/suspended users and deletes tokens the provider rejects.
-export async function notifyUserPush(userId, { title, body, url } = {}) {
+export async function notifyUserPush(userId, { title, body, url, type } = {}) {
   try {
-    const user = await findUserById(userId);
-    if (!canNotifyUser(user)) {
+    const user = await hydrateUserPermissions(await findUserById(userId));
+    if (!canNotifyUser(user) || !canViewNotification(user, { type, url })) {
       return { delivered: false, reason: 'user is not notifiable' };
     }
 
@@ -41,7 +44,7 @@ export async function notifyUserPush(userId, { title, body, url } = {}) {
     }
     return { delivered: delivered > 0, count: delivered };
   } catch (err) {
-    console.error(`[push] notifyUserPush failed for ${userId}:`, err);
+    console.error(`[push] notifyUserPush failed for ${userId}:`, safeErrorMeta(err));
     return { delivered: false, reason: err.message };
   }
 }

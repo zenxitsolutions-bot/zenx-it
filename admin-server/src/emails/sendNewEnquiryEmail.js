@@ -11,19 +11,19 @@ export async function sendNewEnquiryEmail(enquiry) {
   }
 
   const lines = [
-    `Company: ${enquiry.company_name}`,
+    enquiry.company_name ? `Company: ${enquiry.company_name}` : null,
     `Contact: ${enquiry.contact_name}`,
     `Email: ${enquiry.email}`,
     enquiry.phone ? `Phone: ${enquiry.phone}` : null,
     enquiry.website ? `Website: ${enquiry.website}` : null,
-    `Service: ${enquiry.service}`,
-    `Source: ${enquiry.source}`,
+    enquiry.service ? `Service: ${enquiry.service}` : null,
+    enquiry.source ? `Source: ${enquiry.source}` : null,
     enquiry.notes ? `Message:\n${enquiry.notes}` : null,
   ].filter(Boolean);
 
   await sendEmail({
     to,
-    subject: `New enquiry from ${enquiry.company_name}`,
+    subject: `New enquiry from ${enquiry.company_name || enquiry.contact_name}`,
     text: lines.join('\n'),
     html: `<p>A new enquiry was submitted on the ZenX website.</p><pre>${lines
       .map((l) => l.replace(/&/g, '&amp;').replace(/</g, '&lt;'))

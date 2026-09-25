@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -14,6 +15,6 @@ integrationsRouter.use(authenticate, blockIfMustChangePassword);
 
 // Dietitians host the calls, so theirs is the calendar a Meet room is created on. Admins are
 // included because an admin can be the assigned host on this app's own booking screens.
-integrationsRouter.get('/google/status', authorize('dietitian', 'admin'), getGoogleStatus);
-integrationsRouter.post('/google/connect', authorize('dietitian', 'admin'), startGoogleAuth);
-integrationsRouter.delete('/google', authorize('dietitian', 'admin'), disconnectGoogle);
+integrationsRouter.get('/google/status', requirePermission('calls.view'), authorize('dietitian', 'admin'), getGoogleStatus);
+integrationsRouter.post('/google/connect', requirePermission('calls.view', 'calls.manage'), authorize('dietitian', 'admin'), startGoogleAuth);
+integrationsRouter.delete('/google', requirePermission('calls.view', 'calls.manage'), authorize('dietitian', 'admin'), disconnectGoogle);

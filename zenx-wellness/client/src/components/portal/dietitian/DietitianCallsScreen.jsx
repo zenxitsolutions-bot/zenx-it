@@ -3,7 +3,12 @@ import { DietitianCallsTab } from './DietitianCallsTab';
 import { AvailabilityScreen } from './AvailabilityScreen';
 import { GoogleCalendarCard } from '@/components/portal/shared/GoogleCalendarCard';
 
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
+
 export function DietitianCallsScreen() {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'calls.manage');
   return (
     <div className="mx-auto max-w-3xl p-9">
       <div className="mb-6">
@@ -12,21 +17,21 @@ export function DietitianCallsScreen() {
         <p className="mt-1 text-muted-foreground">Book, reschedule, or wrap up a client check-in.</p>
       </div>
 
-      <div className="mb-6">
+      {canManage && <div className="mb-6">
         <GoogleCalendarCard />
-      </div>
+      </div>}
 
       <Tabs defaultValue="calls">
         <TabsList>
           <TabsTrigger value="calls">Calls</TabsTrigger>
-          <TabsTrigger value="availability">Availability</TabsTrigger>
+          {canManage && <TabsTrigger value="availability">Availability</TabsTrigger>}
         </TabsList>
         <TabsContent value="calls">
           <DietitianCallsTab />
         </TabsContent>
-        <TabsContent value="availability">
+        {canManage && <TabsContent value="availability">
           <AvailabilityScreen />
-        </TabsContent>
+        </TabsContent>}
       </Tabs>
     </div>
   );

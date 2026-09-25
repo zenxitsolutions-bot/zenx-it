@@ -14,6 +14,7 @@ import { DietitianDetailsForm } from './DietitianDetailsForm';
 import { DietitianDetailsView } from './DietitianDetailsView';
 import { DietitianWorkingHoursTab } from './DietitianWorkingHoursTab';
 import { ResetUserPasswordDialog } from './ResetUserPasswordDialog';
+import { canEditAccount, canResetAccount, hasPermission } from '@/lib/permissions';
 
 // Spec §2026-round2-fixes item 2: "Edit Dietitian page" — full personal/contact/credential
 // editing plus working hours, which writes to the exact same availability model (and reuses the
@@ -26,7 +27,8 @@ export function DietitianProfileScreen() {
   const { user: viewer } = useAuth();
   const [resetOpen, setResetOpen] = useState(false);
   const { data: dietitian, isLoading, isError, refetch } = useClient(id);
-  const editing = searchParams.get('edit') === '1';
+  const mayEdit = canEditAccount(viewer, dietitian);
+  const editing = mayEdit && searchParams.get('edit') === '1';
 
   function setEditing(on) {
     const next = new URLSearchParams(searchParams);
@@ -75,12 +77,12 @@ export function DietitianProfileScreen() {
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-            {dietitian._id !== viewer?._id && (
+            {canResetAccount(viewer, dietitian) && (
               <Button type="button" variant="outline" onClick={() => setResetOpen(true)}>
                 Reset password
               </Button>
             )}
-            {editing ? (
+            {mayEdit && (editing ? (
               <Button type="button" variant="outline" onClick={() => setEditing(false)}>
                 Cancel
               </Button>
@@ -88,7 +90,7 @@ export function DietitianProfileScreen() {
               <Button type="button" className="rounded-full bg-coral text-white hover:bg-coral/90" onClick={() => setEditing(true)}>
                 Edit details
               </Button>
-            )}
+            ))}
             </div>
           </div>
           <ResetUserPasswordDialog open={resetOpen} onOpenChange={setResetOpen} user={dietitian} />
@@ -96,7 +98,7 @@ export function DietitianProfileScreen() {
           <Tabs defaultValue="details">
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
-              <TabsTrigger value="hours">Working hours</TabsTrigger>
+              {hasPermission(viewer, 'calls.manage') && <TabsTrigger value="hours">Working hours</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="details" className="mt-4">
@@ -107,9 +109,9 @@ export function DietitianProfileScreen() {
               )}
             </TabsContent>
 
-            <TabsContent value="hours" className="mt-4">
+            {hasPermission(viewer, 'calls.manage') && <TabsContent value="hours" className="mt-4">
               <DietitianWorkingHoursTab dietitian={dietitian} />
-            </TabsContent>
+            </TabsContent>}
           </Tabs>
         </>
       )}

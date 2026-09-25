@@ -58,7 +58,7 @@ export function ScheduleFollowupModal({
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Schedule Follow-up" subtitle={enquiry.company_name}>
+    <Modal open={open} onClose={onClose} title="Schedule Follow-up" subtitle={enquiry.company_name || enquiry.contact_name}>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <FollowupScheduleFields
           idPrefix="fu"

@@ -45,11 +45,11 @@ function mapUser(row) {
 const SELECT_WITH_PROGRAM_PLAN = `SELECT u.*, DATE_FORMAT(u.joined_on, '%Y-%m-%d') AS joined_on_ymd, DATE_FORMAT(u.plan_started_on, '%Y-%m-%d') AS plan_started_on_ymd, pp.name AS program_plan_name FROM users u
    LEFT JOIN program_plans pp ON pp.id = u.program_plan_id`;
 
-export async function findUserByEmail(email) {
+export async function findUserByEmail(email, conn = pool) {
   const normalized = String(email || '').trim().toLowerCase();
   if (!normalized) return null;
   // LOWER() so a stored mixed-case address still matches what loginSchema normalizes to.
-  const [rows] = await pool.query(
+  const [rows] = await conn.query(
     "SELECT *, DATE_FORMAT(joined_on, '%Y-%m-%d') AS joined_on_ymd FROM users WHERE LOWER(email) = ? LIMIT 1",
     [normalized]
   );
@@ -66,8 +66,8 @@ export async function findUserByZenxId(zenxUserId) {
 // conn defaults to the pool but accepts a transaction connection (see
 // availabilityGuard.js#getDietitianTimezone) so a caller already inside a transaction reads a
 // consistent snapshot instead of opening a second, unrelated pool connection.
-export async function findUserById(id, conn = pool) {
-  const [rows] = await conn.query(`${SELECT_WITH_PROGRAM_PLAN} WHERE u.id = ? LIMIT 1`, [id]);
+export async function findUserById(id, conn = pool, { forUpdate = false } = {}) {
+  const [rows] = await conn.query(`${SELECT_WITH_PROGRAM_PLAN} WHERE u.id = ? LIMIT 1${forUpdate ? ' FOR UPDATE' : ''}`, [id]);
   return mapUser(rows[0]);
 }
 
@@ -190,13 +190,15 @@ export async function updateUser(id, patch, conn = pool) {
 
 // Kept separate from updateUser: that function's patch is driven by a client-facing allowlist
 // (PATCH /users/:id, PATCH /users/me) that must never accept a raw password hash.
-export async function setPassword(id, { passwordHash, mustChangePassword }) {
-  await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
+export async function setPassword(id, { passwordHash, mustChangePassword }, conn = pool) {
+  // A completed reset/admin password change also retires older unconsumed setup/reset links.
+  await conn.query('UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND used_at IS NULL', [id]);
+  await conn.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
     passwordHash,
     mustChangePassword,
     id,
   ]);
-  return findUserById(id);
+  return findUserById(id, conn);
 }
 
 // Invalidates every refresh token issued before the call (see utils/jwt.js#verifyRefreshToken /
@@ -208,8 +210,8 @@ export async function listActiveClientsWithPlans() {
   return rows.map(mapUser);
 }
 
-export async function bumpRefreshTokenVersion(id) {
-  await pool.query('UPDATE users SET refresh_token_version = refresh_token_version + 1 WHERE id = ?', [id]);
+export async function bumpRefreshTokenVersion(id, conn = pool) {
+  await conn.query('UPDATE users SET refresh_token_version = refresh_token_version + 1 WHERE id = ?', [id]);
 }
 
 // Login-time backfill when a user row predates company_slug (or conversion forgot to stamp it).

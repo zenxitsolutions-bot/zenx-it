@@ -7,12 +7,16 @@ import { useUpdateCall } from '@/hooks/useCalls';
 import { useViewerTimezone } from '@/hooks/useViewerTimezone';
 import { formatDate, formatTime } from '@/lib/format';
 import { timezoneOffsetLabel } from '@/lib/timezone';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 const STATUS_VARIANT = { scheduled: 'default', completed: 'secondary', cancelled: 'outline' };
 
 // Spec §6 item 5: per-call notes, editable any time (before/during/after), linked to and shown
 // with that specific call in the history.
 export function ClientCallHistoryCard({ call }) {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'calls.manage');
   const { timezone } = useViewerTimezone();
   const updateCall = useUpdateCall();
   const [notes, setNotes] = useState(call.notes ?? '');
@@ -55,6 +59,7 @@ export function ClientCallHistoryCard({ call }) {
       <label className="mt-3 block">
         <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Note</span>
         <Textarea
+          readOnly={!canManage}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add a note for this call — before, during, or after."
@@ -62,7 +67,7 @@ export function ClientCallHistoryCard({ call }) {
           rows={2}
         />
       </label>
-      {dirty && (
+      {dirty && canManage && (
         <div className="mt-2 flex justify-end">
           <Button
             size="sm"

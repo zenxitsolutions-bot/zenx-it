@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { listActiveClientsWithPlans, updateUser as updateUserRecord, bumpRefreshTokenVersion } from '../models/User.js';
 import { isPlanFinished } from '../constants/planDurations.js';
 import { todayCalendarDate } from '../utils/calendarDate.js';
@@ -17,7 +18,7 @@ export async function runPlanExpiryJob() {
       await bumpRefreshTokenVersion(client.id);
       deactivated += 1;
     } catch (err) {
-      console.error(`[plan-expiry-job] failed to deactivate client ${client.id}:`, err);
+      console.error(`[plan-expiry-job] failed to deactivate client ${client.id}:`, safeErrorMeta(err));
     }
   }
 
@@ -28,10 +29,10 @@ export async function runPlanExpiryJob() {
 }
 
 export function startPlanExpiryJob() {
-  runPlanExpiryJob().catch((err) => console.error('[plan-expiry-job] initial run failed:', err));
+  runPlanExpiryJob().catch((err) => console.error('[plan-expiry-job] initial run failed:', safeErrorMeta(err)));
 
   const handle = setInterval(() => {
-    runPlanExpiryJob().catch((err) => console.error('[plan-expiry-job] run failed:', err));
+    runPlanExpiryJob().catch((err) => console.error('[plan-expiry-job] run failed:', safeErrorMeta(err)));
   }, env.planExpiryJobIntervalMs);
   handle.unref?.();
   console.log(`[plan-expiry-job] running every ${env.planExpiryJobIntervalMs}ms`);

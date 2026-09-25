@@ -1,0 +1,12 @@
+**/node_modules
+**/.env
+**/.env.*
+**/*.log
+**/.mongo-uri.tmp
+server/uploads/*
+!server/uploads/.gitkeep
+server/dev-verify-mongo.mjs
+client
+legacy
+docs
+.git

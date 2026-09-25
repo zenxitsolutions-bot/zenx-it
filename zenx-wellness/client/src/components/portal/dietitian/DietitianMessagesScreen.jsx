@@ -56,7 +56,7 @@ export function DietitianMessagesScreen() {
 
           <section className="rounded-card bg-white shadow-soft">
             {selected ? (
-              <MessageThread clientId={selected.client._id} title={selected.client.name} peerId={selected.client._id} />
+              <MessageThread key={selected.client._id} clientId={selected.client._id} title={selected.client.name} peerId={selected.client._id} />
             ) : (
               <div className="flex h-[32rem] items-center justify-center p-6">
                 <EmptyState icon={MessageCircle} title="Select a conversation" description="Pick a client from the list to see your messages." />

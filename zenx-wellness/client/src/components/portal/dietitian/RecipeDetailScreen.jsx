@@ -12,12 +12,13 @@ import { scaledNutrition } from '@/lib/recipeNutrition';
 import { RecipeCookingGuide } from '@/components/portal/shared/RecipeCookingGuide';
 import { RecipeMedia } from './RecipeMedia';
 import { RecipeFormDialog } from './RecipeFormDialog';
+import { hasPermission } from '@/lib/permissions';
 
 export function RecipeDetailScreen() {
   const { companySlug, recipeId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canManage = user?.role === 'dietitian' || user?.role === 'admin';
+  const canManage = hasPermission(user, 'recipes.manage');
   const { data: recipe, isLoading, isError, refetch } = useRecipe(recipeId);
   const [editing, setEditing] = useState(false);
   const [servings, setServings] = useState(1);

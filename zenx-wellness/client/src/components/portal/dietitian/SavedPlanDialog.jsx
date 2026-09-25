@@ -9,6 +9,7 @@ import { listPlansRequest } from '@/api/plans.api';
 import { useCreatePlan, useDeletePlan, useUpdatePlan } from '@/hooks/usePlans';
 import { endDateFromTemplate, remapMealDay, toApiMeal, toLocalMeal } from '@/lib/planBuilder';
 import { addCalendarDays, formatCalendarDate, MAX_PLAN_DAYS } from '@/lib/calendarDate';
+import { hasPermission } from '@/lib/permissions';
 
 function mealsForCopy(meals) {
   return (meals ?? []).map((meal) => toApiMeal(toLocalMeal({ ...meal, completed: false, swapRequested: false })));
@@ -43,6 +44,7 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
   const clientName = clients.find((c) => c._id === plan.client)?.name;
 
   async function handleReuse() {
+    if (!hasPermission(user, 'diet_plans.edit')) return;
     if (!trimmedTitle) {
       toast.error('Give this plan a title first.');
       return;
@@ -63,6 +65,10 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
     try {
       const existing = await listPlansRequest({ client: clientId, week });
       const current = existing?.[0];
+      if (current?.published && !hasPermission(user, 'diet_plans.publish')) {
+        toast.error('Publishing permission is needed to replace an already published plan. Choose another week.');
+        return;
+      }
       if (current) {
         await updatePlan.mutateAsync({
           planId: current._id,
@@ -92,6 +98,7 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
   }
 
   async function handleDelete() {
+    if (!hasPermission(user, 'diet_plans.delete') || (plan.published && !hasPermission(user, 'diet_plans.publish'))) return;
     try {
       await deletePlan.mutateAsync(plan._id);
       toast.success('Plan deleted.');
@@ -159,16 +166,16 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
             />
           </label>
 
-          <Button
+          {hasPermission(user, 'diet_plans.edit') && <Button
             type="button"
             disabled={busy}
             onClick={handleReuse}
             className="rounded-full bg-coral text-white hover:bg-coral/90"
           >
             {busy ? 'Applying…' : 'Reuse for this client'}
-          </Button>
+          </Button>}
 
-          {confirmingDelete ? (
+          {hasPermission(user, 'diet_plans.delete') && (!plan.published || hasPermission(user, 'diet_plans.publish')) && (confirmingDelete ? (
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="text-forest">Delete this weekly plan?</span>
               <button type="button" onClick={handleDelete} className="font-semibold text-destructive hover:underline">
@@ -191,7 +198,7 @@ export function SavedPlanDialog({ open, onOpenChange, plan, clients, onApplied, 
             >
               Delete plan
             </button>
-          )}
+          ))}
         </div>
       </DialogContent>
     </Dialog>

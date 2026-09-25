@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import {
@@ -22,13 +23,13 @@ export const createEnquiry = asyncHandler(async (req, res) => {
   await createNotification({
     kind: 'NEW_ENQUIRY',
     title: 'New enquiry',
-    body: `${enquiry.contact_name} from ${enquiry.company_name}`,
+    body: enquiry.company_name ? `${enquiry.contact_name} from ${enquiry.company_name}` : enquiry.contact_name,
     entityId: enquiry.id,
   });
   try {
     await sendNewEnquiryEmail(enquiry);
   } catch (err) {
-    console.error('[createEnquiry] staff notification email failed', err);
+    console.error('[createEnquiry] staff notification email failed', safeErrorMeta(err));
   }
   res.status(201).json(enquiry);
 });
@@ -68,7 +69,7 @@ export const updateEnquiryStatusHandler = asyncHandler(async (req, res) => {
     try {
       await deactivateConvertedCustomer(enquiry.id);
     } catch (err) {
-      console.error('[updateEnquiryStatus] failed to deactivate converted customer', err);
+      console.error('[updateEnquiryStatus] failed to deactivate converted customer', safeErrorMeta(err));
     }
   }
 
@@ -97,6 +98,6 @@ async function deactivateConvertedCustomer(enquiryId) {
       status: 'INACTIVE',
     });
   } catch (err) {
-    console.error('[deactivateConvertedCustomer] wellness-app status sync failed', err);
+    console.error('[deactivateConvertedCustomer] wellness-app status sync failed', safeErrorMeta(err));
   }
 }

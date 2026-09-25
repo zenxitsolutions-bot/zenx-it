@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { listCallsDueForReminder, markCallReminderSent, findCallById } from '../models/Call.js';
 import { notifyCallEvent } from './callNotifications.js';
 import { env } from '../config/env.js';
@@ -32,7 +33,7 @@ export async function runReminderTick(now = new Date()) {
       // One call's failure must never block the rest of the batch — reminder_sent_at is already
       // set, so this call won't be retried; that's an accepted tradeoff (a missed reminder is far
       // less harmful than a reminder storm from an endlessly-retried poison row).
-      console.error(`[reminder:scheduler] failed to send reminder for call ${id}:`, err);
+      console.error(`[reminder:scheduler] failed to send reminder for call ${id}:`, safeErrorMeta(err));
     }
   }
   return sent;
@@ -43,7 +44,7 @@ export async function runReminderTick(now = new Date()) {
 // app never spin up a background timer.
 export function startReminderScheduler() {
   const tick = () => {
-    runReminderTick().catch((err) => console.error('[reminder:scheduler] tick failed:', err));
+    runReminderTick().catch((err) => console.error('[reminder:scheduler] tick failed:', safeErrorMeta(err)));
   };
   const handle = setInterval(tick, env.reminderSchedulerIntervalMs);
   handle.unref?.();

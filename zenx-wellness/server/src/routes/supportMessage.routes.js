@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -13,7 +14,7 @@ import {
 import { createSupportMessageSchema, markSupportReadSchema } from '../schemas/supportMessage.schema.js';
 
 export const supportMessageRouter = Router();
-supportMessageRouter.use(authenticate, blockIfMustChangePassword, authorize('dietitian', 'admin'));
+supportMessageRouter.use(authenticate, blockIfMustChangePassword, authorize('dietitian', 'admin'), requirePermission('messages.use'));
 
 supportMessageRouter.get('/conversations', authorize('admin'), listSupportConversations);
 supportMessageRouter.get('/unread-count', getSupportUnreadCount);

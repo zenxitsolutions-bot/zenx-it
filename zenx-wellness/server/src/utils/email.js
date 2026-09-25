@@ -30,5 +30,5 @@ export async function sendPasswordResetEmail(to, resetUrl, clientName = 'there',
     expiry_label: expiryLabel,
   });
 
-  await sendViaTransport({ to, subject, html, text });
+  await sendViaTransport({ to, subject, html, text, sensitive: true });
 }

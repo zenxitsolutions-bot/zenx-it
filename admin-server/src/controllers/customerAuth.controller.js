@@ -4,12 +4,15 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env } from '../config/env.js';
 import { comparePassword, hashPassword } from '../utils/password.js';
-import { signCustomerAccessToken, signCustomerRefreshToken, verifyCustomerRefreshToken } from '../utils/jwt.js';
+import { signCustomerAccessToken, signCustomerRefreshToken, verifyCustomerRefreshToken, verifyCustomerAccessToken } from '../utils/jwt.js';
 import { findUserByEmail, findUserById, updateUserPassword, touchUserLastLogin } from '../models/ZenxUser.js';
 import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
 import { findApplicationAccess, listActiveGrantsForUser } from '../models/ApplicationAccess.js';
 import { updateWellnessPassword } from '../models/WellnessDb.js';
 import { findApplicationBySlug, listApplications } from '../models/Application.js';
+import { createSession, rotateSession, revokeRequestSessions, revokeAccountSessions } from '../models/AuthSession.js';
+import { safeErrorMeta } from '../utils/safeError.js';
+import { toPublicAccount as toClientShape, toPublicApplication } from '../utils/publicAccount.js';
 
 const REFRESH_COOKIE = 'zenxcustomer_refresh';
 
@@ -21,16 +24,17 @@ const cookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
-function issueTokens(res, user, companyId) {
-  const accessToken = signCustomerAccessToken(user, companyId);
-  const refreshToken = signCustomerRefreshToken(user, companyId);
-  res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+async function issueTokens(res, user, companyId, previous = null) {
+  const sid = previous?.sid || randomUUID();
+  const accessToken = signCustomerAccessToken(user, companyId, sid);
+  const refreshToken = signCustomerRefreshToken(user, companyId, sid);
+  const expiresAt = new Date(verifyCustomerRefreshToken(refreshToken).exp * 1000);
+  const session = { id: sid, kind: 'customer', accountId: user.id, companyId, passwordHash: user.password_hash, refreshToken, expiresAt };
+  if (previous) {
+    if (!(await rotateSession({ ...session, previousToken: previous.token }))) throw ApiError.unauthorized('Session expired. Sign in again.');
+  } else await createSession(session);
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...cookieOptions, maxAge: expiresAt.getTime() - Date.now() });
   return accessToken;
-}
-
-function toClientShape(user) {
-  const { password_hash, ...rest } = user;
-  return rest;
 }
 
 export const login = asyncHandler(async (req, res) => {
@@ -61,7 +65,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const signedIn = await touchUserLastLogin(user.id);
-  const accessToken = issueTokens(res, signedIn, company.id);
+  const accessToken = await issueTokens(res, signedIn, company.id);
   // Keep wellness-app's hash in lockstep. SSO handoff used to create that row with a random
   // unusable password, so the same email/password that works here then failed on
   // wellness-app's own /login. Failures stay non-fatal — this login must still succeed.
@@ -73,7 +77,7 @@ export const login = asyncHandler(async (req, res) => {
       mustChangePassword: Boolean(user.must_change_password),
     });
   } catch (err) {
-    console.error('[customerLogin] wellness-app password sync failed', err);
+    console.error('[customerLogin] wellness-app password sync failed', safeErrorMeta(err));
   }
   res.json({ user: toClientShape(signedIn), accessToken, companyId: company.id });
 });
@@ -96,13 +100,16 @@ export const refresh = asyncHandler(async (req, res) => {
   if (companyId) {
     const company = await findCompanyById(companyId);
     if (!company || company.status !== 'ACTIVE') throw ApiError.unauthorized('Account no longer available');
+    const grants = await listActiveGrantsForUser(user.id);
+    if (!grants.some((grant) => grant.company_id === companyId)) throw ApiError.unauthorized('Company access has been revoked');
   }
 
-  const accessToken = signCustomerAccessToken(user, companyId);
+  const accessToken = await issueTokens(res, user, companyId, { sid: payload.sid, token });
   res.json({ accessToken });
 });
 
 export const logout = asyncHandler(async (req, res) => {
+  await revokeRequestSessions(req, { cookieName: REFRESH_COOKIE, verifyRefresh: verifyCustomerRefreshToken, verifyAccess: verifyCustomerAccessToken, kind: 'customer' });
   res.clearCookie(REFRESH_COOKIE, { path: '/api/customer-auth' });
   res.status(204).send();
 });
@@ -117,6 +124,7 @@ export const setNewPassword = asyncHandler(async (req, res) => {
   const { password } = req.body;
   const passwordHash = await hashPassword(password);
   const updated = await updateUserPassword(req.customer.id, passwordHash, false);
+  await revokeAccountSessions('customer', updated.id);
   try {
     await updateWellnessPassword({
       zenxUserId: updated.id,
@@ -125,9 +133,10 @@ export const setNewPassword = asyncHandler(async (req, res) => {
       mustChangePassword: false,
     });
   } catch (err) {
-    console.error('[setNewPassword] wellness-app password sync failed', err);
+    console.error('[setNewPassword] wellness-app password sync failed', safeErrorMeta(err));
   }
-  res.json({ user: toClientShape(updated) });
+  const accessToken = await issueTokens(res, updated, req.customerCompanyId);
+  res.json({ user: toClientShape(updated), accessToken });
 });
 
 // Powers the Launcher screen (pick among multiple ACTIVE application grants) — replaces the
@@ -160,7 +169,7 @@ export const getActiveGrants = asyncHandler(async (req, res) => {
   res.json(
     grants.map((grant) => ({
       grant,
-      application: applications.find((a) => a.slug === grant.application) ?? null,
+      application: toPublicApplication(applications.find((a) => a.slug === grant.application)) ?? null,
       company: companiesById.get(grant.company_id) ?? null,
     }))
   );
@@ -219,7 +228,7 @@ export const issueHandoffToken = asyncHandler(async (req, res) => {
         mustChangePassword: Boolean(req.customer.must_change_password),
       });
     } catch (err) {
-      console.error('[issueHandoffToken] wellness-app password sync failed', err);
+      console.error('[issueHandoffToken] wellness-app password sync failed', safeErrorMeta(err));
     }
   }
 

@@ -4,6 +4,7 @@ import { findUserById } from '../models/User.js';
 import { hasCallBetween } from '../models/Call.js';
 import { profilePhotoMime } from '../utils/profilePhoto.js';
 import { ApiError } from '../utils/ApiError.js';
+import { assertPermission } from '../middleware/permissions.js';
 
 async function sendPhoto(userId, res) {
   const photo = await findUserPhoto(userId);
@@ -25,6 +26,9 @@ export const getUserPhoto = asyncHandler(async (req, res) => {
     throw ApiError.notFound('User not found');
   }
   if (!['client', 'dietitian'].includes(target.role)) throw ApiError.forbidden();
+  if (target.id !== req.user.id && req.user.role !== 'client') {
+    assertPermission(req, target.role === 'client' ? 'clients.view' : 'staff.view');
+  }
 
   let allowed = target.id === req.user.id || req.user.role === 'admin';
   const client = req.user.role === 'client' && target.role === 'dietitian' ? req.user

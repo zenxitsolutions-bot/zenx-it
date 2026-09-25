@@ -2,9 +2,10 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { getApiBaseURL } from '@/api/axiosClient';
 import { refreshRequest } from '@/api/auth.api';
-import { getAccessToken, setAccessToken } from '@/api/tokenStore';
+import { getAccessToken, getAuthGeneration, setAccessToken } from '@/api/tokenStore';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/context/PresenceContext';
+import { appendHistoryMessage, assertMessageGeneration, messageThreadKey } from '@/lib/messageHistory.js';
 
 function appendMessage(old, message) {
   const list = old ?? [];
@@ -12,26 +13,33 @@ function appendMessage(old, message) {
   return [...list, message];
 }
 
-async function ensureAccessToken() {
+async function ensureAccessToken(generation) {
+  assertMessageGeneration(generation, getAuthGeneration());
   const existing = getAccessToken();
   if (existing) return existing;
   const { accessToken } = await refreshRequest();
-  setAccessToken(accessToken);
+  assertMessageGeneration(generation, getAuthGeneration());
+  setAccessToken(accessToken, generation);
   return accessToken;
 }
 
 export function useMessageLive(enabled) {
   const { user } = useAuth();
+  const userId = user?._id;
+  const role = user?.role;
+  const generation = getAuthGeneration();
   const queryClient = useQueryClient();
   const { setOnline, replaceOnline } = usePresence();
 
   useEffect(() => {
-    if (!enabled || !user) return undefined;
+    if (!enabled || !userId) return undefined;
     let cancelled = false;
     let retryTimer;
     const abort = new AbortController();
+    const isCurrent = () => !cancelled && generation === getAuthGeneration();
 
     function handleEvent(event) {
+      if (!isCurrent()) return;
       if (event.type === 'hello') {
         replaceOnline(event.onlineUserIds);
         return;
@@ -44,42 +52,45 @@ export function useMessageLive(enabled) {
 
       const message = event.message;
       if (message.channel === 'support') {
-        const threadKey = user.role === 'dietitian' ? 'mine' : message.dietitian;
+        const threadKey = role === 'dietitian' ? 'mine' : message.dietitian;
         queryClient.setQueryData(['support-messages', threadKey], (old) => appendMessage(old, message));
         queryClient.invalidateQueries({ queryKey: ['support-messages'] });
         return;
       }
-      const threadKey = user.role === 'client' ? 'mine' : message.client;
-      queryClient.setQueryData(['messages', threadKey], (old) => appendMessage(old, message));
-      queryClient.invalidateQueries({ queryKey: ['messages', 'unread-count'] });
-      queryClient.invalidateQueries({ queryKey: ['messages', 'conversations'] });
+      const threadKey = messageThreadKey(userId, role === 'client' ? undefined : message.client);
+      queryClient.setQueryData(threadKey, (old) => appendHistoryMessage(old, message));
+      queryClient.invalidateQueries({ queryKey: ['messages', userId, 'unread-count'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', userId, 'conversations'] });
     }
 
     async function connect() {
       try {
-        const token = await ensureAccessToken();
-        if (cancelled) return;
+        const token = await ensureAccessToken(generation);
+        if (!isCurrent()) return;
         const response = await fetch(`${getApiBaseURL()}/messages/stream`, {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
           signal: abort.signal,
         });
+        if (!isCurrent()) return;
         if (response.status === 401) {
-          setAccessToken(null);
+          // The shared refresh path handles an expired token. Clearing it first would mark
+          // this generation signed out and intentionally disable cookie refresh.
           const { accessToken } = await refreshRequest();
-          setAccessToken(accessToken);
-          if (!cancelled) retryTimer = setTimeout(connect, 250);
+          if (!isCurrent()) return;
+          setAccessToken(accessToken, generation);
+          retryTimer = setTimeout(connect, 250);
           return;
         }
         if (!response.ok || !response.body) {
-          if (!cancelled) retryTimer = setTimeout(connect, 3000);
+          if (isCurrent()) retryTimer = setTimeout(connect, 3000);
           return;
         }
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        while (!cancelled) {
+        while (isCurrent()) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
@@ -98,7 +109,7 @@ export function useMessageLive(enabled) {
       } catch {
         // reconnect below
       }
-      if (!cancelled) retryTimer = setTimeout(connect, 2000);
+      if (isCurrent()) retryTimer = setTimeout(connect, 2000);
     }
 
     connect();
@@ -107,5 +118,5 @@ export function useMessageLive(enabled) {
       abort.abort();
       clearTimeout(retryTimer);
     };
-  }, [enabled, user?._id, user?.role, queryClient, setOnline, replaceOnline]);
+  }, [enabled, userId, role, generation, queryClient, setOnline, replaceOnline]);
 }

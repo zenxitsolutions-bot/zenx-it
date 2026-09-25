@@ -1,29 +1,24 @@
 import 'dotenv/config';
+import { mysqlUri, secretEnv, assertDistinctSecrets, parseTrustProxy, originList, boundedInteger } from './security.js';
 
-function required(name, fallback) {
-  const value = process.env[name] ?? fallback;
-  if (value === undefined) throw new Error(`Missing required env var: ${name}`);
-  return value;
-}
+const clientOrigin = originList('CLIENT_ORIGIN', 'http://localhost:5173', { single: true })[0];
 
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
-  mysqlUrl: required('MYSQL_URL', 'mysql://root:@127.0.0.1:3306/nourishly'),
-  jwtAccessSecret: required('JWT_ACCESS_SECRET', 'dev-access-secret-change-me'),
-  jwtRefreshSecret: required('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-me'),
+  mysqlUrl: mysqlUri('MYSQL_URL', 'mysql://root:@127.0.0.1:3306/nourishly'),
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY),
+  jwtAccessSecret: secretEnv('JWT_ACCESS_SECRET', 'dev-access-secret-change-me'),
+  jwtRefreshSecret: secretEnv('JWT_REFRESH_SECRET', 'dev-refresh-secret-change-me'),
   jwtAccessTtl: process.env.JWT_ACCESS_TTL || '15m',
   jwtRefreshTtl: process.env.JWT_REFRESH_TTL || '30d',
-  clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  clientOrigin,
   // Comma-separated extra origins (deploy previews, staging) allowed by CORS in addition to
   // CLIENT_ORIGIN. CLIENT_ORIGIN stays the canonical URL used in email links.
   clientOrigins: [
     ...new Set([
-      process.env.CLIENT_ORIGIN || 'http://localhost:5173',
-      ...(process.env.CLIENT_ORIGINS || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
+      clientOrigin,
+      ...originList('CLIENT_ORIGINS', '', { required: false }),
     ]),
   ],
   // Shared with admin-server's ZENX_DIETITIAN_HANDOFF_SECRET (see that repo's customerAuth
@@ -72,7 +67,7 @@ export const env = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   // Must match a redirect URI registered on the OAuth client in Google Cloud Console, exactly.
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:4000/api/integrations/google/callback',
-  passwordResetTokenTtlMinutes: Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES || 60),
+  passwordResetTokenTtlMinutes: boundedInteger('PASSWORD_RESET_TOKEN_TTL_MINUTES', 60),
   // Notification engine (server/src/emails/). emailTransport is left as whatever was configured
   // (or undefined) here — transport/index.js#resolveTransportKind is what actually enforces the
   // "never a real send outside production" rule; env.js just passes the raw setting through.
@@ -91,3 +86,6 @@ export const env = {
   // Default 1h so a plan ending today is picked up the same day without a daily-only wait.
   planExpiryJobIntervalMs: Number(process.env.PLAN_EXPIRY_JOB_INTERVAL_MS || 60 * 60 * 1000),
 };
+
+assertDistinctSecrets([env.jwtAccessSecret, env.jwtRefreshSecret]);
+if (env.zenxHandoffSecret) env.zenxHandoffSecret = secretEnv('ZENX_HANDOFF_SECRET');

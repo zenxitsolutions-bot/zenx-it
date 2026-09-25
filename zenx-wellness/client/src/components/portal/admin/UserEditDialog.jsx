@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toE164OrEmpty } from '@/lib/phone';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { useAuth } from '@/hooks/useAuth';
+import { contactEditPatch, hasPermission, isMainAdmin } from '@/lib/permissions';
 
 // Spec §2026-round2-fixes item 3: editable email/phone here too (admin's generic edit dialog —
 // dietitians get their own richer page, see DietitianProfileScreen.jsx). Email format only; the
@@ -27,7 +28,7 @@ import { useAuth } from '@/hooks/useAuth';
 // exposing the full user directory) — its 409 surfaces on the field via onError below.
 const schema = z.object({
   role: z.enum(['client', 'dietitian', 'admin']),
-  email: z.string().email('Enter a valid email'),
+  email: z.string().email('Enter a valid email').optional(),
   // PhoneInput always produces E.164 (e.g. "+14155550123") or '' — same isValidPhoneNumber check
   // as the server (server/src/schemas/user.schema.js).
   phone: z.string().refine((v) => !v || isValidPhoneNumber(v), 'Enter a valid phone number'),
@@ -58,6 +59,7 @@ function toFormValues(user) {
 // user: the user row being edited (never null while open).
 export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
   const { user: viewer } = useAuth();
+  const maySetProgram = hasPermission(viewer, 'program_plans.view');
   const updateUser = useUpdateUser();
   const { data: dietitians } = useDietitians();
   const activeDietitians = (dietitians ?? []).filter((d) => {
@@ -67,7 +69,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
   // Unlike the create dialog, this fetches every plan (not just active ones) — otherwise a client
   // already on a plan that's since been deactivated would show a blank Select instead of their
   // actual current plan.
-  const { data: programPlans } = useProgramPlans();
+  const { data: programPlans } = useProgramPlans(undefined, maySetProgram);
 
   const form = useForm({ resolver: zodResolver(schema), defaultValues: toFormValues(user) });
   const role = form.watch('role');
@@ -80,13 +82,14 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
     updateUser.mutate(
       {
         userId: user._id,
-        role: values.role,
-        email: values.email,
-        phone: values.phone,
+        ...(isMainAdmin(viewer) ? { role: values.role } : {}),
+        ...contactEditPatch(values, user),
         timezone: values.timezone,
         assignedDietitian: values.role === 'client' && values.assignedDietitian !== 'none' ? values.assignedDietitian : null,
-        programPlan: values.role === 'client' && values.programPlan !== 'none' ? values.programPlan : null,
-        planDuration: values.role === 'client' && values.planDuration !== 'none' ? values.planDuration : null,
+        ...(maySetProgram ? {
+          programPlan: values.role === 'client' && values.programPlan !== 'none' ? values.programPlan : null,
+          planDuration: values.role === 'client' && values.planDuration !== 'none' ? values.planDuration : null,
+        } : {}),
         dietPreference: values.role === 'client' && values.dietPreference !== 'none' ? values.dietPreference : null,
         allergies: values.role === 'client' && values.allergies?.trim() ? values.allergies.trim() : null,
         accountStatus: values.role === 'client' ? values.accountStatus : undefined,
@@ -123,7 +126,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value} onValueChange={field.onChange} disabled={!isMainAdmin(viewer)}>
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue />
@@ -139,7 +142,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                 </FormItem>
               )}
             />
-            <FormField
+            {typeof user.email === 'string' && <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
@@ -151,8 +154,8 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                   <FormMessage />
                 </FormItem>
               )}
-            />
-            <FormField
+            />}
+            {Object.hasOwn(user, 'phone') && <FormField
               control={form.control}
               name="phone"
               render={({ field }) => (
@@ -169,7 +172,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            />}
             <FormField
               control={form.control}
               name="timezone"
@@ -241,7 +244,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                     </FormItem>
                   )}
                 />
-                <FormField
+                {maySetProgram && <FormField
                   control={form.control}
                   name="programPlan"
                   render={({ field }) => (
@@ -265,8 +268,8 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                <FormField
+                />}
+                {maySetProgram && <FormField
                   control={form.control}
                   name="planDuration"
                   render={({ field }) => (
@@ -290,7 +293,7 @@ export function UserEditDialog({ open, onOpenChange, user, onResetPassword }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                />}
                 <FormField
                   control={form.control}
                   name="dietPreference"

@@ -1,4 +1,5 @@
-import { LayoutDashboard, Utensils, LineChart, Phone, FileText, Users, CalendarRange, BookOpen, Inbox, BarChart3, UserCog, ClipboardList, MessageCircle, Mail, Building2 } from 'lucide-react';
+import { LayoutDashboard, Utensils, LineChart, Phone, FileText, Users, CalendarRange, BookOpen, Inbox, BarChart3, UserCog, ClipboardList, MessageCircle, Mail, Building2, ShieldCheck } from 'lucide-react';
+import { canAccessPortal } from './permissions';
 
 // Single source of truth for the portal shell: who sees what, matching CLAUDE.md §5 exactly.
 // Route guards in router.jsx derive their role lists from this via ROUTE_ROLES below, so the
@@ -15,6 +16,7 @@ export const NAV_BY_ROLE = {
   dietitian: [
     { to: '/app/overview', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/app/clients', label: 'Clients', icon: Users },
+    { to: '/app/users', label: 'Manage clients', icon: UserCog },
     { to: '/app/plan', label: 'Weekly plan builder', icon: CalendarRange },
     { to: '/app/recipes', label: 'Recipe library', icon: BookOpen },
     { to: '/app/calls', label: 'Schedule calls', icon: Phone },
@@ -31,6 +33,7 @@ export const NAV_BY_ROLE = {
     { to: '/app/plans', label: 'Plans', icon: ClipboardList },
     { to: '/app/plan', label: 'Weekly plan', icon: CalendarRange },
     { to: '/app/recipes', label: 'Recipe library', icon: BookOpen },
+    { to: '/app/reports', label: 'Report reviews', icon: FileText },
     { to: '/app/insights', label: 'Growth insights', icon: BarChart3 },
     // Not in CLAUDE.md §5's fixed admin screen list — added because the notification-engine work
     // (docs/worklog/2026-08-23.md) explicitly asked for an admin view of the email log.
@@ -38,8 +41,13 @@ export const NAV_BY_ROLE = {
     // Also outside §5's list: a read-only view of the ZenX-managed company details this portal is
     // branded with (name, URL, website) — see OrganisationScreen.jsx.
     { to: '/app/organisation', label: 'Your organisation', icon: Building2 },
+    { to: '/app/permissions', label: 'Team permissions', icon: ShieldCheck },
   ],
 };
+
+export function portalItemsFor(user) {
+  return (NAV_BY_ROLE[user?.role] ?? []).filter(({ to }) => canAccessPortal(user, to));
+}
 
 // { overview: ['client','dietitian','admin'], meals: ['client'], calls: ['client','dietitian','admin'], ... }
 export const ROUTE_ROLES = Object.entries(NAV_BY_ROLE).reduce((acc, [role, items]) => {

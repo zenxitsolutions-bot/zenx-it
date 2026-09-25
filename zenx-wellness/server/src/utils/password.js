@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt';
+import { safeErrorMeta } from './safeError.js';
 
 const SALT_ROUNDS = 12;
 
@@ -11,7 +12,7 @@ export async function comparePassword(plain, hash) {
   try {
     return await bcrypt.compare(plain, hash);
   } catch (err) {
-    console.error('[password] bcrypt.compare failed — stored hash is not usable:', err.message);
+    console.error('[password] bcrypt.compare failed — stored hash is not usable:', safeErrorMeta(err));
     return false;
   }
 }

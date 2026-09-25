@@ -2,8 +2,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { STATUS_LABEL, STATUSES } from '@/lib/enquiryStatus';
 import { usePagination } from '@/hooks/usePagination';
 import { PaginationControls } from '@/components/portal/shared/PaginationControls';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission, mayChangeEnquiryStatus } from '@/lib/permissions';
 
 export function EnquiryList({ enquiries, pendingId, onStatusChange, onOpenDetail }) {
+  const { user } = useAuth();
   const pagination = usePagination(enquiries, { pageSize: 20 });
 
   return (
@@ -22,9 +25,9 @@ export function EnquiryList({ enquiries, pendingId, onStatusChange, onOpenDetail
               <td className="max-w-64 px-4 py-4 text-muted-foreground">{enquiry.goal || '—'}</td>
               <td className="px-4 py-4 text-muted-foreground">{enquiry.preferredSlot || '—'}</td>
               <td className="px-4 py-4">
-                <Select value={enquiry.status} onValueChange={(status) => onStatusChange(enquiry, status)} disabled={pendingId === enquiry._id}>
+                <Select value={enquiry.status} onValueChange={(status) => onStatusChange(enquiry, status)} disabled={pendingId === enquiry._id || !hasPermission(user, 'enquiries.manage')}>
                   <SelectTrigger className="w-36" aria-label={`Move ${enquiry.name} to a different stage`}><SelectValue /></SelectTrigger>
-                  <SelectContent>{STATUSES.map((status) => <SelectItem key={status} value={status}>{STATUS_LABEL[status]}</SelectItem>)}</SelectContent>
+                  <SelectContent>{STATUSES.map((status) => <SelectItem key={status} value={status} disabled={!mayChangeEnquiryStatus(user, enquiry, status)}>{STATUS_LABEL[status]}</SelectItem>)}</SelectContent>
                 </Select>
               </td>
               <td className="px-4 py-4"><button type="button" onClick={() => onOpenDetail(enquiry)} aria-label={`View enquiry from ${enquiry.name}`} className="min-h-11 font-medium text-forest hover:underline">View →</button></td>

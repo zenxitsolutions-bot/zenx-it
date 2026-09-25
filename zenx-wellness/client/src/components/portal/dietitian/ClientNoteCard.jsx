@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useUpdateClientNote, useDeleteClientNote } from '@/hooks/useClientNotes';
 import { formatDateTime } from '@/lib/format';
+import { hasPermission } from '@/lib/permissions';
 
 export function ClientNoteCard({ note }) {
   const { user } = useAuth();
-  const canEdit = user.role === 'admin' || note.author === user._id;
+  const canEdit = hasPermission(user, 'clients.edit') && (user.role === 'admin' || note.author === user._id);
   const updateNote = useUpdateClientNote();
   const deleteNote = useDeleteClientNote();
   const [editing, setEditing] = useState(false);

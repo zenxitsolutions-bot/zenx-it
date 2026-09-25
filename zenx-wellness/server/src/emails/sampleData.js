@@ -23,7 +23,8 @@ export const SAMPLE_DATA = {
     dietitian_name: 'Dr. Asha Rao',
     plan_name: 'Weight Loss — Phase 1',
     plan_duration: '3 months (23 Aug 2026 – 23 Nov 2026)',
-    temp_password: 'Tempo1234!',
+    set_password_url: 'http://localhost:5173/nourishly-demo/reset-password?token=sample-token',
+    expiry_label: '1 hour',
     login_url: 'http://localhost:5173/login',
   },
   'plan-published': {

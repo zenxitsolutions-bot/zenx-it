@@ -11,8 +11,8 @@ import {
   uploadRecipeImageRequest,
 } from '../api/recipes.api';
 
-export function useRecipes(params) {
-  return useQuery({ queryKey: ['recipes', params ?? {}], queryFn: () => listRecipesRequest(params) });
+export function useRecipes(params, enabled = true) {
+  return useQuery({ queryKey: ['recipes', params ?? {}], queryFn: () => listRecipesRequest(params), enabled });
 }
 
 export function useRecipe(recipeId) {

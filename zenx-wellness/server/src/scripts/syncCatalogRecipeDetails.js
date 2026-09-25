@@ -1,3 +1,5 @@
+import { safeErrorMeta } from '../utils/safeError.js';
+
 /**
  * Preview: node src/scripts/syncCatalogRecipeDetails.js
  * Apply:   node src/scripts/syncCatalogRecipeDetails.js --apply
@@ -58,7 +60,7 @@ try {
   console.log(JSON.stringify(outcome, null, 2));
 } catch (error) {
   // Do not print connection URLs or credentials if the database rejects login.
-  console.error('Recipe detail sync failed:', error.code || error.message);
+  console.error('Recipe detail sync failed:', safeErrorMeta(error));
   process.exitCode = 1;
 } finally {
   await pool.end();

@@ -23,7 +23,7 @@ authRouter.post('/handoff', validate(handoffSchema), handoff);
 authRouter.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
 authRouter.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 authRouter.post('/refresh', refresh);
-authRouter.post('/logout', authenticate, logout);
+authRouter.post('/logout', logout);
 authRouter.get('/me', authenticate, me);
 // Not gated by blockIfMustChangePassword — this is the one call a user whose flag is still set
 // must be able to reach (spec: "reject API calls ... except the change-password call").

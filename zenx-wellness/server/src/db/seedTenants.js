@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // Two-tenant fixture for exercising company isolation end to end (`npm run seed:tenants`).
 //
 // Mirrors the worked example in docs/specs: ABC Nutrition and XYZ Wellness, four named users, and
@@ -158,7 +159,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   seedTenants()
     .then(() => pool.end())
     .catch((err) => {
-      console.error('[seed:tenants] failed', err);
+      console.error('[seed:tenants] failed', safeErrorMeta(err));
       process.exit(1);
     });
 }

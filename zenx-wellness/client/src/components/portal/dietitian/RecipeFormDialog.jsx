@@ -377,7 +377,7 @@ export function RecipeFormDialog({ open, onOpenChange, recipe, onSaved }) {
 
             <div>
               <p className="mb-1 text-sm font-medium">Recipe image</p>
-              <Input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
+              <Input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setImageFile(e.target.files?.[0] ?? null)} />
             </div>
 
             <div className="flex items-center justify-between gap-3">

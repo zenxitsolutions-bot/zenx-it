@@ -6,25 +6,31 @@ const SOURCE = ['Website', 'Google', 'Facebook', 'Instagram', 'Referral', 'Direc
 const PRIORITY = ['LOW', 'MEDIUM', 'HIGH', 'HOT'];
 const STATUS = ['NEW', 'CONTACTED', 'FOLLOW_UP', 'CONVERTED', 'LOST'];
 
+// An unselected field is genuinely unknown, not a made-up service/source choice. All optional
+// values share the same null representation, whether the form omits them or sends empty strings.
+const optionalText = z.string().trim().nullish().transform((value) => value || null);
+const optionalSelection = (options) => z.preprocess(
+  (value) => typeof value === 'string' ? value.trim() || null : value,
+  z.enum(options).nullish()
+).transform((value) => value ?? null);
+
 export const createEnquirySchema = z.object({
-  companyName: z.string().min(1),
-  contactName: z.string().min(1),
-  // The marketing site's ContactForm and admin's AddEnquiryModal/ConvertFlow all submit through
-  // the same PhoneField/PhoneInput components, which always produce E.164 (e.g. "+14155550123")
-  // or '' — phone stays optional here (the marketing site's own contact form has always treated
-  // it that way), but a non-empty value must be a real, dialable number.
-  phone: z.string().refine((v) => !v || isValidPhoneNumber(v), 'Enter a valid phone number'),
-  email: z.string().email(),
-  website: z.string().optional().nullable(),
-  service: z.enum(SERVICE),
-  source: z.enum(SOURCE),
-  addressLine1: z.string().optional().nullable(),
-  addressLine2: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  state: z.string().optional().nullable(),
-  zip: z.string().optional().nullable(),
-  country: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  companyName: optionalText,
+  contactName: z.string().trim().min(1, 'Enter your name'),
+  // Both public and staff enquiry forms use the shared phone input's international E.164 value.
+  phone: z.string().trim().min(1, 'Enter your phone number')
+    .refine((value) => isValidPhoneNumber(value), 'Enter a valid phone number'),
+  email: z.string().trim().email('Enter a valid email address'),
+  website: optionalText,
+  service: optionalSelection(SERVICE),
+  source: optionalSelection(SOURCE),
+  addressLine1: optionalText,
+  addressLine2: optionalText,
+  city: optionalText,
+  state: optionalText,
+  zip: optionalText,
+  country: optionalText,
+  notes: optionalText,
 });
 
 export const patchEnquirySchema = z.object({

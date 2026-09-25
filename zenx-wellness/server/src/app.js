@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import { unsafeOriginGuard } from './middleware/unsafeOriginGuard.js';
 import { createApiRateLimiter } from './middleware/apiRateLimit.js';
 
 import { env } from './config/env.js';
@@ -27,10 +28,14 @@ import { consultationScheduleRouter } from './routes/consultationSchedule.routes
 import { companyRouter } from './routes/company.routes.js';
 import { integrationsRouter } from './routes/integrations.routes.js';
 import { notificationRouter } from './routes/notification.routes.js';
+import { permissionRouter } from './routes/permission.routes.js';
+import { contactPrivacy } from './middleware/contactPrivacy.js';
 
 export const app = express();
 
+app.set('trust proxy', env.trustProxy);
 app.use(helmet());
+app.use(unsafeOriginGuard(env.clientOrigins));
 app.use(
   cors({
     origin(origin, callback) {
@@ -41,7 +46,8 @@ app.use(
     credentials: true,
   })
 );
-app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+morgan.token('safe-path', (req) => req.path);
+app.use(morgan(':method :safe-path :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 app.use(cookieParser());
 // Uploaded report files used to be served here as a plain, unauthenticated express.static mount —
@@ -52,6 +58,7 @@ app.use(cookieParser());
 app.use(createApiRateLimiter());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.use(contactPrivacy);
 
 app.use('/api/auth', authRouter);
 app.use('/api/users', userRouter);
@@ -72,6 +79,7 @@ app.use('/api/consultation-schedule', consultationScheduleRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/integrations', integrationsRouter);
 app.use('/api/notifications', notificationRouter);
+app.use('/api/permissions', permissionRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

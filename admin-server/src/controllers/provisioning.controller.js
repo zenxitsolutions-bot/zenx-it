@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { withTransaction } from '../db/pool.js';
@@ -9,6 +10,7 @@ import { updateEnquiryStatus } from '../models/Enquiry.js';
 import { hashPassword } from '../utils/password.js';
 import { sendCustomerWelcomeEmail } from '../emails/sendCustomerWelcomeEmail.js';
 import { provisionWellnessUser } from '../models/WellnessDb.js';
+import { toPublicAccount } from '../utils/publicAccount.js';
 
 // role defaulting — copied verbatim from the Deno edge function this replaces
 // (create-customer-account/index.ts#defaultRoleFor).
@@ -102,7 +104,7 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
   try {
     await sendCustomerWelcomeEmail({ to: email, name: firstName, companyName, companySlug });
   } catch (err) {
-    console.error('[provisionCustomerAccount] welcome email failed', err);
+    console.error('[provisionCustomerAccount] welcome email failed', safeErrorMeta(err));
   }
 
   if (applicationSlugs.includes('zenx-dietitian')) {
@@ -120,9 +122,9 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
         temporaryPassword: password,
       });
     } catch (err) {
-      console.error('[provisionCustomerAccount] wellness-app eager create failed', err);
+      console.error('[provisionCustomerAccount] wellness-app eager create failed', safeErrorMeta(err));
     }
   }
 
-  res.status(201).json({ company, user, grants });
+  res.status(201).json({ company, user: toPublicAccount(user), grants });
 });

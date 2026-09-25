@@ -42,5 +42,6 @@ export async function updateProfile(id, patch) {
 }
 
 export async function updateProfilePassword(id, passwordHash, conn = pool) {
+  await conn.query("UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP(3) WHERE account_kind = 'staff' AND account_id = ? AND used_at IS NULL", [id]);
   await conn.query('UPDATE profiles SET password_hash = ? WHERE id = ?', [passwordHash, id]);
 }

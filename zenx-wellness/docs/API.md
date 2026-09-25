@@ -202,6 +202,15 @@ pre-existing issue, out of scope for wiring the email trigger — see Known gaps
 
 ## Recipes — `recipe.routes.js`
 
+**Catalog image compatibility (2026-09-24):** recipe responses, including recipes
+nested in diet plans, normalize allowlisted legacy `/images/recipe-catalog/*.png`
+paths to the matching `.webp` asset without changing stored database rows. Copies
+and meal-specific titles keep their original image mapping. Remote/custom/upload
+paths are unchanged. Authenticated `GET /recipes/:id/image` retains its existing
+tenant-access checks and redirects known catalog images to the configured
+`CLIENT_ORIGIN`; private uploaded images still use the protected file response.
+See [image hosting](RECIPE_IMAGE_HOSTING.md) before deploying the new assets.
+
 | Method | Path | Auth | Payload → Response |
 |---|---|---|---|
 | GET | `/recipes` | dietitian, admin | `?mealType=&search=` → `[recipe]` |

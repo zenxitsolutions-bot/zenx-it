@@ -43,15 +43,20 @@ The client and server deploy as two separate services — there's no shared buil
 Both platforms can build directly from `server/Dockerfile`, or run `npm ci && npm start` on a
 Node 20 buildpack without Docker at all — either works, since the server has no build step.
 
-1. Create a new **Web Service** pointed at this repo, root directory `server/`.
-2. If using the Dockerfile: set the Docker context/build path to `server/`. Otherwise: build
-   command `npm ci`, start command `npm start`.
+1. Create a new **Web Service** pointed at this repo. Keep both `zenx-wellness/server/` and
+   `zenx-wellness/shared/` in the checkout/artifact; the API and client share the permissions module.
+2. If using Docker: set the build context to `zenx-wellness/` and Dockerfile to `server/Dockerfile`
+   (from this directory: `docker build -f server/Dockerfile .`). Otherwise run `npm ci` and
+   `npm start` in `server/`, retaining the sibling `shared/` directory at runtime.
 3. Set the environment variables from the **Production `.env` checklist** below.
 4. Run `npm run db:migrate` once against the production `MYSQL_URL` to create the schema (it's
    idempotent — `CREATE TABLE IF NOT EXISTS` — safe to re-run on every deploy if you'd rather wire
    it into the build/start command).
 5. Note the deployed URL (e.g. `https://nourishly-api.onrender.com`) — the client needs it.
 6. Both platforms deploy on git push by default; no extra CI config needed for a first deploy.
+
+Team permissions require an explicitly selected company main admin after migration. See
+[`PERMISSIONS.md`](./PERMISSIONS.md) before activating or delegating access; no admin is selected automatically.
 
 **Report uploads** (`server/uploads/`, written by `multer` in `server/src/middleware/upload.js`)
 are local disk — Render/Railway's default filesystem is **ephemeral** (wiped on redeploy/restart).
@@ -62,6 +67,8 @@ not solved here).
 ### Client → Netlify
 
 1. Import the repo into Netlify, set the project **base directory** to `client/`.
+   Retain the sibling `shared/` directory in the build checkout (use `zenx-wellness/client/`
+   as the base when deploying from the parent ZenX repository).
 2. Netlify auto-detects the Vite framework preset; `netlify.toml` in `client/` pins the build
    command (`npm run build`), publish directory (`dist`), and adds the SPA redirect every
    client-routed path needs — without it, a hard refresh on e.g. `/app/overview` 404s on static

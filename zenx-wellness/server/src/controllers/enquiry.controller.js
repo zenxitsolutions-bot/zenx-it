@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import {
   createEnquiry as createEnquiryRecord,
   listEnquiries as queryEnquiries,
@@ -9,6 +10,7 @@ import {
 import { listByEnquiryId, createHistoryEntry } from '../models/EnquiryHistory.js';
 import { findUserByEmail, findUserById, createUser as createUserRecord, updateUser as updateUserRecord } from '../models/User.js';
 import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
+import { findProgramPlanById } from '../models/ProgramPlan.js';
 import { reassignEnquiryCallsToClient } from '../models/Call.js';
 import { createClientNote } from '../models/ClientNote.js';
 import { hashPassword } from '../utils/password.js';
@@ -17,6 +19,7 @@ import { bookCall } from '../services/callService.js';
 import { notifyEnquirySubmitted } from '../services/enquiryNotifications.js';
 import { notifyClientAccountCreated } from '../services/accountNotifications.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
+import { assertPermission } from '../middleware/permissions.js';
 import { ApiError } from '../utils/ApiError.js';
 import { toClientShape } from '../utils/serialize.js';
 import { env } from '../config/env.js';
@@ -165,6 +168,8 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   const { status, note } = req.body;
 
   if (status === 'follow-up') {
+    assertPermission(req, 'calls.view');
+    assertPermission(req, 'calls.manage');
     const { scheduledAt, assignedTo, dietitian } = req.body;
     const hostId = assignedTo || dietitian || req.user.id;
     const host = await findUserById(hostId);
@@ -190,6 +195,9 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
   }
 
   if (status === 'converted') {
+    assertPermission(req, 'clients.create');
+    if (req.body.planId) assertPermission(req, 'program_plans.view');
+    if (existing.convertedUserId) assertPermission(req, 'clients.edit');
     const { planId, planDuration, password, assignedDietitian, dietPreference, allergies } = req.body;
     const alreadyConverted = Boolean(existing.convertedUserId);
     // Captured from inside the transaction, but only ever notified about after it commits (below)
@@ -203,6 +211,10 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
     // itself either all happen together or (on any failure) none do — no partial "account exists
     // but its history didn't carry over" state to ever get stuck in or need to detect on retry.
     const enquiry = await withTransaction(async (conn) => {
+      if (planId) {
+        const programPlan = await findProgramPlanById(planId, conn);
+        if (!programPlan || programPlan.companyId !== req.user.companyId) throw ApiError.badRequest('Invalid program package');
+      }
       let convertedUserId = existing.convertedUserId;
 
       if (!alreadyConverted) {
@@ -238,11 +250,13 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
       return updateEnquiryById(req.params.id, { status, note, convertedUserId }, conn);
     });
 
-    if (newUser) await notifyClientAccountCreated(newUser, { plainPassword: password });
+    if (newUser) await notifyClientAccountCreated(newUser);
 
     return res.json(toClientShape(enquiry));
   }
 
+  // Check before the status/history writes, not only before deactivation below.
+  if (status === 'closed' && existing.convertedUserId) assertPermission(req, 'clients.edit');
   if (status !== 'new') {
     await createHistoryEntry({ enquiryId: existing.id, status, note: note ?? null });
   }
@@ -254,7 +268,7 @@ export const updateEnquiry = asyncHandler(async (req, res) => {
     try {
       await updateUserRecord(existing.convertedUserId, { accountStatus: 'inactive' });
     } catch (err) {
-      console.error(`[updateEnquiry] failed to deactivate converted client ${existing.convertedUserId}:`, err);
+      console.error(`[updateEnquiry] failed to deactivate converted client ${existing.convertedUserId}:`, safeErrorMeta(err));
     }
   }
 

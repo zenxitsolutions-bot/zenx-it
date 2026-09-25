@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { CALL_DURATION_MINUTES, checkAvailability } from './availability.js';
 import { listWeeklyHours } from '../models/DietitianWeeklyHours.js';
@@ -284,7 +285,7 @@ export async function runConsultationScheduleGenerationJob() {
       const dietitian = await findUserById(client.assignedDietitian);
       await generateForSchedule({ schedule, client, dietitian });
     } catch (err) {
-      console.error(`[consultation-schedule-job] failed to generate for schedule ${schedule.id}:`, err);
+      console.error(`[consultation-schedule-job] failed to generate for schedule ${schedule.id}:`, safeErrorMeta(err));
     }
   }
   return schedules.length;

@@ -3,6 +3,8 @@ import { ApiError } from '../utils/ApiError.js';
 import { findUserById } from '../models/User.js';
 import { findCompanyById } from '../models/Company.js';
 import { asyncHandler } from './asyncHandler.js';
+import { isSessionActive } from '../models/AuthSession.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
 
 export const authenticate = asyncHandler(async (req, res, next) => {
   const header = req.headers.authorization;
@@ -17,6 +19,9 @@ export const authenticate = asyncHandler(async (req, res, next) => {
 
   const user = await findUserById(payload.sub);
   if (!user) throw ApiError.unauthorized('User no longer exists');
+  if (!(await isSessionActive({ id: payload.sid, kind: 'wellness', accountId: user.id, companyId: user.companyId, passwordHash: user.passwordHash }))) {
+    throw ApiError.unauthorized('Session expired. Sign in again.');
+  }
   // Checked on every request, not just at login, so a suspension (see the account_status comment
   // in schema.sql) takes effect immediately for an already-signed-in session — not just on their
   // next login attempt.
@@ -39,6 +44,8 @@ export const authenticate = asyncHandler(async (req, res, next) => {
     }
   }
 
-  req.user = user;
+  req.user = await hydrateUserPermissions(user);
+  req.authSession = { id: payload.sid, kind: 'wellness', accountId: user.id, companyId: user.companyId };
+  req.accessTokenExpiresAt = payload.exp * 1000;
   next();
 });

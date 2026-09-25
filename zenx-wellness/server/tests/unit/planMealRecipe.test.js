@@ -49,14 +49,14 @@ describe('catalog image families', () => {
     const eggCurry = catalogImageFor('Egg Curry with Brown Rice', 'Lunch');
     const eggBhurji = catalogImageFor('Egg Bhurji', 'Breakfast');
 
-    assert.match(sandwich, /^\/images\/recipe-catalog\/\d{4}-cucumber-mint-sandwich\.png$/);
-    assert.match(wrap, /^\/images\/recipe-catalog\/\d{4}-healthy-wraps\.png$/);
-    assert.match(omelette, /^\/images\/recipe-catalog\/\d{4}-masala-omelette-with-toast\.png$/);
-    assert.match(chaas, /^\/images\/recipe-catalog\/\d{4}-jeera-chaas\.png$/);
+    assert.match(sandwich, /^\/images\/recipe-catalog\/\d{4}-cucumber-mint-sandwich\.webp$/);
+    assert.match(wrap, /^\/images\/recipe-catalog\/\d{4}-healthy-wraps\.webp$/);
+    assert.match(omelette, /^\/images\/recipe-catalog\/\d{4}-masala-omelette-with-toast\.webp$/);
+    assert.match(chaas, /^\/images\/recipe-catalog\/\d{4}-jeera-chaas\.webp$/);
     assert.notEqual(paneerBiryani, paneerCurry);
-    assert.match(alooGobi, /aloo-gobi-light-with-brown-rice\.png$/);
+    assert.match(alooGobi, /aloo-gobi-light-with-brown-rice\.webp$/);
     assert.match(rajma, /Rajma/i);
-    assert.match(chole, /chole-with-brown-rice\.png$/);
+    assert.match(chole, /chole-with-brown-rice\.webp$/);
     assert.match(hummus, /Hummus/i);
     assert.match(sprouts, /Sprouts/i);
     assert.match(yogurt, /Yogurt/i);

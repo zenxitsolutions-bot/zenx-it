@@ -11,13 +11,14 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { assertDietitianOwnsClient, assertUserInCompany } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
-import { uploadsDir } from '../middleware/upload.js';
+import { uploadsDir, persistUpload } from '../middleware/upload.js';
+import { safeDownloadType } from '../utils/uploadContent.js';
 
 // RFC 6266: an ASCII-safe `filename` for older clients, plus the real name (which may contain
 // non-ASCII characters multer never restricted) via the `filename*` extended parameter.
-function contentDispositionHeader(fileName) {
+function contentDispositionHeader(fileName, disposition = 'inline') {
   const asciiFallback = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
-  return `inline; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+  return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
 export const listReports = asyncHandler(async (req, res) => {
@@ -41,11 +42,12 @@ export const listReports = asyncHandler(async (req, res) => {
 
 export const createReport = asyncHandler(async (req, res) => {
   if (!req.file) throw ApiError.badRequest('file is required');
+  const filename = await persistUpload(req.file);
 
   const report = await createReportRecord({
     client: req.user.id,
     fileName: req.file.originalname,
-    filePath: req.file.filename,
+    filePath: filename,
     note: req.body.note,
   });
   res.status(201).json(toClientShape(report));
@@ -56,7 +58,7 @@ export const createReport = asyncHandler(async (req, res) => {
 export const addReportFeedback = asyncHandler(async (req, res) => {
   const existing = await findReportById(req.params.id);
   if (!existing) throw ApiError.notFound('Report not found');
-  await assertUserInCompany(req, existing.client);
+  await assertDietitianOwnsClient(req, existing.client);
 
   const report = await addReportFeedbackRecord(req.params.id, {
     authorId: req.user.id,
@@ -97,7 +99,12 @@ export const getReportFile = asyncHandler(async (req, res, next) => {
   // download; the client's own "Download original" button handles downloading from the already-
   // fetched bytes instead of relying on this header.
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Content-Disposition', contentDispositionHeader(report.fileName));
+  const contentType = safeDownloadType(report.filePath);
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  res.setHeader('Content-Disposition', contentDispositionHeader(report.fileName, contentType === 'application/octet-stream' ? 'attachment' : 'inline'));
 
   res.sendFile(absolutePath, (err) => {
     if (!err) return;

@@ -17,6 +17,8 @@ import { DIET_PREFERENCES } from '@/lib/dietPreferences';
 import { Textarea } from '@/components/ui/textarea';
 import { defaultConsultationScheduleValues, toApiPayload } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from '@/components/portal/shared/ConsultationScheduleFields';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 // Only ever opened when the enquiry doesn't have a client account yet — see
 // EnquiryPipelineScreen.jsx's requestStatusChange, which skips this dialog (fires the mutation
@@ -47,6 +49,8 @@ const schema = z
 
 // enquiry: the card being moved to "Converted" (never null while open).
 export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
+  const { user } = useAuth();
+  const maySchedule = hasPermission(user, 'calls.manage');
   const updateEnquiry = useUpdateEnquiry();
   const saveSchedule = useSaveConsultationSchedule();
   const { data: programPlans } = useProgramPlans({ activeOnly: true });
@@ -78,7 +82,7 @@ export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
         onSuccess: (updatedEnquiry) => {
           toast.success(`${enquiry.name} is now a client.`);
           onOpenChange(false);
-          if (shouldSetUpSchedule && updatedEnquiry.convertedUserId) {
+          if (maySchedule && shouldSetUpSchedule && updatedEnquiry.convertedUserId) {
             saveSchedule.mutate(
               { client: updatedEnquiry.convertedUserId, ...toApiPayload(values), regenerateFutureCalls: false },
               { onError: () => toast.error(`${enquiry.name} was converted, but the consultation schedule couldn't be saved — set it up from their profile's Settings tab.`) }
@@ -228,7 +232,7 @@ export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
                 </FormItem>
               )}
             />
-            <FormField
+            {maySchedule && <FormField
               control={form.control}
               name="setUpSchedule"
               render={({ field }) => (
@@ -240,7 +244,8 @@ export function EnquiryConvertedDialog({ open, onOpenChange, enquiry }) {
                 </FormItem>
               )}
             />
-            {setUpSchedule && (
+            }
+            {maySchedule && setUpSchedule && (
               <div className="rounded-lg border border-line p-4">
                 <p className="mb-3 text-xs text-muted-foreground">
                   No dietitian is assigned yet — this saves the schedule now; it'll start generating

@@ -26,7 +26,7 @@ export function ReportUploadCard() {
           setNote('');
           if (inputRef.current) inputRef.current.value = '';
         },
-        onError: () => toast.error("We couldn't upload that — please try again."),
+        onError: (error) => toast.error(error.response?.data?.error || "We couldn't upload that — please try again."),
       }
     );
   }
@@ -40,7 +40,7 @@ export function ReportUploadCard() {
             <UploadCloud className="size-5" aria-hidden="true" />
           </span>
           <strong className="block text-sm text-forest">{file ? file.name : 'Drop a report here'}</strong>
-          <p className="mt-1 text-xs text-muted-foreground">PDF, photo, or lab result · up to 10 MB</p>
+          <p className="mt-1 text-xs text-muted-foreground">PDF, JPG, PNG, or WebP · up to 10 MB</p>
           <Button
             type="button"
             variant="outline"
@@ -49,7 +49,7 @@ export function ReportUploadCard() {
           >
             Choose a file
           </Button>
-          <input ref={inputRef} type="file" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+          <input ref={inputRef} type="file" accept="application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
         </div>
 
         <Textarea
@@ -57,6 +57,7 @@ export function ReportUploadCard() {
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={2}
+          maxLength={1000}
         />
 
         <Button

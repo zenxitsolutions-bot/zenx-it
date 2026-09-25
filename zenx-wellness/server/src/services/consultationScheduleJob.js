@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { runConsultationScheduleGenerationJob } from './consultationScheduleService.js';
 import { env } from '../config/env.js';
 
@@ -7,10 +8,10 @@ import { env } from '../config/env.js';
 // thereafter. Every tick is idempotent (see consultationScheduleService.js#generateForSchedule), so
 // there's no harm in it also running right after an explicit save/regenerate elsewhere.
 export function startConsultationScheduleJob() {
-  runConsultationScheduleGenerationJob().catch((err) => console.error('[consultation-schedule-job] initial run failed:', err));
+  runConsultationScheduleGenerationJob().catch((err) => console.error('[consultation-schedule-job] initial run failed:', safeErrorMeta(err)));
 
   const handle = setInterval(() => {
-    runConsultationScheduleGenerationJob().catch((err) => console.error('[consultation-schedule-job] run failed:', err));
+    runConsultationScheduleGenerationJob().catch((err) => console.error('[consultation-schedule-job] run failed:', safeErrorMeta(err)));
   }, env.consultationScheduleJobIntervalMs);
   handle.unref?.(); // never keep the process alive on its own (e.g. during tests/scripts)
   console.log(`[consultation-schedule-job] running every ${env.consultationScheduleJobIntervalMs}ms`);

@@ -33,7 +33,7 @@ function buildCalendar({ method, status, callId, sequence, summary, description,
     description,
     url,
     organizer: { name: organizer.name, email: organizer.email },
-    attendees: [{ name: attendee.name, email: attendee.email, rsvp: true }],
+    attendees: attendee?.email ? [{ name: attendee.name, email: attendee.email, rsvp: true }] : [],
   });
   // Explicit UTC instants with a Z suffix, never a floating local time: `start`/`end` are always
   // real Date objects (an absolute instant) here, and neither `floating` nor a per-event

@@ -637,3 +637,52 @@ CREATE TABLE IF NOT EXISTS user_photos (
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   CONSTRAINT fk_user_photos_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Server-side, rotating login sessions. Raw refresh tokens/passwords are never stored here.
+-- Created by db:migrate on both fresh and existing installations; old JWTs require re-login.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id VARCHAR(36) PRIMARY KEY,
+  account_kind VARCHAR(20) NOT NULL,
+  account_id VARCHAR(36) NOT NULL,
+  company_id VARCHAR(36) NULL,
+  refresh_token_hash CHAR(64) NOT NULL,
+  credential_hash CHAR(64) NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  revoked_at DATETIME(3) NULL,
+  rotated_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_auth_sessions_account (account_kind, account_id),
+  KEY idx_auth_sessions_expiry (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Explicit, operator-selected company owner. Never infer ownership from role, creation order,
+-- email domain or the first person to visit the permissions screen.
+CREATE TABLE IF NOT EXISTS company_access_control (
+  company_id VARCHAR(36) PRIMARY KEY,
+  main_admin_user_id VARCHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE KEY uq_company_main_admin (main_admin_user_id),
+  CONSTRAINT fk_main_admin_user FOREIGN KEY (main_admin_user_id) REFERENCES users(id) ON DELETE RESTRICT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_permissions (
+  user_id VARCHAR(36) PRIMARY KEY,
+  company_id VARCHAR(36) NOT NULL,
+  permissions_json JSON NOT NULL,
+  updated_by VARCHAR(36) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  KEY idx_user_permissions_company (company_id),
+  CONSTRAINT fk_user_permissions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS permission_audit (
+  id VARCHAR(36) PRIMARY KEY,
+  company_id VARCHAR(36) NOT NULL,
+  actor_id VARCHAR(36) NULL,
+  target_id VARCHAR(36) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  details_json JSON NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_permission_audit_company (company_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -6,6 +6,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { UserAvatar } from '@/components/portal/shared/UserAvatar';
 import { useClient } from '@/hooks/useClients';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission, canResetAccount } from '@/lib/permissions';
+import { Button } from '@/components/ui/button';
+import { ResetUserPasswordDialog } from '@/components/portal/admin/ResetUserPasswordDialog';
 
 // Same named-export adapter router.jsx uses for React.lazy — each tab is its own chunk, loaded
 // only the first time it's opened, and (since Radix's TabsContent unmounts inactive tabs by
@@ -29,6 +33,8 @@ const TAB_FALLBACK = <Skeleton className="h-64 w-full" />;
 // progress history, recent meal plans, call history with per-call notes, and general notes — in
 // one page, tabbed so it stays usable instead of one enormous scroll.
 export function ClientProfileScreen() {
+  const { user } = useAuth();
+  const [resetOpen, setResetOpen] = useState(false);
   const { id, companySlug } = useParams();
   const navigate = useNavigate();
   const { data: client, isLoading, isError, refetch } = useClient(id);
@@ -67,16 +73,18 @@ export function ClientProfileScreen() {
                 {client.phone ? ` · ${client.phone}` : ''}
               </p>
             </div>
+            {canResetAccount(user, client) && <Button className="ml-auto" variant="outline" onClick={() => setResetOpen(true)}>Reset password</Button>}
           </div>
+          {resetOpen && <ResetUserPasswordDialog open onOpenChange={setResetOpen} user={client} />}
 
           <Tabs defaultValue="overview">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="progress">Progress</TabsTrigger>
-              <TabsTrigger value="meals">Meal plans</TabsTrigger>
-              <TabsTrigger value="calls">Calls</TabsTrigger>
+              {hasPermission(user, 'diet_plans.view') && <TabsTrigger value="meals">Meal plans</TabsTrigger>}
+              {hasPermission(user, 'calls.view') && <TabsTrigger value="calls">Calls</TabsTrigger>}
               <TabsTrigger value="notes">Notes</TabsTrigger>
-              <TabsTrigger value="settings">Settings</TabsTrigger>
+              {hasPermission(user, 'calls.manage') && <TabsTrigger value="settings">Settings</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="overview" className="mt-4">
@@ -89,26 +97,26 @@ export function ClientProfileScreen() {
                 <ClientProgressTab clientId={client._id} />
               </Suspense>
             </TabsContent>
-            <TabsContent value="meals" className="mt-4">
+            {hasPermission(user, 'diet_plans.view') && <TabsContent value="meals" className="mt-4">
               <Suspense fallback={TAB_FALLBACK}>
                 <ClientMealsTab clientId={client._id} />
               </Suspense>
-            </TabsContent>
-            <TabsContent value="calls" className="mt-4">
+            </TabsContent>}
+            {hasPermission(user, 'calls.view') && <TabsContent value="calls" className="mt-4">
               <Suspense fallback={TAB_FALLBACK}>
                 <ClientCallsTab clientId={client._id} />
               </Suspense>
-            </TabsContent>
+            </TabsContent>}
             <TabsContent value="notes" className="mt-4">
               <Suspense fallback={TAB_FALLBACK}>
                 <ClientNotesTab clientId={client._id} />
               </Suspense>
             </TabsContent>
-            <TabsContent value="settings" className="mt-4">
+            {hasPermission(user, 'calls.manage') && <TabsContent value="settings" className="mt-4">
               <Suspense fallback={TAB_FALLBACK}>
                 <ConsultationScheduleTab clientId={client._id} />
               </Suspense>
-            </TabsContent>
+            </TabsContent>}
           </Tabs>
         </>
       )}

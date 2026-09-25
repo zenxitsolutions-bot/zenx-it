@@ -24,7 +24,7 @@ test('participant photos enforce authentication, relationships, and company boun
   const callLookups = [];
   const calls = [{ client: 'client', dietitian: 'former-dietitian' }];
   function account(id, role, company = 'company-a', assignedDietitian = null) {
-    users.set(id, { id, role, company_id: company, assigned_dietitian_id: assignedDietitian, account_status: 'active' });
+    users.set(id, { id, role, company_id: company, assigned_dietitian_id: assignedDietitian, account_status: 'active', password_hash: 'fixture-password-hash' });
     photos.set(id, { image: png, mime_type: 'image/png' });
   }
   account('client', 'client', 'company-a', 'dietitian');
@@ -39,6 +39,7 @@ test('participant photos enforce authentication, relationships, and company boun
   photos.delete('no-photo');
 
   t.mock.method(pool, 'query', async (sql, params) => {
+    if (sql.includes('FROM auth_sessions')) return [[{ id: params[0] }]];
     if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) {
       return [[users.get(params[0])].filter(Boolean)];
     }
@@ -79,7 +80,7 @@ test('participant photos enforce authentication, relationships, and company boun
   const url = `http://127.0.0.1:${server.address().port}/api/users`;
   function request(viewer, target, options = {}) {
     const user = users.get(viewer);
-    const headers = user ? { Authorization: `Bearer ${signAccessToken({ id: user.id, role: user.role, companyId: user.company_id })}` } : {};
+    const headers = user ? { Authorization: `Bearer ${signAccessToken({ id: user.id, role: user.role, companyId: user.company_id }, `session-${user.id}`)}` } : {};
     return fetch(`${url}/${target}/photo`, { ...options, headers });
   }
   async function assertPhoto(viewer, target, expected = png) {

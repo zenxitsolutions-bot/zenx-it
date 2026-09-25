@@ -2,7 +2,8 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUnreadMessageCount } from '@/hooks/useMessages';
 import { useSupportUnreadCount } from '@/hooks/useSupportMessages';
-import { NAV_BY_ROLE } from '@/lib/portalNav';
+import { portalItemsFor } from '@/lib/portalNav';
+import { hasPermission } from '@/lib/permissions';
 
 // Bottom tab bar for phones, below the 1050px sidebar breakpoint.
 //
@@ -14,9 +15,10 @@ const MAX_TABS = 5;
 
 export function MobileNav() {
   const { user } = useAuth();
-  const items = (NAV_BY_ROLE[user.role] ?? []).slice(0, MAX_TABS);
-  const { data: unread } = useUnreadMessageCount(user.role === 'client' || user.role === 'dietitian');
-  const { data: supportUnread } = useSupportUnreadCount(user.role === 'dietitian' || user.role === 'admin');
+  const items = portalItemsFor(user).slice(0, MAX_TABS);
+  const canMessage = user.role === 'client' || hasPermission(user, 'messages.use');
+  const { data: unread } = useUnreadMessageCount(canMessage && (user.role === 'client' || user.role === 'dietitian'));
+  const { data: supportUnread } = useSupportUnreadCount(canMessage && (user.role === 'dietitian' || user.role === 'admin'));
   const unreadCount =
     user.role === 'admin' ? (supportUnread?.count ?? 0) : (unread?.count ?? 0);
 

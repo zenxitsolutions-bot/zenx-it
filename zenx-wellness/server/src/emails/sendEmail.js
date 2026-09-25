@@ -3,6 +3,9 @@ import { renderTemplate } from './renderTemplate.js';
 import { buildIcsAttachment } from './ics.js';
 import { enqueueEmail } from '../models/EmailLog.js';
 import { env } from '../config/env.js';
+import { assertSafeQueueParams, welcomeQueueParams } from './security.js';
+import { welcomeExpiryLabel } from './welcomeDelivery.js';
+import { bindStaffRecipientIdentity } from './permissionDelivery.js';
 
 // The single entry point for sending any email in the app. Renders (and validates) the template
 // up front so a bad templateKey or a missing param fails immediately in the caller's request path
@@ -14,11 +17,20 @@ import { env } from '../config/env.js';
 // a retried job or a handler that fires twice lands on the same email_log row instead of sending
 // twice. Omit it only for a one-off send with no natural event identity (e.g. the manual test
 // tool) — a random key is generated so every call still gets a row.
-export async function sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity } = {}) {
+export async function sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity, staffRecipient } = {}) {
+  if (templateKey === 'client-welcome') {
+    if (relatedEntity?.type !== 'client' || !relatedEntity.id) throw new Error('Welcome email requires a client reference');
+    params = welcomeQueueParams(params);
+  }
+  params = bindStaffRecipientIdentity(to, templateKey, params, staffRecipient);
+  assertSafeQueueParams(params);
+  const renderParams = templateKey === 'client-welcome'
+    ? { ...params, set_password_url: 'https://example.invalid/generated-at-delivery', expiry_label: welcomeExpiryLabel(env.passwordResetTokenTtlMinutes) }
+    : params;
   // Only `subject` is kept — rendering here is purely to validate the template/params fail-fast in
   // the caller's request path; the worker re-renders html/text from templateKey+params right
   // before actually sending (see email_log's `params` column comment in schema.sql).
-  const { subject } = renderTemplate(templateKey, params);
+  const { subject } = renderTemplate(templateKey, renderParams);
   // Same fail-fast reasoning for a calendar invite (params.ics) — a malformed one should surface
   // immediately in the caller's request path, not after the worker's first retry.
   buildIcsAttachment(templateKey, params);

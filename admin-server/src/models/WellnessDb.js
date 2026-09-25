@@ -235,30 +235,29 @@ export async function listWellnessClients(zenxCompanyId, slug) {
   return { clients, dietitians };
 }
 
-export async function updateWellnessPassword({ zenxUserId, email, passwordHash, mustChangePassword }) {
-  if (!pool || !passwordHash) return null;
+export async function updateWellnessPassword({ zenxUserId, email, passwordHash, mustChangePassword }, conn = pool) {
+  if (!conn || !passwordHash) return null;
+  async function updateCredential(row) {
+    if (row.password_hash !== passwordHash) {
+      await conn.query('UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP(3) WHERE user_id = ? AND used_at IS NULL', [row.id]);
+    }
+    await conn.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
+      passwordHash, Boolean(mustChangePassword), row.id,
+    ]);
+    return row.id;
+  }
   if (zenxUserId) {
-    const [rows] = await pool.query('SELECT id FROM users WHERE zenx_user_id = ? LIMIT 1', [zenxUserId]);
+    const [rows] = await conn.query('SELECT id, password_hash FROM users WHERE zenx_user_id = ? LIMIT 1', [zenxUserId]);
     if (rows[0]) {
-      await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
-        passwordHash,
-        Boolean(mustChangePassword),
-        rows[0].id,
-      ]);
-      return rows[0].id;
+      return updateCredential(rows[0]);
     }
   }
   if (email) {
-    const [rows] = await pool.query('SELECT id FROM users WHERE LOWER(email) = ? LIMIT 1', [
+    const [rows] = await conn.query('SELECT id, password_hash FROM users WHERE LOWER(email) = ? LIMIT 1', [
       String(email).trim().toLowerCase(),
     ]);
     if (rows[0]) {
-      await pool.query('UPDATE users SET password_hash = ?, must_change_password = ? WHERE id = ?', [
-        passwordHash,
-        Boolean(mustChangePassword),
-        rows[0].id,
-      ]);
-      return rows[0].id;
+      return updateCredential(rows[0]);
     }
   }
   return null;

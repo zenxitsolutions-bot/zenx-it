@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +21,8 @@ import { DIET_PREFERENCES } from '@/lib/dietPreferences';
 import { defaultConsultationScheduleValues, toApiPayload } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from '@/components/portal/shared/ConsultationScheduleFields';
 import { toLocalCalendarDate } from '@/lib/calendarDate';
+import { useAuth } from '@/hooks/useAuth';
+import { creatableRoles, hasPermission } from '@/lib/permissions';
 
 // Phone/address are only required for a dietitian (spec §2026-round2-fixes item 1's explicit "Add
 // and require: Email, Phone Number, Address") — enforced below via superRefine, mirroring the
@@ -91,12 +93,17 @@ const EMPTY = {
 };
 
 // Admin-only: create a new client, dietitian, or admin account directly (no self-registration needed).
-export function UserFormDialog({ open, onOpenChange }) {
+export function UserFormDialog({ open, onOpenChange, initialRole }) {
+  const { user: viewer } = useAuth();
+  const allowedRoles = useMemo(() => creatableRoles(viewer), [viewer]);
+  const mayAssign = viewer.role === 'admin';
+  const maySchedule = hasPermission(viewer, 'calls.manage');
+  const maySetProgram = viewer.role === 'admin' && hasPermission(viewer, 'program_plans.view');
   const createUser = useCreateUser();
   const saveSchedule = useSaveConsultationSchedule();
   const updateDietitian = useUpdateUser();
-  const { data: dietitians } = useDietitians();
-  const { data: programPlans } = useProgramPlans({ activeOnly: true });
+  const { data: dietitians } = useDietitians(mayAssign);
+  const { data: programPlans } = useProgramPlans({ activeOnly: true }, maySetProgram);
 
   const form = useForm({ resolver: zodResolver(schema), defaultValues: EMPTY });
   const role = form.watch('role');
@@ -108,7 +115,7 @@ export function UserFormDialog({ open, onOpenChange }) {
   // unlike the client being created here, they're not a new row, so their timezone can be updated
   // right away rather than waiting for this form to submit.
   function saveDietitianTimezone(timezone) {
-    if (!selectedDietitian) return;
+    if (!selectedDietitian || !hasPermission(viewer, 'staff.edit')) return;
     updateDietitian.mutate(
       { userId: selectedDietitian._id, timezone },
       {
@@ -119,10 +126,11 @@ export function UserFormDialog({ open, onOpenChange }) {
   }
 
   useEffect(() => {
-    if (open) form.reset(EMPTY);
-  }, [open, form]);
+    if (open) form.reset({ ...EMPTY, role: allowedRoles.includes(initialRole) ? initialRole : allowedRoles[0] ?? 'client' });
+  }, [open, form, allowedRoles, initialRole]);
 
   function onSubmit(values) {
+    if (!allowedRoles.includes(values.role)) return;
     const payload = {
       name: values.name,
       email: values.email,
@@ -138,6 +146,11 @@ export function UserFormDialog({ open, onOpenChange }) {
       dietPreference: values.role === 'client' && values.dietPreference !== 'none' ? values.dietPreference : null,
       allergies: values.role === 'client' && values.allergies?.trim() ? values.allergies.trim() : null,
     };
+    if (!mayAssign) delete payload.assignedDietitian;
+    if (!maySetProgram) {
+      delete payload.programPlan;
+      delete payload.planDuration;
+    }
 
     createUser.mutate(payload, {
       onSuccess: (user) => {
@@ -146,7 +159,7 @@ export function UserFormDialog({ open, onOpenChange }) {
         // A follow-up save, not part of the same request — the account already exists regardless
         // of whether this succeeds (see consultationScheduleService.js's own non-blocking
         // principle applied here too).
-        if (values.role === 'client' && values.setUpSchedule) {
+        if (values.role === 'client' && values.setUpSchedule && maySchedule) {
           saveSchedule.mutate(
             { client: user._id, ...toApiPayload(values), regenerateFutureCalls: false },
             { onError: () => toast.error(`${values.name} was added, but the consultation schedule couldn't be saved — set it up from their profile's Settings tab.`) }
@@ -227,9 +240,7 @@ export function UserFormDialog({ open, onOpenChange }) {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="client">Client</SelectItem>
-                      <SelectItem value="dietitian">Dietitian</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      {allowedRoles.map((option) => <SelectItem key={option} value={option}>{option === 'client' ? 'Client' : option === 'dietitian' ? 'Dietitian' : 'Admin'}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -301,7 +312,7 @@ export function UserFormDialog({ open, onOpenChange }) {
 
             {role === 'client' && (
               <>
-                <FormField
+                {mayAssign && <FormField
                   control={form.control}
                   name="assignedDietitian"
                   render={({ field }) => (
@@ -325,8 +336,8 @@ export function UserFormDialog({ open, onOpenChange }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                <FormField
+                />}
+                {maySetProgram && <FormField
                   control={form.control}
                   name="programPlan"
                   render={({ field }) => (
@@ -350,8 +361,8 @@ export function UserFormDialog({ open, onOpenChange }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
-                <FormField
+                />}
+                {maySetProgram && <FormField
                   control={form.control}
                   name="planDuration"
                   render={({ field }) => (
@@ -375,7 +386,7 @@ export function UserFormDialog({ open, onOpenChange }) {
                       <FormMessage />
                     </FormItem>
                   )}
-                />
+                />}
                 <FormField
                   control={form.control}
                   name="dietPreference"
@@ -414,7 +425,7 @@ export function UserFormDialog({ open, onOpenChange }) {
                     </FormItem>
                   )}
                 />
-                <FormField
+                {maySchedule && <FormField
                   control={form.control}
                   name="setUpSchedule"
                   render={({ field }) => (
@@ -426,14 +437,15 @@ export function UserFormDialog({ open, onOpenChange }) {
                     </FormItem>
                   )}
                 />
-                {setUpSchedule && (
+                }
+                {setUpSchedule && maySchedule && (
                   <div className="rounded-lg border border-line p-4">
                     <ConsultationScheduleFields
                       control={form.control}
                       watch={form.watch}
                       warning={null}
                       dietitianTimezone={selectedDietitian?.timezone}
-                      onDietitianTimezoneChange={saveDietitianTimezone}
+                      onDietitianTimezoneChange={hasPermission(viewer, 'staff.edit') ? saveDietitianTimezone : undefined}
                     />
                   </div>
                 )}

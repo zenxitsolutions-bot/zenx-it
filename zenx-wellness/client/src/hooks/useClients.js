@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getUserRequest, listUsersRequest } from '../api/users.api';
+import { getUserRequest, listUsersRequest, listDietitianOptionsRequest } from '../api/users.api';
 
 // Server auto-scopes: dietitian gets only their assigned clients, admin gets everyone.
 export function useClients() {
@@ -14,13 +14,12 @@ export function useClient(clientId) {
   });
 }
 
-// Server auto-scopes: a client or admin gets the full dietitian directory. A dietitian caller
-// gets nothing useful back (the server forces their own assignedDietitian scope instead), so
-// callers on that role should pass enabled: false.
+// Selector-only records deliberately omit contact and sensitive staff details. Their access
+// follows client/call/plan workflows instead of permission to browse full staff accounts.
 export function useDietitians(enabled = true) {
   return useQuery({
     queryKey: ['users', 'dietitians'],
-    queryFn: () => listUsersRequest({ role: 'dietitian' }),
+    queryFn: listDietitianOptionsRequest,
     enabled,
   });
 }

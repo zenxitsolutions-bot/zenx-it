@@ -53,7 +53,9 @@ export async function sendEmail({ to, subject, html, text }) {
   const kind = resolveTransportKind();
 
   if (kind === 'console') {
-    console.log(`[email:console] to=${to} subject="${subject}"\n${text || html}`);
+    // Invitations and password resets contain bearer credentials. Neither body
+    // nor user-controlled subject/address belongs in console or aggregated logs.
+    console.log('[email:console] Email delivery simulated; message body suppressed.');
     return;
   }
 
@@ -61,15 +63,17 @@ export async function sendEmail({ to, subject, html, text }) {
     try {
       await getSmtpTransporter().sendMail({ from: env.emailFrom, to, subject, html, text });
     } catch (err) {
-      console.error(`[email] SMTP send failed to=${to} subject="${subject}":`, err);
-      throw new Error(err.message || 'SMTP send failed');
+      console.error('[email] SMTP send failed');
+      throw new Error('SMTP send failed');
     }
     return;
   }
 
-  const { error } = await getResendClient().emails.send({ from: env.emailFrom, to, subject, html, text });
-  if (error) {
-    console.error(`[email] Resend send failed to=${to} subject="${subject}":`, error);
-    throw new Error(error.message || 'Resend send failed');
+  try {
+    const { error } = await getResendClient().emails.send({ from: env.emailFrom, to, subject, html, text });
+    if (error) throw new Error('Resend send failed');
+  } catch {
+    console.error('[email] Resend send failed');
+    throw new Error('Resend send failed');
   }
 }

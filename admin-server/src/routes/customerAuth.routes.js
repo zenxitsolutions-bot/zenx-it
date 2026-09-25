@@ -21,7 +21,7 @@ const loginLimiter = rateLimit({
 customerAuthRouter.post('/login', loginLimiter, validate(customerLoginSchema), login);
 customerAuthRouter.get('/company/:slug', getPublicCompany);
 customerAuthRouter.post('/refresh', refresh);
-customerAuthRouter.post('/logout', authenticateCustomer, logout);
+customerAuthRouter.post('/logout', logout);
 customerAuthRouter.get('/me', authenticateCustomer, me);
 customerAuthRouter.post('/set-password', authenticateCustomer, validate(setNewPasswordSchema), setNewPassword);
 customerAuthRouter.get('/grants', authenticateCustomer, getActiveGrants);

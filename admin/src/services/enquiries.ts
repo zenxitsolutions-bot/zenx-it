@@ -6,13 +6,13 @@ import { auditService } from "./auditLogs";
 import type { Enquiry, EnquiryStatus, LeadSource, ServiceOption } from "../types/domain";
 
 export interface NewEnquiryInput {
-  company_name: string;
+  company_name?: string | null;
   contact_name: string;
   phone: string;
   email: string;
   website?: string | null;
-  service: ServiceOption;
-  source: LeadSource;
+  service?: ServiceOption | null;
+  source?: LeadSource | null;
   message?: string;
   address_line1?: string | null;
   address_line2?: string | null;
@@ -56,13 +56,13 @@ export const enquiriesService = {
       const now = new Date().toISOString();
       const enquiry: Enquiry = {
         id: demoStore.nextId("enq"),
-        company_name: input.company_name,
+        company_name: input.company_name?.trim() || null,
         contact_name: input.contact_name,
         phone: input.phone,
         email: input.email,
         website: input.website ?? null,
-        service: input.service,
-        source: input.source,
+        service: input.service ?? null,
+        source: input.source ?? null,
         status: "NEW",
         priority: "MEDIUM",
         assigned_to: null,
@@ -83,7 +83,7 @@ export const enquiriesService = {
       await notificationsService.push({
         kind: "NEW_ENQUIRY",
         title: "New enquiry",
-        body: `${enquiry.company_name} just submitted an enquiry.`,
+        body: `${enquiry.company_name || enquiry.contact_name} just submitted an enquiry.`,
         entity_id: enquiry.id,
       });
       return enquiry;
@@ -138,11 +138,11 @@ export const enquiriesService = {
         await notificationsService.push({
           kind: "CONVERTED",
           title: "Lead converted",
-          body: `${item.company_name} converted to a customer.`,
+          body: `${item.company_name || item.contact_name} converted to a customer.`,
           entity_id: id,
         });
       }
-      await auditService.log(adminId, `MOVE_TO_${status}`, "enquiry", id, `Moved ${item.company_name} to ${status}.`);
+      await auditService.log(adminId, `MOVE_TO_${status}`, "enquiry", id, `Moved ${item.company_name || item.contact_name} to ${status}.`);
       return item;
     }
     // Server creates the audit_logs entry itself — no client-side auditService.log call here.

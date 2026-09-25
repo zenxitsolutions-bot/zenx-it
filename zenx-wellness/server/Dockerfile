@@ -1,12 +1,13 @@
 # Plain Node ESM app, no build step — a single stage is enough.
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/server
 
-COPY package*.json ./
+COPY server/package*.json ./
 RUN npm ci --omit=dev
 
-COPY . .
+COPY server/ ./
+COPY shared/ ../shared/
 
 # Report uploads (server/src/middleware/upload.js) land here — created so the app doesn't need
 # to mkdir at runtime. On most hosts this is ephemeral storage; see README's deploy notes.

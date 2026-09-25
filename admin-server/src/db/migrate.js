@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -12,6 +13,11 @@ const schemaPath = join(dirname(fileURLToPath(import.meta.url)), 'schema.sql');
 // wellness-app's own server/src/db/migrate.js convention (each wrapped in the same try/catch below
 // so reruns stay idempotent).
 const ALTERS = [
+  // Only contact name, phone and email are mandatory on enquiries. MODIFY is safe to rerun and
+  // preserves every existing value while allowing genuinely unprovided business details.
+  'ALTER TABLE enquiries MODIFY COLUMN company_name VARCHAR(255) NULL',
+  "ALTER TABLE enquiries MODIFY COLUMN service ENUM('Website', 'Digital Marketing', 'Business Software', 'Small Business POS', 'ZenX Dietitian application', 'Something else') NULL",
+  "ALTER TABLE enquiries MODIFY COLUMN source ENUM('Website', 'Google', 'Facebook', 'Instagram', 'Referral', 'Direct', 'Other') NULL",
   // Timezone-aware follow-ups (see the column comments in schema.sql for the full rationale).
   // scheduled_at_utc is added nullable here (fresh installs declare it NOT NULL) and immediately
   // backfilled below — same asymmetric pattern wellness-app's own migrate.js uses for a NOT NULL
@@ -62,7 +68,7 @@ async function migrate() {
 
   const sql = readFileSync(schemaPath, 'utf8');
   const conn = await mysql.createConnection({ uri: env.mysqlUrl, multipleStatements: true });
-  console.log(`[migrate] connected → ${env.mysqlUrl}`);
+  console.log('[migrate] connected to configured database');
   await conn.query(sql);
   console.log('[migrate] schema applied');
 
@@ -89,6 +95,6 @@ async function migrate() {
 }
 
 migrate().catch((err) => {
-  console.error('[migrate] failed', err);
+  console.error('[migrate] failed', safeErrorMeta(err));
   process.exit(1);
 });

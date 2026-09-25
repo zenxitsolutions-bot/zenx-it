@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -260,7 +261,7 @@ async function backfillLegacyCompany(conn) {
       console.warn(`[migrate] no companies row for ${env.legacyCompanyId} yet — company_slug left NULL, will backfill on next SSO login`);
     }
   } catch (err) {
-    console.warn('[migrate] company_slug backfill skipped (companies table not present yet):', err.message);
+    console.warn('[migrate] company_slug backfill skipped (companies table not present yet):', safeErrorMeta(err));
   }
 }
 
@@ -326,6 +327,6 @@ async function migrate() {
 }
 
 migrate().catch((err) => {
-  console.error('[migrate] failed', err);
+  console.error('[migrate] failed', safeErrorMeta(err));
   process.exit(1);
 });

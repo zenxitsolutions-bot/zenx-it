@@ -29,7 +29,7 @@ export function ReportFileViewer({ report, open, onOpenChange }) {
     return () => URL.revokeObjectURL(url);
   }, [data?.blob]);
 
-  const kind = report ? getFilePreviewKind(report.fileName) : 'unsupported';
+  const kind = report ? getFilePreviewKind(report.fileName, data?.contentType || 'application/octet-stream') : 'unsupported';
 
   function downloadOriginal() {
     if (!objectUrl || !report) return;
@@ -62,7 +62,14 @@ export function ReportFileViewer({ report, open, onOpenChange }) {
               }
             />
           ) : kind === 'pdf' ? (
-            <iframe src={objectUrl} title={report.fileName} className="h-[70vh] w-full rounded-lg border border-line" />
+            <div>
+              {/* Some browsers block their PDF plugin in a sandbox. Keep a download fallback
+                  outside it; never grant uploaded documents the application's origin. */}
+              <p className="mb-2 text-xs text-muted-foreground">
+                If your browser blocks the protected preview, choose Download original to view the PDF.
+              </p>
+              <iframe src={objectUrl} sandbox="allow-scripts" referrerPolicy="no-referrer" title={report.fileName} className="h-[60vh] w-full rounded-lg border border-line" />
+            </div>
           ) : kind === 'image' ? (
             <img
               src={objectUrl}

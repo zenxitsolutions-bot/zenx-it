@@ -1,18 +1,22 @@
 // Integration test — needs a real, reachable MySQL matching server/.env's MYSQL_URL (same
 // requirement `npm run dev` already has; run `npm run db:migrate` once first so the
-// dietitian_weekly_hours / dietitian_availability_exceptions tables exist). Run via `npm test`
-// (server/tests/unit/*.test.js need no DB and pass on their own via `npm run test:unit`).
+// dietitian_weekly_hours / dietitian_availability_exceptions tables exist). Run only against a
+// dedicated test database via RUN_INTEGRATION_TESTS=1 and `npm run test:integration`.
+// `npm test` and `npm run test:unit` never run database-writing integration suites.
 //
 // Proves the concurrent-booking race is actually closed at the SQL level (see the module comment
 // in server/src/services/availabilityGuard.js): two transactions racing to book the identical slot
 // for the same dietitian must not both succeed.
 import { test, before, after } from 'node:test';
+import { assertIntegrationTestsEnabled } from '../integrationOptIn.js';
 import assert from 'node:assert/strict';
 import { pool, withTransaction } from '../../src/db/pool.js';
 import { newId } from '../../src/db/id.js';
 import { createCall } from '../../src/models/Call.js';
 import { assertSlotAvailable } from '../../src/services/availabilityGuard.js';
 import { ApiError } from '../../src/utils/ApiError.js';
+
+assertIntegrationTestsEnabled();
 
 let dietitianId;
 let clientId;

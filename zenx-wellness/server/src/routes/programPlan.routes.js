@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -9,6 +10,6 @@ import { createProgramPlanSchema, updateProgramPlanSchema } from '../schemas/pro
 export const programPlanRouter = Router();
 programPlanRouter.use(authenticate, blockIfMustChangePassword);
 
-programPlanRouter.get('/', authorize('admin', 'dietitian'), listProgramPlans);
-programPlanRouter.post('/', authorize('admin'), validate(createProgramPlanSchema), createProgramPlan);
-programPlanRouter.patch('/:id', authorize('admin'), validate(updateProgramPlanSchema), updateProgramPlan);
+programPlanRouter.get('/', requirePermission('program_plans.view'), authorize('admin', 'dietitian'), listProgramPlans);
+programPlanRouter.post('/', requirePermission('program_plans.view', 'program_plans.manage'), authorize('admin'), validate(createProgramPlanSchema), createProgramPlan);
+programPlanRouter.patch('/:id', requirePermission('program_plans.view', 'program_plans.manage'), authorize('admin'), validate(updateProgramPlanSchema), updateProgramPlan);

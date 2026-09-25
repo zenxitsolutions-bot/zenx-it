@@ -324,7 +324,7 @@ export default function DashboardPage() {
                         <tr key={e.id} className="border-b border-border/70 transition last:border-0 hover:bg-surface/70">
                           <td className="px-5 py-3">
                             <Link to={`/admin/enquiries/${e.id}`} className="font-medium text-offwhite hover:text-lime">
-                              {e.company_name}
+                              {e.company_name || e.contact_name}
                             </Link>
                           </td>
                           <td className="px-3 py-3">
@@ -397,7 +397,7 @@ export default function DashboardPage() {
                           to={`/admin/enquiries/${f.enquiry_id}`}
                           className="block truncate text-sm font-medium text-offwhite hover:text-lime"
                         >
-                          {enq?.company_name ?? "Unknown"}
+                          {enq?.company_name || enq?.contact_name || "Unknown"}
                         </Link>
                         <p className="truncate text-xs text-dim">
                           {enq?.contact_name}

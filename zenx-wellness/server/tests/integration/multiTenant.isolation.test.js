@@ -5,6 +5,7 @@
 // companies' data never leaks into each other's company-scoped queries or ownership checks, even
 // when both companies otherwise look identical (same roles, same relative structure).
 import { test, before, after } from 'node:test';
+import { assertIntegrationTestsEnabled } from '../integrationOptIn.js';
 import assert from 'node:assert/strict';
 import { pool } from '../../src/db/pool.js';
 import { newId } from '../../src/db/id.js';
@@ -13,6 +14,8 @@ import { createRecipe, listRecipes } from '../../src/models/Recipe.js';
 import { createEnquiry, listEnquiries } from '../../src/models/Enquiry.js';
 import { assertUserInCompany, assertDietitianOwnsClient } from '../../src/utils/scope.js';
 import { ApiError } from '../../src/utils/ApiError.js';
+
+assertIntegrationTestsEnabled();
 
 let companyA, companyB;
 let adminA, dietitianA, clientA;

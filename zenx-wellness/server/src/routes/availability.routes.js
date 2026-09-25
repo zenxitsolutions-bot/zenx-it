@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -18,8 +19,8 @@ availabilityRouter.use(authenticate, blockIfMustChangePassword, authorize('dieti
 // Weekly hours: dietitian self-service, or admin on behalf of a named dietitian (?dietitian=/body
 // `dietitian` — see availability.controller.js#resolveDietitianId; spec §2026-round2-fixes item
 // 2). Exceptions stay dietitian-only (authorize() re-narrowed per-route below) — unchanged.
-availabilityRouter.get('/weekly-hours', getWeeklyHours);
-availabilityRouter.put('/weekly-hours', validate(weeklyHoursSchema), putWeeklyHours);
-availabilityRouter.get('/exceptions', authorize('dietitian'), listAvailabilityExceptions);
-availabilityRouter.post('/exceptions', authorize('dietitian'), validate(createExceptionSchema), createAvailabilityException);
-availabilityRouter.delete('/exceptions/:id', authorize('dietitian'), deleteAvailabilityException);
+availabilityRouter.get('/weekly-hours', requirePermission('calls.view'), getWeeklyHours);
+availabilityRouter.put('/weekly-hours', requirePermission('calls.view', 'calls.manage'), validate(weeklyHoursSchema), putWeeklyHours);
+availabilityRouter.get('/exceptions', requirePermission('calls.view'), authorize('dietitian'), listAvailabilityExceptions);
+availabilityRouter.post('/exceptions', requirePermission('calls.view', 'calls.manage'), authorize('dietitian'), validate(createExceptionSchema), createAvailabilityException);
+availabilityRouter.delete('/exceptions/:id', requirePermission('calls.view', 'calls.manage'), authorize('dietitian'), deleteAvailabilityException);

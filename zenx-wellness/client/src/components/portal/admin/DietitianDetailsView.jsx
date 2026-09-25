@@ -15,8 +15,8 @@ export function DietitianDetailsView({ dietitian }) {
     <section className="rounded-card bg-white p-6 shadow-soft">
       <dl>
         <InfoRow label="Full name" value={dietitian.name} />
-        <InfoRow label="Email" value={dietitian.email} />
-        <InfoRow label="Phone" value={dietitian.phone} />
+        {typeof dietitian.email === 'string' && <InfoRow label="Email" value={dietitian.email} />}
+        {Object.hasOwn(dietitian, 'phone') && <InfoRow label="Phone" value={dietitian.phone} />}
         <InfoRow label="Address" value={dietitian.address} />
         <InfoRow label="Credentials" value={dietitian.qualifications} />
         <InfoRow

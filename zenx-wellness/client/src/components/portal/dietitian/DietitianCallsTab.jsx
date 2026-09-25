@@ -10,6 +10,8 @@ import { useClients } from '@/hooks/useClients';
 import { filterCalls, groupCallsByTab } from '@/lib/clientPortal';
 import { DietitianCallCard } from './DietitianCallCard';
 import { DietitianCallFormDialog } from './DietitianCallFormDialog';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 const EMPTY = {
   all: { title: 'No calls yet', description: 'Schedule a check-in with a client to get started.' },
@@ -19,6 +21,8 @@ const EMPTY = {
 };
 
 export function DietitianCallsTab() {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'calls.manage');
   const { data, isLoading, isError, refetch } = useCalls();
   const { data: clients } = useClients();
   const [dialog, setDialog] = useState(null);
@@ -38,9 +42,9 @@ export function DietitianCallsTab() {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-start justify-end gap-4">
-        <Button onClick={() => setDialog({ mode: 'schedule' })} className="rounded-full bg-coral text-white hover:bg-coral/90">
+        {canManage && <Button onClick={() => setDialog({ mode: 'schedule' })} className="rounded-full bg-coral text-white hover:bg-coral/90">
           + Schedule a call
-        </Button>
+        </Button>}
       </div>
 
       <CallListFilters

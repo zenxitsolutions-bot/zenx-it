@@ -16,8 +16,13 @@ test('automatic timezone reporting works through authenticated self-profile upda
     ['race-detection', { id: 'race-detection', role: 'dietitian', company_id: 'company', account_status: 'active', timezone: 'UTC', detected_timezone: null }],
   ]);
   const writes = [];
+  for (const user of users.values()) user.password_hash = 'fixture-password-hash';
   let beforeNextWrite = null;
   t.mock.method(pool, 'query', async (sql, params) => {
+    if (sql.startsWith('SELECT id, company_id FROM users WHERE id = ?')) return [[users.get(params[0])].filter(Boolean)];
+    if (sql.startsWith('SELECT main_admin_user_id FROM company_access_control')) return [[]];
+    if (sql.startsWith('SELECT id FROM users WHERE id IN')) return [params.slice(0, -1).map((id) => users.get(id)).filter((user) => user?.company_id === params.at(-1))];
+    if (sql.includes('FROM auth_sessions')) return [[{ id: params[0] }]];
     if (sql.includes('FROM users u') && sql.includes('WHERE u.id = ?')) return [[users.get(params[0])].filter(Boolean)];
     if (sql.includes('FROM companies WHERE id = ?')) return [[{ id: 'company', status: 'ACTIVE' }]];
     if (sql.startsWith('UPDATE users SET ')) {
@@ -40,6 +45,10 @@ test('automatic timezone reporting works through authenticated self-profile upda
     }
     throw new Error(`Unexpected database query: ${sql}`);
   });
+  t.mock.method(pool, 'getConnection', async () => ({
+    query: (sql, params) => pool.query(sql, params),
+    async beginTransaction() {}, async commit() {}, async rollback() {}, release() {},
+  }));
 
   const app = express();
   app.use(express.json());
@@ -50,7 +59,7 @@ test('automatic timezone reporting works through authenticated self-profile upda
   const base = `http://127.0.0.1:${server.address().port}/api/users`;
   async function patch(viewer, target, body) {
     const user = users.get(viewer);
-    const token = signAccessToken({ id: user.id, role: user.role, companyId: user.company_id });
+    const token = signAccessToken({ id: user.id, role: user.role, companyId: user.company_id }, `session-${user.id}`);
     const response = await fetch(`${base}/${target}`, {
       method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });

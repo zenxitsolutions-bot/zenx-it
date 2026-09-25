@@ -3,8 +3,9 @@ import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import { unsafeOriginGuard } from './middleware/unsafeOriginGuard.js';
 import rateLimit from 'express-rate-limit';
-import path from 'node:path';
+import { publicLogos } from './middleware/publicLogos.js';
 
 import { env } from './config/env.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
@@ -22,11 +23,14 @@ import { notificationRouter } from './routes/notification.routes.js';
 
 export const app = express();
 
+app.set('trust proxy', env.trustProxy);
 app.use(helmet());
+app.use(unsafeOriginGuard(env.clientOrigins));
 // Two origins, not one — this backend serves both the admin portal (:5174) and the marketing
 // site's public contact form (:5173), unlike wellness-app's single-origin CORS config.
 app.use(cors({ origin: env.clientOrigins, credentials: true }));
-app.use(morgan(env.nodeEnv === 'production' ? 'combined' : 'dev'));
+morgan.token('safe-path', (req) => req.path);
+app.use(morgan(':method :safe-path :status :res[content-length] - :response-time ms'));
 app.use(express.json());
 app.use(cookieParser());
 // Unlike wellness-app (on-demand fetching via React Query), this backend's admin frontend polls
@@ -39,17 +43,11 @@ app.use(cookieParser());
 app.use(rateLimit({ windowMs: 5 * 60 * 1000, limit: 3000, standardHeaders: true, legacyHeaders: false }));
 
 // company-logos is a deliberately public bucket (matches the original Supabase storage.sql
-// policy: public select, admin-only write) — plain static serving is correct here.
+// policy: public select, admin-only write). Serve only safe raster image paths,
+// never the rest of uploads or active legacy document types.
 // helmet() sets Cross-Origin-Resource-Policy: same-origin, which would block <img> tags on the
 // admin portal and wellness-app (different origins) from loading these files. Override only here.
-app.use(
-  '/uploads',
-  (req, res, next) => {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-    next();
-  },
-  express.static(path.join(process.cwd(), 'uploads'), { fallthrough: false }),
-);
+app.use('/uploads/company-logos', publicLogos());
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

@@ -15,9 +15,10 @@ import { useUpdateUser } from '@/hooks/useUsers';
 import { toE164OrEmpty } from '@/lib/phone';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { DIET_PREFERENCES } from '@/lib/dietPreferences';
+import { contactEditPatch } from '@/lib/permissions';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.string().email('Enter a valid email').optional(),
   // PhoneInput always produces E.164 (e.g. "+14155550123") or '' — same isValidPhoneNumber check
   // as the server (server/src/schemas/user.schema.js).
   phone: z.string().refine((v) => !v || isValidPhoneNumber(v), 'Enter a valid phone number'),
@@ -56,8 +57,7 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
     updateUser.mutate(
       {
         userId: client._id,
-        email: values.email,
-        phone: values.phone,
+        ...contactEditPatch(values, client),
         timezone: values.timezone,
         dietPreference: values.dietPreference !== 'none' ? values.dietPreference : null,
         allergies: values.allergies?.trim() ? values.allergies.trim() : null,
@@ -88,7 +88,7 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="grid gap-4">
-            <FormField
+            {typeof client.email === 'string' && <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
@@ -100,8 +100,8 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
                   <FormMessage />
                 </FormItem>
               )}
-            />
-            <FormField
+            />}
+            {Object.hasOwn(client, 'phone') && <FormField
               control={form.control}
               name="phone"
               render={({ field }) => (
@@ -118,7 +118,7 @@ export function ClientContactEditDialog({ open, onOpenChange, client }) {
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            />}
             <FormField
               control={form.control}
               name="timezone"

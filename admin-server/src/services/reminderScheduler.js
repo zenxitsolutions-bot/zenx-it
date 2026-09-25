@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import {
   listFollowupsPendingReminder,
   listOverdueFollowups,
@@ -42,7 +43,7 @@ async function sendReminder(followup, now) {
   await sendFollowupReminderEmail({
     to: assignee.email,
     staffName: assignee.first_name,
-    companyName: enquiry.company_name,
+    companyName: enquiry.company_name || enquiry.contact_name,
     meetingTime: `${formatInZone(followup.scheduled_at_utc, timezone)} (${timezone})`,
   });
 }
@@ -57,7 +58,7 @@ async function sendOverdueNotice(followup) {
   await createNotification({
     kind: 'FOLLOWUP_OVERDUE',
     title: 'Follow-up overdue',
-    body: `The follow-up with ${enquiry.company_name} is overdue.`,
+    body: `The follow-up with ${enquiry.company_name || enquiry.contact_name} is overdue.`,
     entityId: followup.id,
   });
   if (assignee) {
@@ -65,10 +66,10 @@ async function sendOverdueNotice(followup) {
     await sendFollowupReminderEmail({
       to: assignee.email,
       staffName: assignee.first_name,
-      companyName: enquiry.company_name,
+      companyName: enquiry.company_name || enquiry.contact_name,
       meetingTime: `${formatInZone(followup.scheduled_at_utc, timezone)} (${timezone})`,
       overdue: true,
-    }).catch((err) => console.error(`[reminder:scheduler] overdue email failed for followup ${followup.id}:`, err));
+    }).catch((err) => console.error(`[reminder:scheduler] overdue email failed for followup ${followup.id}:`, safeErrorMeta(err)));
   }
 }
 
@@ -85,7 +86,7 @@ export async function runReminderTick(now = new Date()) {
       await sendReminder(followup, now);
       sent += 1;
     } catch (err) {
-      console.error(`[reminder:scheduler] failed to send reminder for followup ${followup.id}:`, err);
+      console.error(`[reminder:scheduler] failed to send reminder for followup ${followup.id}:`, safeErrorMeta(err));
     }
   }
 
@@ -94,7 +95,7 @@ export async function runReminderTick(now = new Date()) {
     try {
       await sendOverdueNotice(followup);
     } catch (err) {
-      console.error(`[reminder:scheduler] failed to mark followup ${followup.id} overdue:`, err);
+      console.error(`[reminder:scheduler] failed to mark followup ${followup.id} overdue:`, safeErrorMeta(err));
     }
   }
 
@@ -103,7 +104,7 @@ export async function runReminderTick(now = new Date()) {
 
 export function startReminderScheduler() {
   const tick = () => {
-    runReminderTick().catch((err) => console.error('[reminder:scheduler] tick failed:', err));
+    runReminderTick().catch((err) => console.error('[reminder:scheduler] tick failed:', safeErrorMeta(err)));
   };
   const handle = setInterval(tick, env.reminderSchedulerIntervalMs);
   handle.unref?.();

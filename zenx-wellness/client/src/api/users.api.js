@@ -3,6 +3,7 @@ import { axiosClient } from './axiosClient';
 // params: { role? } — dietitian is always auto-scoped server-side to their own assigned clients,
 // and a client's request is always forced to role=dietitian (directory browse only).
 export const listUsersRequest = (params) => axiosClient.get('/users', { params }).then((r) => r.data);
+export const listDietitianOptionsRequest = () => axiosClient.get('/users/dietitian-options').then((r) => r.data);
 
 export const getUserRequest = (userId) => axiosClient.get(`/users/${userId}`).then((r) => r.data);
 

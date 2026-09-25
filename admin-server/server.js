@@ -1,4 +1,5 @@
 import { app } from './src/app.js';
+import { safeErrorMeta } from './src/utils/safeError.js';
 import { connectDb } from './src/config/db.js';
 import { env } from './src/config/env.js';
 import { assertEmailTransportConfigured, resolveTransportKind } from './src/emails/sendEmail.js';
@@ -24,6 +25,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[server] failed to start', err);
+  console.error('[server] failed to start', safeErrorMeta(err));
   process.exit(1);
 });

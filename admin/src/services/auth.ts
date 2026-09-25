@@ -1,5 +1,5 @@
-import { apiClient, isDemoMode } from "../lib/apiClient";
-import { setStaffAccessToken } from "../lib/tokenStore";
+import { apiClient, isDemoMode, refreshAccessToken } from "../lib/apiClient";
+import { setStaffAccessToken, getStaffAccessToken, beginAuthTransition } from "../lib/tokenStore";
 import { demoStore } from "./demo/demoStore";
 import { findIn } from "./demo/collection";
 import type { Profile } from "../types/domain";
@@ -22,9 +22,10 @@ export const authService = {
       return profile;
     }
 
+    const generation = beginAuthTransition();
     try {
       const { data } = await apiClient.post<{ profile: Profile; accessToken: string }>("/auth/login", { email, password });
-      setStaffAccessToken(data.accessToken);
+      if (!setStaffAccessToken(data.accessToken, generation)) throw new AuthError("Sign-in cancelled");
       return data.profile;
     } catch (err) {
       throw new AuthError(errorMessage(err, "Login failed."));
@@ -36,8 +37,9 @@ export const authService = {
       localStorage.removeItem(DEMO_SESSION_KEY);
       return;
     }
-    await apiClient.post("/auth/logout").catch(() => {});
-    setStaffAccessToken(null);
+    const previousToken = getStaffAccessToken();
+    beginAuthTransition();
+    await apiClient.post("/auth/logout", undefined, { headers: previousToken ? { Authorization: `Bearer ${previousToken}` } : {} }).catch(() => {});
   },
 
   async sendPasswordReset(email: string): Promise<void> {
@@ -58,8 +60,7 @@ export const authService = {
       return findIn(demoStore.getState().profiles, id);
     }
     try {
-      const { data: refreshData } = await apiClient.post<{ accessToken: string }>("/auth/refresh");
-      setStaffAccessToken(refreshData.accessToken);
+      if (!(await refreshAccessToken())) return null;
       const { data } = await apiClient.get<{ profile: Profile }>("/auth/me");
       return data.profile;
     } catch {

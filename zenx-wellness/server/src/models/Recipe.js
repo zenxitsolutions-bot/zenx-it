@@ -1,6 +1,7 @@
 import { pool, withTransaction } from '../db/pool.js';
 import { newId } from '../db/id.js';
 import { buildSetClause } from '../db/helpers.js';
+import { normalizeRecipeImageUrl } from '../../../shared/recipeImageUrls.js';
 
 const RECIPE_COLUMNS = {
   title: 'title',
@@ -57,7 +58,7 @@ export function mapRecipeRow(row, tags = [], favorited = false) {
     portionSize: row.portion_size,
     allergens: row.allergens,
     suitableMealType: row.suitable_meal_type,
-    imageUrl: row.image_url,
+    imageUrl: normalizeRecipeImageUrl(row.image_url),
     healthNotes: row.health_notes,
     ingredients: row.ingredients,
     instructions: row.instructions,

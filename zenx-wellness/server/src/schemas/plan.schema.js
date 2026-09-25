@@ -87,6 +87,14 @@ export const updatePlanSchema = z
     meals: z.array(mealSlot).optional(),
     published: z.boolean().optional(),
     reusable: z.boolean().optional(),
+    // Explicit published-plan edits may stay open while a client marks meals or requests swaps.
+    // This snapshot is a concurrency check, not new meal content or a field stored on the plan.
+    expectedMealState: z.array(z.object({
+      day: z.string().min(1),
+      time: z.string().min(1),
+      completed: z.boolean(),
+      swapRequested: z.boolean(),
+    })).optional(),
     // Dietitian resolving a client's swap request — save the new recipe, then email the client.
     notifySwaps: z.boolean().optional(),
     swapResolutions: z

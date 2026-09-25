@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -7,7 +8,7 @@ import { listEmails, getEmail, resendEmail } from '../controllers/emailLog.contr
 import { listEmailLogsQuerySchema } from '../schemas/emailLog.schema.js';
 
 export const emailLogRouter = Router();
-emailLogRouter.use(authenticate, blockIfMustChangePassword, authorize('admin'));
+emailLogRouter.use(authenticate, blockIfMustChangePassword, authorize('admin'), requirePermission('email_logs.view', 'contact.view_email'));
 
 emailLogRouter.get('/', validate(listEmailLogsQuerySchema, 'query'), listEmails);
 emailLogRouter.get('/:id', getEmail);

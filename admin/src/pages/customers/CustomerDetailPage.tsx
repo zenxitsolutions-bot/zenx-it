@@ -285,11 +285,11 @@ export default function CustomerDetailPage() {
               <dl className="flex flex-col gap-2.5 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-xs uppercase tracking-wider text-dim">Original service</dt>
-                  <dd className="text-offwhite">{enquiry.service}</dd>
+                  <dd className="text-offwhite">{enquiry.service || "Not provided"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-xs uppercase tracking-wider text-dim">Source</dt>
-                  <dd className="text-offwhite">{enquiry.source}</dd>
+                  <dd className="text-offwhite">{enquiry.source || "Not provided"}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-xs uppercase tracking-wider text-dim">Enquiry created</dt>

@@ -12,6 +12,7 @@ import { FIXED_RECIPE_CATEGORIES } from '@/lib/recipeCategories';
 import { recipeCategoryLabel } from '@/lib/recipeMeta';
 import { RecipeCard } from './RecipeCard';
 import { RecipeFormDialog } from './RecipeFormDialog';
+import { hasPermission } from '@/lib/permissions';
 
 const QUICK_FILTERS = [
   { id: 'veg', label: 'Vegetarian', dietType: 'Vegetarian' },
@@ -35,7 +36,7 @@ export function RecipesScreen() {
   const navigate = useNavigate();
   const { companySlug } = useParams();
   const { user } = useAuth();
-  const canManage = user?.role === 'dietitian' || user?.role === 'admin';
+  const canManage = hasPermission(user, 'recipes.manage');
   const [mealType, setMealType] = useState('All');
   const [search, setSearch] = useState('');
   const [quick, setQuick] = useState(null);

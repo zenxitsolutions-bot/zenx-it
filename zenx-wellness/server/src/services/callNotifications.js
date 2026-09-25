@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { findUserById } from '../models/User.js';
 import { sendEmail } from '../emails/sendEmail.js';
 import { env } from '../config/env.js';
@@ -40,11 +41,11 @@ const TEMPLATE_BY_EVENT = {
 // One try/caught send per recipient — a failure sending to one party must never suppress the
 // other, and neither may ever propagate out (see the caller, callService.js, for why: the booking/
 // reschedule/cancellation itself has already succeeded by the time this runs).
-async function trySend(to, templateKey, params, idempotencyKey, callId) {
+async function trySend(to, templateKey, params, idempotencyKey, callId, staffRecipient) {
   try {
-    await sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity: { type: 'appointment', id: callId } });
+    await sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity: { type: 'appointment', id: callId }, staffRecipient });
   } catch (err) {
-    console.error(`[notifications] failed to queue ${templateKey} email to ${to} for call ${callId}:`, err);
+    console.error(`[notifications] failed to queue ${templateKey} email to ${to} for call ${callId}:`, safeErrorMeta(err));
   }
 }
 
@@ -55,7 +56,7 @@ async function trySend(to, templateKey, params, idempotencyKey, callId) {
 export async function notifyCallEvent(event, call, { previousScheduledAt } = {}) {
   const templates = TEMPLATE_BY_EVENT[event];
   const dietitian = await findUserById(call.dietitian?._id ?? call.dietitian).catch((err) => {
-    console.error(`[notifications] could not resolve dietitian for call ${call.id}:`, err);
+    console.error(`[notifications] could not resolve dietitian for call ${call.id}:`, safeErrorMeta(err));
     return null;
   });
   if (!dietitian) return;
@@ -138,7 +139,8 @@ Join: ${call.meetingUrl}`
       },
     },
     `${templates.dietitian}:${call.id}:${call.icsSequence}:dietitian`,
-    call.id
+    call.id,
+    dietitian
   );
 
   const pushTitle = event === 'reminder' ? 'Upcoming call' : event === 'cancelled' ? 'Call cancelled' : 'Call update';

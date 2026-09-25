@@ -5,22 +5,25 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Form } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useClient } from '@/hooks/useClients';
+import { useClient, useDietitians } from '@/hooks/useClients';
 import { useUpdateUser } from '@/hooks/useUsers';
 import { useConsultationSchedule, useSaveConsultationSchedule, useGeneratedUpcomingCalls } from '@/hooks/useConsultationSchedule';
 import { consultationScheduleFormSchema, toFormValues, toApiPayload, schedulePatternChanged } from '@/lib/consultationSchedule';
 import { ConsultationScheduleFields } from './ConsultationScheduleFields';
 import { ConsultationScheduleSeriesLists } from './ConsultationScheduleSeriesLists';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 // The one shared component for editing a client's consultation schedule from either portal —
 // Admin's and Dietitian's client-detail pages both render this same tab (ClientProfileScreen.jsx
 // is already the one shared screen for both roles); role checks happen server-side
 // (assertDietitianOwnsClient), not by branching this component per role.
 export function ConsultationScheduleTab({ clientId }) {
+  const { user } = useAuth();
   const { data: client, isLoading: clientLoading } = useClient(clientId);
-  // useClient is just GET /users/:id under the hood — reused here to look up the assigned
-  // dietitian's own timezone for the field's label (see ConsultationScheduleFields.jsx).
-  const { data: dietitian } = useClient(client?.assignedDietitian);
+  // The workflow needs the dietitian's timezone, not permission to read their full staff record.
+  const { data: dietitians } = useDietitians();
+  const dietitian = dietitians?.find((entry) => entry._id === client?.assignedDietitian);
   const { data: scheduleData, isLoading: scheduleLoading } = useConsultationSchedule(clientId);
   const schedule = scheduleData?.schedule ?? null;
   const gaps = scheduleData?.gaps ?? [];
@@ -29,7 +32,7 @@ export function ConsultationScheduleTab({ clientId }) {
   const updateDietitian = useUpdateUser();
 
   function saveDietitianTimezone(timezone) {
-    if (!dietitian) return;
+    if (!dietitian || !hasPermission(user, 'staff.edit')) return;
     updateDietitian.mutate(
       { userId: dietitian._id, timezone },
       {
@@ -110,7 +113,7 @@ export function ConsultationScheduleTab({ clientId }) {
               watch={form.watch}
               warning={warning}
               dietitianTimezone={dietitian?.timezone}
-              onDietitianTimezoneChange={saveDietitianTimezone}
+              onDietitianTimezoneChange={hasPermission(user, 'staff.edit') ? saveDietitianTimezone : undefined}
             />
             <Button type="submit" disabled={save.isPending} className="w-fit rounded-full bg-coral text-white hover:bg-coral/90">
               {save.isPending ? 'Saving…' : 'Save schedule'}

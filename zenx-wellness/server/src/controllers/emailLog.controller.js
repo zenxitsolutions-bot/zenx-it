@@ -6,6 +6,7 @@ import { drainOnce } from '../emails/worker.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { toClientShape } from '../utils/serialize.js';
+import { publicEmailLog } from '../emails/security.js';
 
 // Mirrors the per-entity-type company resolution in EmailLog.js#listEmailLogs, for the single-row
 // by-id routes below (findEmailLogById itself has no company filter).
@@ -26,14 +27,14 @@ async function assertOwnEmailLog(req, row) {
 export const listEmails = asyncHandler(async (req, res) => {
   const { status } = req.query;
   const rows = await listEmailLogs({ companyId: req.user.companyId, status });
-  res.json(rows.map((row) => toClientShape(row)));
+  res.json(rows.map((row) => toClientShape(publicEmailLog(row))));
 });
 
 export const getEmail = asyncHandler(async (req, res) => {
   const row = await findEmailLogById(req.params.id);
   if (!row) throw ApiError.notFound('Email log entry not found');
   await assertOwnEmailLog(req, row);
-  res.json(toClientShape(row));
+  res.json(toClientShape(publicEmailLog(row)));
 });
 
 // Admin-only manual retry of a permanently-failed send. Only ever allowed from 'failed' — a
@@ -50,5 +51,5 @@ export const resendEmail = asyncHandler(async (req, res) => {
   // expects it to actually go out now, not silently wait up to EMAIL_QUEUE_POLL_INTERVAL_MS.
   await drainOnce();
   const result = await findEmailLogById(requeued.id);
-  res.json(toClientShape(result));
+  res.json(toClientShape(publicEmailLog(result)));
 });

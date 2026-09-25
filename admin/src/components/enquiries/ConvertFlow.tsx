@@ -33,6 +33,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [companyName, setCompanyName] = useState("");
   const [companySlug, setCompanySlug] = useState("");
   const [password, setPassword] = useState("");
   const [saving, setSaving] = useState(false);
@@ -49,12 +50,24 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
       setPhone(toE164OrEmpty(enquiry.phone));
       setEmail(enquiry.email);
       setJobTitle("");
+      setCompanyName(enquiry.company_name || "");
       setCompanySlug("");
       setPassword(generateTempPassword());
       setError(null);
-      generateUniqueCompanySlug(enquiry.company_name).then(setCompanySlug);
     }
   }, [enquiry]);
+
+  useEffect(() => {
+    let active = true;
+    setCompanySlug("");
+    if (!enquiry || !companyName.trim()) return;
+    const timer = window.setTimeout(() => {
+      generateUniqueCompanySlug(companyName.trim())
+        .then((slug) => { if (active) setCompanySlug(slug); })
+        .catch(() => { if (active) setError("Could not generate the company URL. Please try again."); });
+    }, 250);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [companyName, enquiry]);
 
   if (!enquiry) return null;
 
@@ -62,13 +75,13 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
 
   const handleCreateAccount = async (e: FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
+    if (!profile || !companyName.trim() || !companySlug) return;
     setSaving(true);
     setError(null);
     try {
       const result = await provisioningService.provisionCustomer({
         enquiryId: enquiry.id,
-        companyName: enquiry.company_name,
+        companyName: companyName.trim(),
         companySlug,
         // Carried straight from the enquiry (the public contact form already asks for it) rather
         // than re-typed here — the admin can still edit it later on the customer's own record.
@@ -108,7 +121,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
           </div>
           <h3 className="mt-4 font-display text-xl text-offwhite">Congratulations — Lead Converted</h3>
           <p className="mt-2 text-sm text-muted">
-            <b className="text-offwhite">{enquiry.company_name}</b> is now a customer.
+            <b className="text-offwhite">{enquiry.company_name || enquiry.contact_name}</b> is now a customer.
           </p>
           <p className="mt-4 text-sm font-semibold text-offwhite">Create Application Account?</p>
           <div className="mt-4 flex w-full gap-3">
@@ -130,7 +143,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
         open
         onClose={() => onClose(false)}
         title="Convert this enquiry?"
-        subtitle={`${enquiry.company_name} · ${enquiry.contact_name}`}
+        subtitle={enquiry.company_name ? `${enquiry.company_name} · ${enquiry.contact_name}` : enquiry.contact_name}
       >
         <form className="flex flex-col gap-5" onSubmit={handleCreateAccount}>
           <div>
@@ -171,13 +184,24 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
             </FieldWrap>
           </div>
 
-          <FieldWrap label="Company Name" htmlFor="c-company">
-            <Input id="c-company" value={enquiry.company_name} disabled />
+          <FieldWrap label="Company Name" htmlFor="c-company" required hint={!enquiry.company_name ? "Not provided in the enquiry. Add it to create the customer account." : undefined}>
+            <Input
+              id="c-company"
+              value={companyName}
+              onChange={(e) => {
+                setCompanyName(e.target.value);
+                setCompanySlug("");
+                setError(null);
+              }}
+              disabled={Boolean(enquiry.company_name) || saving}
+              required
+              maxLength={200}
+            />
           </FieldWrap>
 
           <FieldWrap label="Company URL" htmlFor="c-slug">
             <div className="flex gap-2">
-              <Input id="c-slug" value={companySlug || "generating…"} readOnly className="font-mono" />
+              <Input id="c-slug" value={companySlug || (companyName.trim() ? "generating…" : "Enter a company name")} readOnly className="font-mono" />
               <Button
                 type="button"
                 variant="secondary"
@@ -232,7 +256,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
             <Button type="button" variant="secondary" onClick={() => onClose(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving || !companyName.trim() || !companySlug}>
               {saving ? "Creating…" : "Create Company & Set Password"}
             </Button>
           </div>
@@ -247,7 +271,7 @@ export function ConvertFlow({ enquiry, onClose }: ConvertFlowProps) {
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-lime/10 text-lime">
           <CheckCircle2 size={26} />
         </div>
-        <h3 className="mt-4 font-display text-lg text-offwhite">{enquiry.company_name}</h3>
+        <h3 className="mt-4 font-display text-lg text-offwhite">{companyName}</h3>
         <div className="mt-4 flex flex-col gap-2 self-stretch text-left text-sm">
           <p className="flex items-center gap-2 text-offwhite">
             <CheckCircle2 size={15} className="text-lime" /> Company created

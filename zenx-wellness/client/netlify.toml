@@ -2,6 +2,14 @@
   command = "npm run build"
   publish = "dist"
 
+# Exact legacy PNG-to-WebP redirects are generated as dist/_redirects by Vite.
+# Netlify processes that file before these rules. Existing files shadow this
+# non-forced 404, so valid WebP images still use normal static serving.
+[[redirects]]
+  from = "/images/recipe-catalog/*"
+  to = "/_recipe-image-not-found.txt"
+  status = 404
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

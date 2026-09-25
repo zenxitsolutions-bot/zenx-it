@@ -29,13 +29,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 CREATE TABLE IF NOT EXISTS enquiries (
   id VARCHAR(36) PRIMARY KEY,
-  company_name VARCHAR(255) NOT NULL,
+  company_name VARCHAR(255) NULL,
   contact_name VARCHAR(255) NOT NULL,
   phone VARCHAR(50) NOT NULL,
   email VARCHAR(255) NOT NULL,
   website VARCHAR(1024) NULL,
-  service ENUM('Website', 'Digital Marketing', 'Business Software', 'Small Business POS', 'ZenX Dietitian application', 'Something else') NOT NULL,
-  source ENUM('Website', 'Google', 'Facebook', 'Instagram', 'Referral', 'Direct', 'Other') NOT NULL,
+  service ENUM('Website', 'Digital Marketing', 'Business Software', 'Small Business POS', 'ZenX Dietitian application', 'Something else') NULL,
+  source ENUM('Website', 'Google', 'Facebook', 'Instagram', 'Referral', 'Direct', 'Other') NULL,
   status ENUM('NEW', 'CONTACTED', 'FOLLOW_UP', 'CONVERTED', 'LOST') NOT NULL DEFAULT 'NEW',
   priority ENUM('LOW', 'MEDIUM', 'HIGH', 'HOT') NOT NULL DEFAULT 'MEDIUM',
   assigned_to VARCHAR(36) NULL,
@@ -228,4 +228,21 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   used_at DATETIME(3) NULL,
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   KEY idx_password_reset_tokens_account (account_kind, account_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Server-side, rotating login sessions. Raw refresh tokens/passwords are never stored here.
+-- Created by db:migrate on both fresh and existing installations; old JWTs require re-login.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id VARCHAR(36) PRIMARY KEY,
+  account_kind VARCHAR(20) NOT NULL,
+  account_id VARCHAR(36) NOT NULL,
+  company_id VARCHAR(36) NULL,
+  refresh_token_hash CHAR(64) NOT NULL,
+  credential_hash CHAR(64) NOT NULL,
+  expires_at DATETIME(3) NOT NULL,
+  revoked_at DATETIME(3) NULL,
+  rotated_at DATETIME(3) NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  KEY idx_auth_sessions_account (account_kind, account_id),
+  KEY idx_auth_sessions_expiry (expires_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

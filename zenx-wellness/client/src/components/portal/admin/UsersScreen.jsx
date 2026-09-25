@@ -17,6 +17,8 @@ import { UserEditDialog } from './UserEditDialog';
 import { ResetUserPasswordDialog } from './ResetUserPasswordDialog';
 import { usePagination } from '@/hooks/usePagination';
 import { PaginationControls } from '@/components/portal/shared/PaginationControls';
+import { hasPermission, creatableRoles, canEditAccount, canResetAccount } from '@/lib/permissions';
+import { ClientContactEditDialog } from '@/components/portal/dietitian/ClientContactEditDialog';
 
 const ROLE_TABS = [
   { value: 'all', label: 'All' },
@@ -36,18 +38,20 @@ export function UsersScreen() {
   const navigate = useNavigate();
   const { companySlug } = useParams();
   const { user: viewer } = useAuth();
+  const canCreate = creatableRoles(viewer).length > 0;
+  const maySeeStaff = viewer.role === 'admin' && hasPermission(viewer, 'staff.view');
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1') return;
+    if (!canCreate || searchParams.get('create') !== '1') return;
     setCreateOpen(true);
     const next = new URLSearchParams(searchParams);
     next.delete('create');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [canCreate, searchParams, setSearchParams]);
 
-  const { data, isLoading, isError, refetch } = useUsers(roleFilter === 'all' ? undefined : { role: roleFilter });
-  const { data: dietitians } = useDietitians();
+  const { data, isLoading, isError, refetch } = useUsers(!maySeeStaff ? { role: 'client' } : roleFilter === 'all' ? undefined : { role: roleFilter });
+  const { data: dietitians } = useDietitians(viewer.role === 'admin');
 
   const visible = (data ?? []).filter((u) => u.name.toLowerCase().includes(search.toLowerCase()));
   const pagination = usePagination(visible, { pageSize: 20, resetKey: `${roleFilter}:${search}` });
@@ -71,15 +75,15 @@ export function UsersScreen() {
           <h1 className="mt-1 text-3xl text-forest">Manage users</h1>
           <p className="mt-1 text-muted-foreground">Add clients, dietitians, and admins, and assign clients to a dietitian.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+        {canCreate && <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
           <UserPlus className="size-4" aria-hidden="true" />
           Add user
-        </Button>
+        </Button>}
       </div>
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <div className="flex gap-1 rounded-full bg-sage/40 p-1">
-          {ROLE_TABS.map((tab) => (
+          {ROLE_TABS.filter((tab) => maySeeStaff || tab.value === 'client').map((tab) => (
             <button
               key={tab.value}
               type="button"
@@ -146,7 +150,7 @@ export function UsersScreen() {
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-3">
-                {u._id !== viewer?._id && (
+                {canResetAccount(viewer, u) && (
                   <button
                     type="button"
                     onClick={() => setResetting(u)}
@@ -155,7 +159,7 @@ export function UsersScreen() {
                     Reset password
                   </button>
                 )}
-                {u.role === 'dietitian' && (
+                {u.role === 'dietitian' && maySeeStaff && (
                   <button
                     type="button"
                     onClick={() => openProfile(u)}
@@ -164,13 +168,13 @@ export function UsersScreen() {
                     View
                   </button>
                 )}
-                <button
+                {canEditAccount(viewer, u) && <button
                   type="button"
                   onClick={() => openProfile(u, { edit: true })}
                   className="text-sm font-semibold text-forest hover:underline"
                 >
                   Edit
-                </button>
+                </button>}
               </div>
             </div>
           ))}
@@ -179,16 +183,17 @@ export function UsersScreen() {
 
       <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="users" />
 
-      <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />
-      {editing && (
+      {canCreate && createOpen && <UserFormDialog open={createOpen} onOpenChange={setCreateOpen} />}
+      {editing && viewer.role === 'dietitian' && <ClientContactEditDialog open onOpenChange={(open) => !open && setEditing(null)} client={editing} />}
+      {editing && viewer.role === 'admin' && (
         <UserEditDialog
           open={Boolean(editing)}
           onOpenChange={(open) => !open && setEditing(null)}
           user={editing}
-          onResetPassword={() => {
+          onResetPassword={canResetAccount(viewer, editing) ? () => {
             setResetting(editing);
             setEditing(null);
-          }}
+          } : undefined}
         />
       )}
       {resetting && (

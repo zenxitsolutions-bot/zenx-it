@@ -5,6 +5,7 @@ import { findUserById } from '../models/ZenxUser.js';
 import { findCompanyById } from '../models/Company.js';
 import { listActiveGrantsForUser } from '../models/ApplicationAccess.js';
 import { asyncHandler } from './asyncHandler.js';
+import { isSessionActive } from '../models/AuthSession.js';
 
 function readBearer(req) {
   const header = req.headers.authorization;
@@ -27,6 +28,9 @@ export const authenticateStaff = asyncHandler(async (req, res, next) => {
   const profile = await findProfileById(payload.sub);
   if (!profile) throw ApiError.unauthorized('User no longer exists');
   if (profile.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
+  if (!(await isSessionActive({ id: payload.sid, kind: 'staff', accountId: profile.id, passwordHash: profile.password_hash }))) {
+    throw ApiError.unauthorized('Session expired. Sign in again.');
+  }
 
   req.staff = profile;
   next();
@@ -44,6 +48,9 @@ export const authenticateCustomer = asyncHandler(async (req, res, next) => {
   const user = await findUserById(payload.sub);
   if (!user) throw ApiError.unauthorized('User no longer exists');
   if (user.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
+  if (!(await isSessionActive({ id: payload.sid, kind: 'customer', accountId: user.id, companyId: payload.companyId, passwordHash: user.password_hash }))) {
+    throw ApiError.unauthorized('Session expired. Sign in again.');
+  }
 
   // Tenant on the session comes from the token minted at /:companySlug/login — never from a
   // companyId the browser posts later. Re-check the grant so a revoked company cannot keep using

@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // Bridges a booked call to whichever video provider the deployment uses.
 //
 // Kept separate from the provider modules (googleMeet.js / jitsiMeet.js, which know their own API)
@@ -21,6 +22,12 @@ import { env } from '../config/env.js';
 import { CALL_DURATION_MINUTES } from './availability.js';
 import { createMeetingForCall, createCalendarEventForCall, updateMeetingTime, cancelMeeting } from './googleMeet.js';
 import { createMeetingRoom } from './jitsiMeet.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
+import { hasPermission } from '../../../shared/permissions.js';
+
+export function calendarAttendeeEmails(dietitian, attendee, inviteAttendee = true) {
+  return inviteAttendee && attendee?.email && hasPermission(dietitian, 'contact.view_email') ? [attendee.email] : [];
+}
 
 // Persisted in calls.meeting_provider. 'google_meet' is unchanged from before this file supported
 // more than one provider, so existing rows keep resolving correctly.
@@ -57,9 +64,12 @@ export async function attachMeetingToCall(call, { inviteAttendee = true } = {}) 
     if (!dietitianId || call.status !== 'scheduled') return call;
     if (env.meetingProvider === 'none') return call;
 
-    const [dietitian, attendee] = await Promise.all([findUserById(dietitianId), resolveAttendee(call)]);
+    const [dietitian, attendee] = await Promise.all([
+      findUserById(dietitianId).then((user) => hydrateUserPermissions(user)), resolveAttendee(call),
+    ]);
+    if (!dietitian || !hasPermission(dietitian, 'calls.view')) return call;
     const who = attendee.name ?? 'client';
-    const attendeeEmails = inviteAttendee && attendee.email ? [attendee.email] : [];
+    const attendeeEmails = calendarAttendeeEmails(dietitian, attendee, inviteAttendee);
 
     // Jitsi: the room itself needs no grant, no lookup and no network call — it is just an
     // unguessable URL, and it is created first so the link exists even if everything Google-side
@@ -115,7 +125,7 @@ export async function attachMeetingToCall(call, { inviteAttendee = true } = {}) 
       googleEventId: meeting.eventId,
     });
   } catch (err) {
-    console.error('[callMeeting] attachMeetingToCall failed', err.message);
+    console.error('[callMeeting] attachMeetingToCall failed', safeErrorMeta(err));
     return call;
   }
 }
@@ -157,7 +167,7 @@ export async function moveMeetingForCall(call, existingCall) {
     await updateMeetingTime({ dietitianId, eventId, startsAt: call.scheduledAt, endsAt: endOf(call.scheduledAt) });
     return call;
   } catch (err) {
-    console.error('[callMeeting] moveMeetingForCall failed', err.message);
+    console.error('[callMeeting] moveMeetingForCall failed', safeErrorMeta(err));
     return call;
   }
 }
@@ -186,7 +196,7 @@ export async function cancelMeetingForCall(call) {
     await cancelMeeting({ dietitianId, eventId });
     return await updateCallById(call.id, { meetingUrl: null, meetingProvider: null, googleEventId: null });
   } catch (err) {
-    console.error('[callMeeting] cancelMeetingForCall failed', err.message);
+    console.error('[callMeeting] cancelMeetingForCall failed', safeErrorMeta(err));
     return call;
   }
 }

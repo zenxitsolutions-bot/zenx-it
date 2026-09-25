@@ -1,5 +1,5 @@
-import { apiClient, isDemoMode } from "../lib/apiClient";
-import { setCustomerAccessToken } from "../lib/tokenStore";
+import { apiClient, isDemoMode, refreshAccessToken } from "../lib/apiClient";
+import { setCustomerAccessToken, getCustomerAccessToken, getAuthGeneration, beginAuthTransition } from "../lib/tokenStore";
 import { demoStore } from "./demo/demoStore";
 import { findIn, patchIn } from "./demo/collection";
 import type { Application, Company, ZenxUser, ApplicationAccess } from "../types/domain";
@@ -65,13 +65,14 @@ export const customerAuthService = {
       return signedIn;
     }
 
+    const generation = beginAuthTransition(true);
     try {
       const { data } = await apiClient.post<{ user: ZenxUser; accessToken: string }>("/customer-auth/login", {
         email,
         password,
         companySlug,
       });
-      setCustomerAccessToken(data.accessToken);
+      if (!setCustomerAccessToken(data.accessToken, generation)) throw new CustomerAuthError("Sign-in cancelled");
       return data.user;
     } catch (err) {
       throw new CustomerAuthError(errorMessage(err, "Login failed."), errorLoginPath(err));
@@ -106,8 +107,10 @@ export const customerAuthService = {
       }));
       return;
     }
+    const generation = getAuthGeneration(true);
     try {
-      await apiClient.post("/customer-auth/set-password", { password: newPassword });
+      const { data } = await apiClient.post<{ accessToken: string }>("/customer-auth/set-password", { password: newPassword });
+      if (!setCustomerAccessToken(data.accessToken, generation)) throw new CustomerAuthError("Session changed");
     } catch (err) {
       throw new CustomerAuthError(errorMessage(err, "Could not set new password."));
     }
@@ -119,8 +122,9 @@ export const customerAuthService = {
       localStorage.removeItem(CUSTOMER_DEMO_COMPANY_KEY);
       return;
     }
-    await apiClient.post("/customer-auth/logout").catch(() => {});
-    setCustomerAccessToken(null);
+    const previousToken = getCustomerAccessToken();
+    beginAuthTransition(true);
+    await apiClient.post("/customer-auth/logout", undefined, { headers: previousToken ? { Authorization: `Bearer ${previousToken}` } : {} }).catch(() => {});
   },
 
   async getCurrentUser(): Promise<ZenxUser | null> {
@@ -130,8 +134,7 @@ export const customerAuthService = {
       return findIn(demoStore.getState().zenxUsers, id);
     }
     try {
-      const { data: refreshData } = await apiClient.post<{ accessToken: string }>("/customer-auth/refresh");
-      setCustomerAccessToken(refreshData.accessToken);
+      if (!(await refreshAccessToken(true))) return null;
       const { data } = await apiClient.get<{ user: ZenxUser }>("/customer-auth/me");
       return data.user;
     } catch {

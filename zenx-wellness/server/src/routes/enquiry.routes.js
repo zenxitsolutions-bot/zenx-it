@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
@@ -30,8 +31,8 @@ const createEnquiryLimiter = rateLimit({
 
 enquiryRouter.post('/', createEnquiryLimiter, validate(createEnquirySchema), createEnquiry);
 enquiryRouter.use(authenticate, blockIfMustChangePassword, authorize('admin'));
-enquiryRouter.get('/', validate(listEnquiriesQuerySchema, 'query'), listEnquiries);
-enquiryRouter.get('/:id', getEnquiry);
-enquiryRouter.get('/:id/history', getEnquiryHistory);
-enquiryRouter.patch('/:id', validate(updateEnquirySchema), updateEnquiry);
-enquiryRouter.delete('/:id', deleteEnquiry);
+enquiryRouter.get('/', requirePermission('enquiries.view'), validate(listEnquiriesQuerySchema, 'query'), listEnquiries);
+enquiryRouter.get('/:id', requirePermission('enquiries.view'), getEnquiry);
+enquiryRouter.get('/:id/history', requirePermission('enquiries.view'), getEnquiryHistory);
+enquiryRouter.patch('/:id', requirePermission('enquiries.view', 'enquiries.manage'), validate(updateEnquirySchema), updateEnquiry);
+enquiryRouter.delete('/:id', requirePermission('enquiries.view', 'enquiries.manage'), deleteEnquiry);

@@ -6,25 +6,25 @@ import {
   createUser,
   linkZenxUser,
   setPassword,
-  bumpRefreshTokenVersion,
   setCompanySlug,
   touchLastLogin,
 } from '../models/User.js';
 import { upsertCompanyFromHandoff, findCompanyBySlug, findCompanyById } from '../models/Company.js';
 import {
   createPasswordResetToken,
-  findValidPasswordResetToken,
-  markPasswordResetTokenUsed,
+  resetPasswordWithToken,
   hashResetToken,
 } from '../models/PasswordResetToken.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { hashPassword, comparePassword } from '../utils/password.js';
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken, verifyAccessToken } from '../utils/jwt.js';
 import { sendPasswordResetEmail } from '../utils/email.js';
 import { toClientShape } from '../utils/serialize.js';
 import { env } from '../config/env.js';
 import crypto from 'node:crypto';
+import { createSession, rotateSession, revokeRequestSessions, revokeAccountSessions } from '../models/AuthSession.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
 
 const REFRESH_COOKIE = 'nourishly_refresh';
 const cookieOptions = {
@@ -43,10 +43,16 @@ const cookieOptions = {
 // company) so the response cannot be used to tell those cases apart.
 const TENANT_MISMATCH_MESSAGE = 'This login page belongs to a different company — check the URL your admin gave you.';
 
-function issueTokens(res, user) {
-  const accessToken = signAccessToken(user);
-  const refreshToken = signRefreshToken(user);
-  res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+async function issueTokens(res, user, previous = null, handoffId = null) {
+  const sid = previous?.sid || handoffId || crypto.randomUUID();
+  const accessToken = signAccessToken(user, sid);
+  const refreshToken = signRefreshToken(user, sid);
+  const expiresAt = new Date(verifyRefreshToken(refreshToken).exp * 1000);
+  const session = { id: sid, kind: 'wellness', accountId: user.id, companyId: user.companyId, passwordHash: user.passwordHash, refreshToken, expiresAt };
+  if (previous) {
+    if (!(await rotateSession({ ...session, previousToken: previous.token }))) throw ApiError.unauthorized('Session expired. Sign in again.');
+  } else await createSession(session);
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...cookieOptions, maxAge: expiresAt.getTime() - Date.now() });
   return accessToken;
 }
 
@@ -54,7 +60,7 @@ export const login = asyncHandler(async (req, res) => {
   const { email, password, companySlug } = req.body;
   let user = await findUserByEmail(email);
   if (!user || !(await comparePassword(password, user.passwordHash))) {
-    console.warn('[login] rejected', { email, found: Boolean(user) });
+    console.warn('[login] invalid credentials');
     throw ApiError.unauthorized('Invalid email or password');
   }
 
@@ -104,8 +110,8 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   await touchLastLogin(user.id);
-  const accessToken = issueTokens(res, user);
-  res.json({ user: toClientShape(user, ['passwordHash']), accessToken });
+  const accessToken = await issueTokens(res, user);
+  res.json({ user: toClientShape(await hydrateUserPermissions(user), ['passwordHash']), accessToken });
 });
 
 // Verifies the short-lived SSO token admin-server's issueHandoffToken signs (see the claim-shape
@@ -118,8 +124,13 @@ export const handoff = asyncHandler(async (req, res) => {
 
   let payload;
   try {
-    payload = jwt.verify(token, env.zenxHandoffSecret);
+    payload = jwt.verify(token, env.zenxHandoffSecret, { algorithms: ['HS256'] });
   } catch {
+    throw ApiError.unauthorized('This login link is invalid or has expired.');
+  }
+
+  if (!['sub', 'email', 'company_id', 'company_slug', 'jti'].every((key) => typeof payload[key] === 'string' && payload[key].length > 0)
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.jti)) {
     throw ApiError.unauthorized('This login link is invalid or has expired.');
   }
 
@@ -148,6 +159,7 @@ export const handoff = asyncHandler(async (req, res) => {
   if (!user) {
     user = await findUserByEmail(payload.email);
     if (user) {
+      if (user.companyId !== localCompanyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
       // A pre-existing account (e.g. a legacy-company user created before this identity ever SSO'd
       // in) gets linked to its ZenX identity — company_id is deliberately NOT overwritten here: it
       // already has one (every user row does, post-multi-tenancy), and a ZenX-side company change
@@ -181,13 +193,22 @@ export const handoff = asyncHandler(async (req, res) => {
   }
 
   const mirrored = await findCompanyById(localCompanyId);
+  if (user.companyId !== localCompanyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
   if (mirrored?.status && mirrored.status !== 'ACTIVE') {
     throw ApiError.forbidden('This company account is not active. Contact your administrator.');
   }
 
   await touchLastLogin(user.id);
-  const accessToken = issueTokens(res, user);
-  res.json({ user: toClientShape(user, ['passwordHash']), accessToken });
+  let accessToken;
+  try {
+    // The issuer's random jti becomes a UNIQUE session ID: a handoff link can only be redeemed
+    // once, even concurrently, and replay cannot mint a new session after logout.
+    accessToken = await issueTokens(res, user, null, payload.jti);
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') throw ApiError.unauthorized('This login link has already been used. Sign in again.');
+    throw error;
+  }
+  res.json({ user: toClientShape(await hydrateUserPermissions(user), ['passwordHash']), accessToken });
 });
 
 export const refresh = asyncHandler(async (req, res) => {
@@ -202,7 +223,7 @@ export const refresh = asyncHandler(async (req, res) => {
   }
 
   const user = await findUserById(payload.sub);
-  if (!user || user.refreshTokenVersion !== payload.tokenVersion) {
+  if (!user || user.refreshTokenVersion !== payload.tokenVersion || (payload.companyId ?? null) !== (user.companyId ?? null)) {
     throw ApiError.unauthorized('Refresh token no longer valid');
   }
   if (user.accountStatus === 'suspended') {
@@ -218,7 +239,7 @@ export const refresh = asyncHandler(async (req, res) => {
     }
   }
 
-  res.json({ accessToken: signAccessToken(user) });
+  res.json({ accessToken: await issueTokens(res, user, { sid: payload.sid, token }) });
 });
 
 // Deliberately not gated by blockIfMustChangePassword (see auth.routes.js) — this is the one
@@ -236,8 +257,9 @@ export const changePassword = asyncHandler(async (req, res) => {
     passwordHash: await hashPassword(newPassword),
     mustChangePassword: false,
   });
-  const accessToken = issueTokens(res, user);
-  res.json({ user: toClientShape(user, ['passwordHash']), accessToken });
+  await revokeAccountSessions('wellness', user.id);
+  const accessToken = await issueTokens(res, user);
+  res.json({ user: toClientShape(await hydrateUserPermissions(user), ['passwordHash']), accessToken });
 });
 
 // Always responds the same way regardless of whether the email is registered or the send
@@ -263,35 +285,26 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     // whose name was never captured, rather than rendering an empty "Hi ,".
     const greetingName = user.name?.trim().split(/\s+/)[0] || undefined;
     const company = user.companyId ? await findCompanyById(user.companyId) : null;
-    await sendPasswordResetEmail(user.email, resetUrl, greetingName, company?.name?.trim() || undefined).catch((err) => {
-      console.error('[forgotPassword] failed to send reset email', err);
+    await sendPasswordResetEmail(user.email, resetUrl, greetingName, company?.name?.trim() || undefined).catch(() => {
+      console.error('[forgotPassword] failed to send reset email');
     });
   }
 
   res.json({ message: 'If that email is registered, a reset link has been sent.' });
 });
 
-// Deliberately does not touch mustChangePassword: a voluntary password reset by someone who
-// already knew (or has now regained access to) their account is a different situation from the
-// forced first-login change (auth.controller.js#changePassword) — that gate, if still set, stays
-// in effect and is enforced the normal way on the caller's next request.
+// A verified, single-use email reset also completes first-time password setup.
 export const resetPassword = asyncHandler(async (req, res) => {
   const { token, password } = req.body;
-  const resetToken = await findValidPasswordResetToken(hashResetToken(token));
-  if (!resetToken) throw ApiError.badRequest('This reset link is invalid or has expired.');
-
-  const user = await findUserById(resetToken.userId);
-  if (!user) throw ApiError.badRequest('This reset link is invalid or has expired.');
-
-  await setPassword(user.id, { passwordHash: await hashPassword(password), mustChangePassword: user.mustChangePassword });
-  await markPasswordResetTokenUsed(resetToken.id);
-  // A leaked/forgotten password means any existing session could be compromised too.
-  await bumpRefreshTokenVersion(user.id);
+  if (!(await resetPasswordWithToken(hashResetToken(token), await hashPassword(password)))) {
+    throw ApiError.badRequest('This reset link is invalid or has expired.');
+  }
 
   res.status(204).send();
 });
 
 export const logout = asyncHandler(async (req, res) => {
+  await revokeRequestSessions(req, { cookieName: REFRESH_COOKIE, verifyRefresh: verifyRefreshToken, verifyAccess: verifyAccessToken, kind: 'wellness' });
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
   res.status(204).send();
 });

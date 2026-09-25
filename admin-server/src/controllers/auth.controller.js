@@ -2,10 +2,13 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { env } from '../config/env.js';
 import { comparePassword, hashPassword } from '../utils/password.js';
-import { signStaffAccessToken, signStaffRefreshToken, verifyStaffRefreshToken } from '../utils/jwt.js';
-import { findProfileByEmail, findProfileById, updateProfile, updateProfilePassword } from '../models/Profile.js';
-import { createPasswordResetToken, consumePasswordResetToken } from '../models/PasswordResetToken.js';
+import { signStaffAccessToken, signStaffRefreshToken, verifyStaffRefreshToken, verifyStaffAccessToken } from '../utils/jwt.js';
+import { findProfileByEmail, findProfileById, updateProfile } from '../models/Profile.js';
+import { createPasswordResetToken, resetPasswordWithToken } from '../models/PasswordResetToken.js';
 import { sendPasswordResetEmail } from '../emails/sendPasswordResetEmail.js';
+import { randomUUID } from 'node:crypto';
+import { createSession, rotateSession, revokeRequestSessions } from '../models/AuthSession.js';
+import { toPublicAccount as toClientShape } from '../utils/publicAccount.js';
 
 const REFRESH_COOKIE = 'zenxadmin_refresh';
 
@@ -17,16 +20,17 @@ const cookieOptions = {
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 
-function issueTokens(res, profile) {
-  const accessToken = signStaffAccessToken(profile);
-  const refreshToken = signStaffRefreshToken(profile);
-  res.cookie(REFRESH_COOKIE, refreshToken, cookieOptions);
+async function issueTokens(res, profile, previous = null) {
+  const sid = previous?.sid || randomUUID();
+  const accessToken = signStaffAccessToken(profile, sid);
+  const refreshToken = signStaffRefreshToken(profile, sid);
+  const expiresAt = new Date(verifyStaffRefreshToken(refreshToken).exp * 1000);
+  const session = { id: sid, kind: 'staff', accountId: profile.id, passwordHash: profile.password_hash, refreshToken, expiresAt };
+  if (previous) {
+    if (!(await rotateSession({ ...session, previousToken: previous.token }))) throw ApiError.unauthorized('Session expired. Sign in again.');
+  } else await createSession(session);
+  res.cookie(REFRESH_COOKIE, refreshToken, { ...cookieOptions, maxAge: expiresAt.getTime() - Date.now() });
   return accessToken;
-}
-
-function toClientShape(profile) {
-  const { password_hash, ...rest } = profile;
-  return rest;
 }
 
 export const login = asyncHandler(async (req, res) => {
@@ -37,7 +41,7 @@ export const login = asyncHandler(async (req, res) => {
   }
   if (profile.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
 
-  const accessToken = issueTokens(res, profile);
+  const accessToken = await issueTokens(res, profile);
   res.json({ profile: toClientShape(profile), accessToken });
 });
 
@@ -55,11 +59,12 @@ export const refresh = asyncHandler(async (req, res) => {
   const profile = await findProfileById(payload.sub);
   if (!profile || profile.status !== 'ACTIVE') throw ApiError.unauthorized('Account no longer available');
 
-  const accessToken = signStaffAccessToken(profile);
+  const accessToken = await issueTokens(res, profile, { sid: payload.sid, token });
   res.json({ accessToken });
 });
 
 export const logout = asyncHandler(async (req, res) => {
+  await revokeRequestSessions(req, { cookieName: REFRESH_COOKIE, verifyRefresh: verifyStaffRefreshToken, verifyAccess: verifyStaffAccessToken, kind: 'staff' });
   res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
   res.status(204).send();
 });
@@ -97,16 +102,15 @@ export const forgotPassword = asyncHandler(async (req, res) => {
       token,
       kind: 'staff',
       expiresInMinutes: RESET_TTL_MINUTES,
-    }).catch((err) => console.error('[forgotPassword] failed to send reset email', err));
+    }).catch(() => console.error('[forgotPassword] failed to send reset email'));
   }
   res.status(204).send();
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
   const { token, password } = req.body;
-  const record = await consumePasswordResetToken('staff', token);
-  if (!record) throw ApiError.badRequest('This reset link is invalid or has expired.');
-
-  await updateProfilePassword(record.account_id, await hashPassword(password));
+  if (!(await resetPasswordWithToken('staff', token, await hashPassword(password)))) {
+    throw ApiError.badRequest('This reset link is invalid or has expired.');
+  }
   res.status(204).send();
 });

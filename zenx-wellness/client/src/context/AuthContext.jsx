@@ -1,12 +1,14 @@
-import { createContext, useCallback, useEffect, useState } from 'react';
-import { setAccessToken } from '../api/tokenStore';
-import { onPasswordChangeRequired } from '../api/authEvents';
+import { createContext, useCallback, useEffect, useRef, useState } from 'react';
+import { setAccessToken, getAccessToken, getAuthGeneration, beginAuthTransition, canRefreshSession } from '../api/tokenStore';
+import { onPasswordChangeRequired, onSessionEnded } from '../api/authEvents';
 import { loginRequest, handoffRequest, changePasswordRequest, logoutRequest, meRequest, refreshRequest } from '../api/auth.api';
 import { useDeviceNotifications } from '../hooks/useDeviceNotifications';
 import { useBrowserTimezone } from '../hooks/useBrowserTimezone.js';
 import { updateMeRequest } from '../api/users.api';
 import { canonicalTimezone, mergeDetectedTimezoneUpdate } from '../lib/timezone.js';
 import { useQueryClient } from '@tanstack/react-query';
+import { accountIdentity, clearPrivateCache } from '../lib/authLifecycle.js';
+import { permissionIdentity } from '../lib/permissions.js';
 
 export const AuthContext = createContext(null);
 
@@ -15,6 +17,27 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const detectedTimezone = useBrowserTimezone();
   const queryClient = useQueryClient();
+  const userRef = useRef(null);
+
+  const acceptUser = useCallback((nextUser, generation) => {
+    if (generation !== getAuthGeneration()) return false;
+    if (accountIdentity(userRef.current) !== accountIdentity(nextUser)
+      || permissionIdentity(userRef.current) !== permissionIdentity(nextUser)) clearPrivateCache(queryClient);
+    userRef.current = nextUser;
+    setUser(nextUser);
+    return true;
+  }, [queryClient]);
+
+  const startTransition = useCallback(() => {
+    const generation = beginAuthTransition();
+    clearPrivateCache(queryClient);
+    userRef.current = null;
+    setUser(null);
+    setIsLoading(false);
+    return generation;
+  }, [queryClient]);
+
+  useEffect(() => onSessionEnded(() => startTransition()), [startTransition]);
 
   useEffect(() => {
     if (!user || user.mustChangePassword
@@ -35,58 +58,73 @@ export function AuthProvider({ children }) {
   }, [user, detectedTimezone, queryClient]);
 
   useEffect(() => {
-    refreshRequest()
-      .then(({ accessToken }) => {
-        setAccessToken(accessToken);
-        return meRequest();
-      })
-      .then(({ user }) => setUser(user))
-      .catch(() => setAccessToken(null))
-      .finally(() => setIsLoading(false));
-  }, []);
+    // A child login/handoff effect may have started before this provider's mount effect.
+    if (!canRefreshSession()) { setIsLoading(false); return; }
+    let active = true;
+    const generation = getAuthGeneration();
+    async function restore() {
+      try {
+        const { accessToken } = await refreshRequest();
+        if (!active || !setAccessToken(accessToken, generation)) return;
+        const { user } = await meRequest();
+        if (active) acceptUser(user, generation);
+      } catch {
+        if (active && generation === getAuthGeneration()) {
+          setAccessToken(null, generation);
+          acceptUser(null, generation);
+        }
+      } finally {
+        if (active && generation === getAuthGeneration()) setIsLoading(false);
+      }
+    }
+    restore();
+    return () => { active = false; };
+  }, [acceptUser]);
 
   // Admin reset (or a still-open session after one) 403s every protected call except
   // change-password / me / logout. Reload /auth/me so ProtectedRoute can send them there
   // immediately instead of leaving a half-working UI.
   useEffect(() => {
     return onPasswordChangeRequired(() => {
+      const generation = getAuthGeneration();
       meRequest()
-        .then(({ user }) => setUser(user))
+        .then(({ user }) => acceptUser(user, generation))
         .catch(() => {});
     });
-  }, []);
+  }, [acceptUser]);
 
   const login = useCallback(async (credentials) => {
-    setAccessToken(null);
+    const generation = startTransition();
     const { user, accessToken } = await loginRequest(credentials);
-    setAccessToken(accessToken);
-    setUser(user);
+    if (!setAccessToken(accessToken, generation) || !acceptUser(user, generation)) throw new Error('Sign-in cancelled');
     return user;
-  }, []);
+  }, [startTransition, acceptUser]);
 
   const completeHandoff = useCallback(async (token, companySlug) => {
+    const generation = startTransition();
     const { user, accessToken } = await handoffRequest(token, companySlug);
-    setAccessToken(accessToken);
-    setUser(user);
+    if (!setAccessToken(accessToken, generation) || !acceptUser(user, generation)) throw new Error('Sign-in cancelled');
     return user;
-  }, []);
+  }, [startTransition, acceptUser]);
 
   const changePassword = useCallback(async (payload) => {
+    const generation = getAuthGeneration();
     const { user, accessToken } = await changePasswordRequest(payload);
-    setAccessToken(accessToken);
-    setUser(user);
+    if (!setAccessToken(accessToken, generation) || !acceptUser(user, generation)) throw new Error('Session changed');
     return user;
-  }, []);
+  }, [acceptUser]);
 
   const logout = useCallback(async () => {
-    await logoutRequest().catch(() => {});
-    setAccessToken(null);
-    setUser(null);
-  }, []);
+    const previousToken = getAccessToken();
+    startTransition();
+    await logoutRequest(previousToken).catch(() => {});
+  }, [startTransition]);
 
   // Lets a mutation that returns the updated user (e.g. PATCH /users/me) keep this context in
   // sync without a full page reload.
-  const updateUser = useCallback((updated) => setUser(updated), []);
+  const updateUser = useCallback((updated) => {
+    if (accountIdentity(updated) === accountIdentity(userRef.current)) acceptUser(updated, getAuthGeneration());
+  }, [acceptUser]);
 
   return (
     <AuthProviderInner user={user} isLoading={isLoading} login={login} completeHandoff={completeHandoff} changePassword={changePassword} logout={logout} updateUser={updateUser}>

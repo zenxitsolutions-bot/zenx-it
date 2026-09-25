@@ -1,14 +1,40 @@
-import { Utensils } from 'lucide-react';
+import { useState } from 'react';
+import { Pencil, Trash2, Utensils } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DeletePlanDialog } from '@/components/portal/shared/DeletePlanDialog';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
-import { useClientPlans } from '@/hooks/usePlans';
+import { useAuth } from '@/hooks/useAuth';
+import { useClientPlans, useDeletePlan } from '@/hooks/usePlans';
 import { formatCalendarDate } from '@/lib/calendarDate';
+import { hasPermission } from '@/lib/permissions';
 
 export function ClientMealsTab({ clientId }) {
   const { companySlug } = useParams();
+  const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useClientPlans(clientId);
+  const deletePlan = useDeletePlan();
+  const [planToDelete, setPlanToDelete] = useState(null);
   const plans = data ?? [];
+  const canManage = (plan) => user?.role === 'admin' || (
+    user?.role === 'dietitian'
+    && Boolean(user?._id)
+    && String(plan.dietitian?._id ?? plan.dietitian) === String(user._id)
+  );
+
+  async function handleDelete() {
+    // Keep the exact plan selected in the confirmation, even if the list refetches.
+    if (!planToDelete || deletePlan.isPending || !canManage(planToDelete) || !hasPermission(user, 'diet_plans.delete') || (planToDelete.published && !hasPermission(user, 'diet_plans.publish'))) return;
+    try {
+      await deletePlan.mutateAsync(planToDelete._id);
+      setPlanToDelete(null);
+      toast.success('Plan deleted.');
+    } catch (error) {
+      toast.error(error.response?.data?.error || "We couldn't delete that plan. Please try again.");
+    }
+  }
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
   if (isError) {
@@ -47,6 +73,8 @@ export function ClientMealsTab({ clientId }) {
             week: plan.week,
             weekEnd,
           });
+          const editParams = new URLSearchParams(params);
+          editParams.set('edit', '1');
           return (
             <li
               key={plan._id}
@@ -63,19 +91,51 @@ export function ClientMealsTab({ clientId }) {
                   {formatCalendarDate(plan.week)} – {formatCalendarDate(weekEnd)}
                 </p>
               </div>
-              <span
-                className={
-                  plan.published
-                    ? 'w-fit rounded-full bg-sage px-2.5 py-1 text-xs font-semibold text-forest'
-                    : 'w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground'
-                }
-              >
-                {plan.published ? 'Published' : 'Draft'}
-              </span>
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <span
+                  className={
+                    plan.published
+                      ? 'w-fit rounded-full bg-sage px-2.5 py-1 text-xs font-semibold text-forest'
+                      : 'w-fit rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground'
+                  }
+                >
+                  {plan.published ? 'Published' : 'Draft'}
+                </span>
+                {canManage(plan) && (!plan.published || hasPermission(user, 'diet_plans.publish')) && (
+                  <>
+                    {hasPermission(user, 'diet_plans.edit') && <Button asChild variant="outline" size="sm">
+                      <Link to={`/${companySlug}/app/plan?${editParams.toString()}`}>
+                        <Pencil aria-hidden="true" />
+                        Edit plan
+                      </Link>
+                    </Button>}
+                    {hasPermission(user, 'diet_plans.delete') && <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={deletePlan.isPending}
+                      onClick={() => setPlanToDelete(plan)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                      Delete plan
+                    </Button>}
+                  </>
+                )}
+              </div>
             </li>
           );
         })}
       </ul>
+      <DeletePlanDialog
+        open={Boolean(planToDelete)}
+        onOpenChange={(open) => {
+          if (!open && !deletePlan.isPending) setPlanToDelete(null);
+        }}
+        plan={planToDelete}
+        clientName={planToDelete?.client?.name}
+        pending={deletePlan.isPending}
+        onConfirm={handleDelete}
+      />
     </section>
   );
 }

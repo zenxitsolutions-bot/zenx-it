@@ -4,7 +4,10 @@ Your {{company_name}} account is ready. {{dietitian_name}} is your dietitian and
 
 You're enrolled in: {{plan_name}} — {{plan_duration}}
 
-Temporary password: {{temp_password}}
-(You'll be asked to choose a new one on first login.)
+Choose your own password to activate your sign-in:
+{{set_password_url}}
+
+This link expires in {{expiry_label}} and can only be used once.
+If the link expires, choose "Forgot password" on your login page to request another.
 
 Log in to {{company_name}}: {{login_url}}

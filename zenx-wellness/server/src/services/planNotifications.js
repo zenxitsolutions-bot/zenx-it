@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { findUserById } from '../models/User.js';
 import { formatCalendarDate, dateForWeekdaySlot } from '../utils/calendarDate.js';
 import { sendEmail } from '../emails/sendEmail.js';
@@ -6,6 +7,8 @@ import { portalPathUrl } from '../utils/urls.js';
 import { notifyUserPush } from './pushNotifications.js';
 import { channels } from '../notifications/channels/index.js';
 import { ApiError } from '../utils/ApiError.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
+import { hasPermission } from '../../../shared/permissions.js';
 
 export function requestedSwapResolutions(meals = [], resolutions) {
   const requestedMeals = meals.filter((meal) => meal.swapRequested);
@@ -55,7 +58,7 @@ export async function notifyPlanPublished(plan) {
       { idempotencyKey: `plan-published:${plan.id}`, relatedEntity: { type: 'client', id: client.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue plan-published email for plan ${plan.id}:`, err);
+    console.error(`[notifications] failed to queue plan-published email for plan ${plan.id}:`, safeErrorMeta(err));
   }
 }
 
@@ -63,8 +66,8 @@ export async function notifyMealSwapRequested(plan, mealIndex) {
   try {
     const meal = plan.meals?.[mealIndex];
     if (!meal) return;
-    const dietitian = await findUserById(plan.dietitian?._id ?? plan.dietitian);
-    if (!canNotifyUser(dietitian)) return;
+    const dietitian = await hydrateUserPermissions(await findUserById(plan.dietitian?._id ?? plan.dietitian));
+    if (!canNotifyUser(dietitian) || !hasPermission(dietitian, 'diet_plans.view')) return;
     const clientId = plan.client?._id ?? plan.client;
     const client = await findUserById(clientId).catch(() => null);
     const mealTitle = meal.recipe?.title ?? meal.customTitle ?? meal.mealType;
@@ -83,7 +86,7 @@ export async function notifyMealSwapRequested(plan, mealIndex) {
         login_url: loginUrl,
       },
       // Each rising-edge request is a new event — clients can cancel and ask again after a swap.
-      { idempotencyKey: `meal-swap:${plan.id}:${mealIndex}:${Date.now()}`, relatedEntity: { type: 'client', id: clientId } }
+      { idempotencyKey: `meal-swap:${plan.id}:${mealIndex}:${Date.now()}`, relatedEntity: { type: 'client', id: clientId }, staffRecipient: dietitian }
     );
 
     const title = `${client?.name ?? 'A client'} requested a meal swap`;
@@ -95,9 +98,9 @@ export async function notifyMealSwapRequested(plan, mealIndex) {
       body,
       url: `/app/clients/${clientId}`,
     });
-    await notifyUserPush(dietitian.id, { title, body, url: loginUrl });
+    await notifyUserPush(dietitian.id, { type: 'meal-swap-requested', title, body, url: loginUrl });
   } catch (err) {
-    console.error(`[notifications] failed to queue meal-swap-requested email for plan ${plan.id}:`, err);
+    console.error(`[notifications] failed to queue meal-swap-requested email for plan ${plan.id}:`, safeErrorMeta(err));
   }
 }
 
@@ -167,6 +170,6 @@ export async function notifyMealSwapFulfilled(plan, previousMeal, nextMeal, prev
     });
     await notifyUserPush(client.id, { title, body, url: loginUrl });
   } catch (err) {
-    console.error(`[notifications] failed to queue meal-swap-fulfilled email for plan ${plan.id}:`, err);
+    console.error(`[notifications] failed to queue meal-swap-fulfilled email for plan ${plan.id}:`, safeErrorMeta(err));
   }
 }

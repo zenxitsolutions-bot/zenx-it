@@ -7,19 +7,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useProgramPlans } from '@/hooks/useProgramPlans';
 import { ProgramPlanFormDialog } from './ProgramPlanFormDialog';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 export function ProgramPlansScreen() {
+  const { user } = useAuth();
+  const canManage = hasPermission(user, 'program_plans.manage');
   const [createOpen, setCreateOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
-    if (searchParams.get('create') !== '1') return;
+    if (!canManage || searchParams.get('create') !== '1') return;
     setCreateOpen(true);
     const next = new URLSearchParams(searchParams);
     next.delete('create');
     setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [canManage, searchParams, setSearchParams]);
 
   const { data, isLoading, isError, refetch } = useProgramPlans();
 
@@ -31,9 +35,9 @@ export function ProgramPlansScreen() {
           <h1 className="mt-1 text-3xl text-forest">Plans</h1>
           <p className="mt-1 text-muted-foreground">Create and manage the plans clients can be enrolled in.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
+        {canManage && <Button onClick={() => setCreateOpen(true)} className="rounded-full bg-coral text-white hover:bg-coral/90">
           + Create plan
-        </Button>
+        </Button>}
       </div>
 
       {isLoading ? (
@@ -64,13 +68,13 @@ export function ProgramPlansScreen() {
                 </div>
                 {plan.description && <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>}
               </div>
-              <button
+              {canManage && <button
                 type="button"
                 onClick={() => setEditing(plan)}
                 className="shrink-0 text-sm font-semibold text-forest hover:underline"
               >
                 Edit
-              </button>
+              </button>}
             </div>
           ))}
         </div>

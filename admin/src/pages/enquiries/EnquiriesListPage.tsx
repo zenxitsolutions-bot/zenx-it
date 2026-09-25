@@ -66,7 +66,7 @@ export default function EnquiriesListPage() {
       if (filters.source !== "ALL" && e.source !== filters.source) return false;
       if (filters.assignedTo !== "ALL" && e.assigned_to !== filters.assignedTo) return false;
       if (q) {
-        const haystack = `${e.company_name} ${e.contact_name} ${e.phone} ${e.email}`.toLowerCase();
+        const haystack = `${e.company_name ?? ""} ${e.contact_name} ${e.phone} ${e.email}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;

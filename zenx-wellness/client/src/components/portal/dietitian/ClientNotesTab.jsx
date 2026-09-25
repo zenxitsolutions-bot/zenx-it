@@ -7,10 +7,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/portal/shared/EmptyState';
 import { useClientNotes, useCreateClientNote } from '@/hooks/useClientNotes';
 import { ClientNoteCard } from './ClientNoteCard';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 // Spec §6 item 6: other relevant client notes — free-standing context that isn't tied to a call
 // or a report, visible to any dietitian/admin who opens this profile.
 export function ClientNotesTab({ clientId }) {
+  const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useClientNotes(clientId);
   const createNote = useCreateClientNote();
   const [body, setBody] = useState('');
@@ -32,7 +35,7 @@ export function ClientNotesTab({ clientId }) {
 
   return (
     <div className="grid gap-5">
-      <form onSubmit={submit} className="rounded-card bg-white p-4 shadow-soft">
+      {hasPermission(user, 'clients.edit') && <form onSubmit={submit} className="rounded-card bg-white p-4 shadow-soft">
         <label className="block">
           <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Add a note</span>
           <Textarea
@@ -52,7 +55,7 @@ export function ClientNotesTab({ clientId }) {
             {createNote.isPending ? 'Saving…' : 'Add note'}
           </Button>
         </div>
-      </form>
+      </form>}
 
       {isLoading ? (
         <Skeleton className="h-24 w-full" />

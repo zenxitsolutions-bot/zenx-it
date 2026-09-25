@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isSensitiveMessage } from '../security.js';
 
 // server/.local/emails — gitignored (see server/.gitignore), never committed. Dev/test's only
 // transport: writes the rendered email to disk instead of sending it anywhere.
@@ -12,7 +13,11 @@ function writeAttachment(base, attachment) {
   else writeFileSync(path, attachment.content, 'utf8');
 }
 
-export async function sendViaConsole({ to, subject, html, text, attachments = [] }) {
+export async function sendViaConsole({ to, subject, html, text, attachments = [], sensitive = false }) {
+  if (isSensitiveMessage({ sensitive, html, text })) {
+    console.log('[email:console] Authentication email preview suppressed; configure SMTP or Resend for delivery.');
+    return { providerMessageId: null };
+  }
   mkdirSync(outDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const base = join(outDir, `${stamp}-${to.replace(/[^a-z0-9@.-]/gi, '_')}`);

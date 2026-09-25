@@ -71,9 +71,11 @@ export function useUpdatePlan() {
   return useMutation({
     mutationFn: ({ planId, ...payload }) => updatePlanRequest(planId, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['plans'] });
-      queryClient.invalidateQueries({ queryKey: ['insights'] });
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      return Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['plans'] }),
+        queryClient.invalidateQueries({ queryKey: ['insights'] }),
+        queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+      ]);
     },
   });
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Send, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,22 +12,50 @@ import { formatDateTime } from '@/lib/format';
 import { PresenceDot } from './PresenceDot';
 import { UserAvatar } from './UserAvatar';
 
-// One conversation's full history + composer. `clientId` omitted means "my own conversation"
+// One conversation's paged history + composer. `clientId` omitted means "my own conversation"
 // (client role); the dietitian passes the selected client's id. Handles its own loading/empty/
 // error states so it can be dropped straight into either the client's standalone Messages screen
 // or a panel inside the dietitian's list+thread split view.
 export function MessageThread({ clientId, title, peerId }) {
   const { user } = useAuth();
   const { timezone } = useViewerTimezone();
-  const { data, isLoading, isError, refetch } = useMessages(clientId);
+  const { data, isLoading, isError, isFetching, refetch, hasEarlier, hasNewer, loadEarlier, isLoadingEarlier, earlierError } = useMessages(clientId);
   const sendMessage = useSendMessage(clientId);
   const markRead = useMarkMessagesRead(clientId);
   const [body, setBody] = useState('');
   const bottomRef = useRef(null);
+  const scrollRef = useRef(null);
+  const earlierScroll = useRef(null);
+  const lastMessageId = useRef(null);
+  const previousCount = useRef(0);
+  const nearBottom = useRef(true);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' });
-  }, [data]);
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    const latest = data?.at(-1);
+    const anchor = earlierScroll.current;
+    if (container && anchor && data?.[0]?._id !== anchor.firstId) {
+      container.scrollTop = anchor.top + container.scrollHeight - anchor.height;
+      earlierScroll.current = null;
+    } else if (latest && (latest._id !== lastMessageId.current || data.length !== previousCount.current) && !anchor
+      && (nearBottom.current || latest.sender === user._id)) {
+      bottomRef.current?.scrollIntoView({ block: 'end' });
+    }
+    lastMessageId.current = latest?._id;
+    previousCount.current = data?.length ?? 0;
+  }, [data, user._id]);
+
+  async function showEarlier() {
+    const container = scrollRef.current;
+    if (isLoadingEarlier || !container) return;
+    earlierScroll.current = { height: container.scrollHeight, top: container.scrollTop, firstId: data?.[0]?._id };
+    try {
+      const page = await loadEarlier();
+      if (!page?.messages?.length) earlierScroll.current = null;
+    } catch {
+      earlierScroll.current = null;
+    }
+  }
 
   // Marks the conversation read once messages are loaded, and again whenever it changes (a poll
   // brings in a new message, or — for the dietitian — the selected client changes). Mirrors
@@ -40,7 +68,7 @@ export function MessageThread({ clientId, title, peerId }) {
   function submit(e) {
     e.preventDefault();
     const trimmed = body.trim();
-    if (!trimmed) return;
+    if (!trimmed || sendMessage.isPending || isLoading || !data) return;
     sendMessage.mutate(trimmed, {
       onSuccess: () => setBody(''),
       onError: () => toast.error("That didn't send — please try again."),
@@ -59,10 +87,13 @@ export function MessageThread({ clientId, title, peerId }) {
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4" onScroll={(event) => {
+        const element = event.currentTarget;
+        nearBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+      }}>
         {isLoading ? (
           <Skeleton className="h-full w-full" />
-        ) : isError ? (
+        ) : isError && !data ? (
           <EmptyState
             title="Couldn't load messages"
             description="Something went wrong on our end."
@@ -76,6 +107,15 @@ export function MessageThread({ clientId, title, peerId }) {
           <EmptyState icon={MessageCircle} title="No messages yet" description="Send the first one below." />
         ) : (
           <div className="grid gap-3">
+            {hasEarlier && (
+              <div className="text-center">
+                <Button type="button" variant="outline" size="sm" disabled={isLoadingEarlier} onClick={showEarlier}>
+                  {isLoadingEarlier ? 'Loading earlier messages…' : 'Load earlier messages'}
+                </Button>
+                {earlierError && <p role="alert" className="mt-2 text-xs text-muted-foreground">Couldn’t load earlier messages. Please try again.</p>}
+              </div>
+            )}
+            {isError && <p role="alert" className="text-center text-xs text-muted-foreground">New messages couldn’t refresh. <button type="button" className="underline" onClick={() => refetch()}>Try again</button></p>}
             {data.map((message) => {
               const mine = message.sender === user._id;
               return (
@@ -89,6 +129,11 @@ export function MessageThread({ clientId, title, peerId }) {
                 </div>
               );
             })}
+            {hasNewer && (
+              <Button type="button" variant="outline" size="sm" disabled={isFetching} onClick={() => refetch()}>
+                {isFetching ? 'Loading newer messages…' : 'Load newer messages'}
+              </Button>
+            )}
             <div ref={bottomRef} />
           </div>
         )}
@@ -111,7 +156,7 @@ export function MessageThread({ clientId, title, peerId }) {
         <Button
           type="submit"
           size="icon"
-          disabled={sendMessage.isPending || !body.trim()}
+          disabled={sendMessage.isPending || !body.trim() || isLoading || !data}
           aria-label="Send message"
           className="rounded-pill"
         >

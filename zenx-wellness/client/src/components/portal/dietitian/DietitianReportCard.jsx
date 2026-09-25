@@ -7,15 +7,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { ReportFileViewer } from '@/components/portal/shared/ReportFileViewer';
 import { useAddReportFeedback } from '@/hooks/useReports';
 import { formatDate } from '@/lib/format';
+import { useAuth } from '@/hooks/useAuth';
+import { hasPermission } from '@/lib/permissions';
 
 export function DietitianReportCard({ report }) {
+  const { user } = useAuth();
+  const canReview = hasPermission(user, 'reports.review');
   const [message, setMessage] = useState('');
   const [viewerOpen, setViewerOpen] = useState(false);
   const addFeedback = useAddReportFeedback();
 
   function submit(event) {
     event.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !canReview) return;
     addFeedback.mutate(
       { reportId: report._id, message: message.trim() },
       {
@@ -34,7 +38,7 @@ export function DietitianReportCard({ report }) {
   // note through the same feedback endpoint, which both changes the status and leaves an audit
   // trail of who changed it and when, consistent with the rest of the feedback thread.
   function setStatus(status) {
-    if (status === report.status || addFeedback.isPending) return;
+    if (!canReview || status === report.status || addFeedback.isPending) return;
     addFeedback.mutate(
       { reportId: report._id, message: status === 'reviewed' ? 'Marked as reviewed.' : 'Marked as pending.', status },
       {
@@ -66,7 +70,7 @@ export function DietitianReportCard({ report }) {
           <Badge variant={report.status === 'reviewed' ? 'secondary' : 'outline'} className="capitalize">
             {report.status}
           </Badge>
-          <div className="flex gap-1.5">
+          {canReview && <div className="flex gap-1.5">
             <Button
               type="button"
               size="sm"
@@ -87,7 +91,7 @@ export function DietitianReportCard({ report }) {
             >
               Mark reviewed
             </Button>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -108,7 +112,7 @@ export function DietitianReportCard({ report }) {
         </div>
       )}
 
-      <form onSubmit={submit} className="mt-4 flex gap-2 border-t border-line pt-4">
+      {canReview && <form onSubmit={submit} className="mt-4 flex gap-2 border-t border-line pt-4">
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
@@ -119,7 +123,7 @@ export function DietitianReportCard({ report }) {
         <Button type="submit" disabled={addFeedback.isPending || !message.trim()} className="shrink-0 rounded-full bg-coral text-white hover:bg-coral/90">
           {addFeedback.isPending ? 'Sending…' : 'Send'}
         </Button>
-      </form>
+      </form>}
 
       <ReportFileViewer report={report} open={viewerOpen} onOpenChange={setViewerOpen} />
     </article>

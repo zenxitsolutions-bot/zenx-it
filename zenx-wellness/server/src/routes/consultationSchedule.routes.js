@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { requirePermission } from '../middleware/permissions.js';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import { blockIfMustChangePassword } from '../middleware/blockIfMustChangePassword.js';
@@ -11,5 +12,5 @@ import { getConsultationScheduleQuerySchema, saveConsultationScheduleSchema } fr
 export const consultationScheduleRouter = Router();
 consultationScheduleRouter.use(authenticate, blockIfMustChangePassword, authorize('admin', 'dietitian'));
 
-consultationScheduleRouter.get('/', validate(getConsultationScheduleQuerySchema, 'query'), getConsultationSchedule);
-consultationScheduleRouter.put('/', validate(saveConsultationScheduleSchema), putConsultationSchedule);
+consultationScheduleRouter.get('/', requirePermission('calls.view'), validate(getConsultationScheduleQuerySchema, 'query'), getConsultationSchedule);
+consultationScheduleRouter.put('/', requirePermission('calls.view', 'calls.manage'), validate(saveConsultationScheduleSchema), putConsultationSchedule);

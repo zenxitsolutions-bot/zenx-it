@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { axiosClient } from '@/api/axiosClient';
-import { GENERATED_RECIPE_IMAGES } from '@/lib/generatedRecipeImages';
+import { recipeImageUrl } from '@/lib/recipeImageUrl';
 
 export function RecipeMedia({ recipe, className }) {
-  const originalUrl = recipe?.imageUrl || '';
-  const catalogPhoto = recipe?.visibility === 'shared' && (
-    !originalUrl || originalUrl.startsWith('/images/recipe-catalog/') ||
-    /^https:\/\/(images\.unsplash\.com|commons\.wikimedia\.org)\//i.test(originalUrl)
-  );
-  const imageUrl = catalogPhoto ? GENERATED_RECIPE_IMAGES[recipe.title] || '' : originalUrl;
+  const imageUrl = recipeImageUrl(recipe);
   const remote = /^https?:\/\//i.test(imageUrl);
   const localCatalogImage = imageUrl.startsWith('/images/recipe-catalog/');
   const [blobUrl, setBlobUrl] = useState(null);

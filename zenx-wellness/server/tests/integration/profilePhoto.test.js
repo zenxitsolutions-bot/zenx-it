@@ -2,13 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
+import { assertIntegrationTestsEnabled } from '../integrationOptIn.js';
 
 // Opt-in local MySQL test. Creates disposable users and removes only those exact IDs.
-test('profile photos persist and stay private to the signed-in client', { skip: process.env.TEST_PROFILE_PHOTOS !== '1' }, async () => {
+test('profile photos persist and stay private to the signed-in client', { skip: process.env.TEST_PROFILE_PHOTOS !== '1' || process.env.RUN_INTEGRATION_TESTS !== '1' || process.env.NODE_ENV === 'production' }, async () => {
+  await import('dotenv/config');
+  assertIntegrationTestsEnabled();
   const { app } = await import('../../src/app.js');
   const { pool } = await import('../../src/db/pool.js');
   const { createUser } = await import('../../src/models/User.js');
   const { signAccessToken } = await import('../../src/utils/jwt.js');
+  const { createSession } = await import('../../src/models/AuthSession.js');
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const endpoint = `http://127.0.0.1:${server.address().port}/api/users/me/photo`;
@@ -19,7 +23,9 @@ test('profile photos persist and stay private to the signed-in client', { skip: 
     async function account(role) {
       const user = await createUser({ name: 'Photo verification', email: `photo-test-${randomUUID()}@example.test`, passwordHash: 'unused-test-only', role, companyId: company.id, companySlug: company.slug });
       created.push(user.id);
-      return { Authorization: `Bearer ${signAccessToken(user)}` };
+      const sid = randomUUID();
+      await createSession({ id: sid, kind: 'wellness', accountId: user.id, companyId: user.companyId, passwordHash: user.passwordHash, refreshToken: randomUUID(), expiresAt: new Date(Date.now() + 60_000) });
+      return { Authorization: `Bearer ${signAccessToken(user, sid)}` };
     }
     const owner = await account('client'), other = await account('client'), admin = await account('admin');
     const dietitian = await account('dietitian');
@@ -54,7 +60,10 @@ test('profile photos persist and stay private to the signed-in client', { skip: 
     assert.equal((await fetch(endpoint, { method: 'DELETE', headers: dietitian })).status, 204);
     assert.equal((await fetch(endpoint, { headers: dietitian })).status, 204);
   } finally {
-    for (const id of created) await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+    for (const id of created) {
+      await pool.execute("DELETE FROM auth_sessions WHERE account_kind = 'wellness' AND account_id = ?", [id]);
+      await pool.execute('DELETE FROM users WHERE id = ?', [id]);
+    }
     server.close();
     await once(server, 'close');
     await pool.end();

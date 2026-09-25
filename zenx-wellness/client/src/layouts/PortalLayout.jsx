@@ -12,14 +12,15 @@ import { PresenceProvider } from '@/context/PresenceContext';
 import { TimezoneMismatchBanner } from '@/components/shared/TimezoneMismatchBanner';
 import { AdminChatButton } from '@/components/portal/dietitian/AdminChatButton';
 import { WellnessFooter } from '@/components/portal/shared/WellnessFooter';
+import { hasPermission } from '@/lib/permissions';
 
 function PortalLive() {
   const { user } = useAuth();
-  const canCareMessage = user.role === 'client' || user.role === 'dietitian';
-  const canLiveMessage = canCareMessage || user.role === 'admin';
+  const canCareMessage = user.role === 'client' || (user.role === 'dietitian' && hasPermission(user, 'messages.use'));
+  const canLiveMessage = canCareMessage || (user.role === 'admin' && hasPermission(user, 'messages.use'));
   // Admin is excluded: their "own calls" query is intentionally unscoped (every call on the
   // platform), which would fire a reminder for every client's call, not just theirs.
-  useCallReminders(canCareMessage);
+  useCallReminders(user.role === 'client' || (user.role === 'dietitian' && hasPermission(user, 'calls.view')));
   useInAppNotificationToasts(Boolean(user));
   useMessageLive(canLiveMessage);
   return null;
@@ -54,7 +55,7 @@ export function PortalLayout() {
           {/* Phone-only tab bar. The hamburger + drawer above it is untouched — it still reaches
               every nav entry, including the ones past the bar's first five. */}
           <MobileNav />
-          {(user.role === 'dietitian' || user.role === 'admin') && <AdminChatButton />}
+          {(user.role === 'dietitian' || user.role === 'admin') && hasPermission(user, 'messages.use') && <AdminChatButton />}
         </div>
 
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>

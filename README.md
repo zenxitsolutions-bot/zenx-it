@@ -38,7 +38,19 @@ admin/                   Private ZenX Admin Portal (CRM) — see admin/README.md
 ```
 
 ## Connecting the contact form to the Admin Portal
-The contact form posts new enquiries to [`admin-server`](admin-server) (also read by the [Admin Portal](admin/README.md)). Copy `.env.example` to `.env.local` and set `VITE_ADMIN_API_URL` (same backend as `admin/.env.local`) to enable this — without it the form still validates and shows a success state, it just won't persist anywhere.
+The contact form posts new enquiries to [`admin-server`](admin-server) (also read by the [Admin Portal](admin/README.md)). Copy `.env.example` to `.env.local` and set `VITE_ADMIN_API_URL` (same backend as `admin/.env.local`) to enable this. Without it, the form shows an error and does not submit an enquiry.
+
+### Enquiry field requirements
+
+Only full name, a valid phone number, and email are required on the public enquiry page.
+Company name, website, service, referral source, and message are optional. Blank optional
+answers are stored as `NULL`, not filled with an invented service or company name.
+
+For an existing deployment, run `npm run db:migrate` from `admin-server` before deploying
+the updated API and website/admin builds. This makes the enquiry's company, service, and
+source columns nullable without deleting existing enquiries. Restart the API after deploying
+its code. The admin portal accepts these incomplete business details and asks for a company
+name later if an enquiry is converted into a customer account.
 
 ## Run locally
 ```
@@ -54,6 +66,10 @@ npm run preview
 Deploy the generated `dist/` folder to Netlify, Vercel, GitHub Pages, or any static hosting service.
 
 ## Deploying the whole system
+Read [Security and scaling deployment notes](SECURITY_DEPLOYMENT.md) before deploying the pending
+hardening changes. They require database migrations, coordinated API/frontend releases, stronger
+production configuration, and users signing in again.
+
 Three pieces deploy independently:
 - This site (static, e.g. Netlify) — set `VITE_ADMIN_API_URL` and `VITE_ADMIN_URL`.
 - [`admin/`](admin) (static, e.g. Netlify — see its own `netlify.toml`) — set `VITE_ADMIN_API_URL`.

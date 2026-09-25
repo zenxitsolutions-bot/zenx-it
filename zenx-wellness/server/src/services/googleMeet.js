@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // Google Calendar / Meet integration.
 //
 // Per-dietitian OAuth: each dietitian connects their own Google account once, we keep the refresh
@@ -197,7 +198,7 @@ export async function createMeetingForCall({ dietitianId, summary, description, 
     if (!meetingUrl) return null;
     return { meetingUrl, eventId: event.id };
   } catch (err) {
-    console.error('[googleMeet] createMeetingForCall failed', err.message);
+    console.error('[googleMeet] createMeetingForCall failed', safeErrorMeta(err));
     return null;
   }
 }
@@ -235,7 +236,7 @@ export async function createCalendarEventForCall({ dietitianId, summary, descrip
 
     return event?.id ? { eventId: event.id } : null;
   } catch (err) {
-    console.error('[googleMeet] createCalendarEventForCall failed', err.message);
+    console.error('[googleMeet] createCalendarEventForCall failed', safeErrorMeta(err));
     return null;
   }
 }
@@ -257,7 +258,7 @@ export async function updateMeetingTime({ dietitianId, eventId, startsAt, endsAt
     });
     return true;
   } catch (err) {
-    console.error('[googleMeet] updateMeetingTime failed', err.message);
+    console.error('[googleMeet] updateMeetingTime failed', safeErrorMeta(err));
     return false;
   }
 }
@@ -271,7 +272,7 @@ export async function cancelMeeting({ dietitianId, eventId }) {
     await calendarRequest(accessToken, `/${encodeURIComponent(eventId)}`, { method: 'DELETE', query: { sendUpdates: 'none' } });
     return true;
   } catch (err) {
-    console.error('[googleMeet] cancelMeeting failed', err.message);
+    console.error('[googleMeet] cancelMeeting failed', safeErrorMeta(err));
     return false;
   }
 }

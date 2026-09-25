@@ -1,3 +1,4 @@
+import { safeErrorMeta } from './utils/safeError.js';
 import { pool } from './db/pool.js';
 import { newId } from './db/id.js';
 import { hashPassword } from './utils/password.js';
@@ -6,6 +7,9 @@ import { findCompanyBySlug, createCompany } from './models/Company.js';
 import { findUserByEmail, createUser } from './models/ZenxUser.js';
 import { findApplicationAccess, createApplicationAccess } from './models/ApplicationAccess.js';
 import { env } from './config/env.js';
+import { assertDemoSeedAllowed } from './config/security.js';
+
+assertDemoSeedAllowed();
 
 const SEED_EMAIL = 'admin@zenxitsolutions.com';
 const SEED_PASSWORD = 'ZenXAdmin123!';
@@ -65,7 +69,7 @@ async function seedSuperAdmin() {
     passwordHash: await hashPassword(SEED_PASSWORD),
     role: 'Super Admin',
   });
-  console.log(`[seed] created: ${SEED_EMAIL} (password: ${SEED_PASSWORD})`);
+  console.log(`[seed] created: ${SEED_EMAIL}`);
 }
 
 // Idempotent, same pattern as seedSuperAdmin: creates the company, its customer contact, and its
@@ -91,7 +95,7 @@ async function seedLegacyCompany() {
       lastName: 'Practice',
       mustChangePassword: true,
     });
-    console.log(`[seed] created customer user: ${LEGACY_COMPANY_EMAIL} (password: ${LEGACY_COMPANY_PASSWORD})`);
+    console.log(`[seed] created customer user: ${LEGACY_COMPANY_EMAIL}`);
   } else {
     console.log(`[seed] already exists, skipped customer user: ${LEGACY_COMPANY_EMAIL}`);
   }
@@ -112,6 +116,6 @@ async function seed() {
 }
 
 seed().catch((err) => {
-  console.error('[seed] failed', err);
+  console.error('[seed] failed', safeErrorMeta(err));
   process.exit(1);
 });

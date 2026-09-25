@@ -6,7 +6,7 @@ import {
 import { findUserById } from '../models/User.js';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
-import { assertUserInCompany } from '../utils/scope.js';
+import { assertDietitianOwnsClient, assertUserInCompany } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
 import { getAvailableSlotsForDay } from '../services/availabilityGuard.js';
 import { bookCall, applyCallUpdate } from '../services/callService.js';
@@ -73,6 +73,7 @@ export const createCall = asyncHandler(async (req, res) => {
   } else if (req.user.role === 'dietitian') {
     if (!client) throw ApiError.badRequest('client is required');
     dietitian = req.user.id;
+    await assertDietitianOwnsClient(req, client);
   } else {
     if (!client || !dietitian) throw ApiError.badRequest('client and dietitian are required');
     // Admin picking an arbitrary client/dietitian pair — same cross-org guard as plan.controller.js#createPlan.
@@ -127,6 +128,9 @@ export const deleteCall = asyncHandler(async (req, res) => {
   const existing = await findCallById(req.params.id);
   if (!existing) throw ApiError.notFound('Call not found');
   await assertUserInCompany(req, existing.dietitian?._id ?? existing.dietitian);
+  if (req.user.role === 'dietitian' && String(existing.dietitian?._id ?? existing.dietitian) !== req.user.id) {
+    throw ApiError.forbidden();
+  }
   await deleteCallById(req.params.id);
   res.status(204).send();
 });

@@ -10,8 +10,8 @@ import { sendEmail } from '../../emails/sendEmail.js';
 // whatever a future inApp/sms/push implementation needs for the others.
 export const channels = {
   email: {
-    async send({ to, templateKey, params, idempotencyKey, relatedEntity }) {
-      return sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity });
+    async send({ to, templateKey, params, idempotencyKey, relatedEntity, staffRecipient }) {
+      return sendEmail(to, templateKey, params, { idempotencyKey, relatedEntity, staffRecipient });
     },
   },
   // This app has no server-pushed in-app notification list today — the one "in-app reminder" that

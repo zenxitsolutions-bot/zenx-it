@@ -13,7 +13,10 @@ import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { assertCanMutateRecipe, assertCanViewRecipe } from '../utils/scope.js';
 import { toClientShape } from '../utils/serialize.js';
-import { uploadsDir } from '../middleware/upload.js';
+import { uploadsDir, persistUpload } from '../middleware/upload.js';
+import { safeDownloadType } from '../utils/uploadContent.js';
+import { env } from '../config/env.js';
+import { isKnownRecipeCatalogImageUrl, normalizeRecipeImageUrl } from '../../../shared/recipeImageUrls.js';
 import path from 'node:path';
 import fs from 'node:fs';
 
@@ -109,7 +112,8 @@ export const uploadRecipeImage = asyncHandler(async (req, res) => {
   if (!existing) throw ApiError.notFound('Recipe not found');
   await assertCanMutateRecipe(req, existing);
   if (!req.file) throw ApiError.badRequest('Choose an image to upload');
-  const recipe = await updateRecipeById(req.params.id, { imageUrl: req.file.filename });
+  const filename = await persistUpload(req.file);
+  const recipe = await updateRecipeById(req.params.id, { imageUrl: filename });
   res.json(shape(await findRecipeById(recipe.id, req.user.id)));
 });
 
@@ -118,11 +122,23 @@ export const getRecipeImage = asyncHandler(async (req, res) => {
   if (!recipe) throw ApiError.notFound('Recipe not found');
   await assertCanViewRecipe(req, recipe);
   if (!recipe.imageUrl) throw ApiError.notFound('No image uploaded');
+  if (isKnownRecipeCatalogImageUrl(recipe.imageUrl)) {
+    // Catalog images are public frontend assets, not private upload files. Resolve
+    // against the configured frontend origin, never a request-supplied host.
+    res.redirect(new URL(normalizeRecipeImageUrl(recipe.imageUrl), env.clientOrigin).href);
+    return;
+  }
   if (/^https?:\/\//i.test(recipe.imageUrl)) {
     res.redirect(recipe.imageUrl);
     return;
   }
   const absolutePath = path.join(uploadsDir, path.basename(recipe.imageUrl));
   if (!fs.existsSync(absolutePath)) throw ApiError.notFound('No image uploaded');
+  const contentType = safeDownloadType(recipe.imageUrl);
+  if (!contentType.startsWith('image/')) throw ApiError.notFound('No supported image uploaded');
+  res.setHeader('Content-Type', contentType);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   res.sendFile(absolutePath);
 });

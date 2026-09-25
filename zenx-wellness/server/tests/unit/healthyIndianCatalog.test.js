@@ -24,7 +24,7 @@ describe('healthy Indian catalog size', () => {
       assert.ok(recipe.title, 'missing title');
       assert.ok(recipe.ingredients?.trim(), `${recipe.title} missing ingredients`);
       assert.match(recipe.instructions, /^1\. /m, `${recipe.title} missing numbered steps`);
-      assert.match(recipe.imageUrl || '', /^\/images\/recipe-catalog\/\d{4}-[a-z0-9-]+\.png$/, `${recipe.title} missing unique generated image`);
+      assert.match(recipe.imageUrl || '', /^\/images\/recipe-catalog\/\d{4}-[a-z0-9-]+\.webp$/, `${recipe.title} missing unique generated image`);
       assert.ok(recipe.portionSize, `${recipe.title} missing portion`);
     }
   });

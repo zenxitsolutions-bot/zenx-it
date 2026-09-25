@@ -79,7 +79,7 @@ export function AddInteractionModal({ open, enquiry, onClose, onSaved }: AddInte
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Add Interaction" subtitle={enquiry.company_name}>
+    <Modal open={open} onClose={onClose} title="Add Interaction" subtitle={enquiry.company_name || enquiry.contact_name}>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
         <FieldWrap label="Contact type" htmlFor="i-type">
           <Select id="i-type" value={contactType} onChange={(e) => setContactType(e.target.value as ContactType)}>

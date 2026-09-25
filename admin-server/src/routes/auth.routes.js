@@ -30,6 +30,6 @@ authRouter.post('/login', loginLimiter, validate(loginSchema), login);
 authRouter.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
 authRouter.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 authRouter.post('/refresh', refresh);
-authRouter.post('/logout', authenticateStaff, logout);
+authRouter.post('/logout', logout);
 authRouter.get('/me', authenticateStaff, me);
 authRouter.patch('/me', authenticateStaff, validate(updateMyProfileSchema), updateMe);

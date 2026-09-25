@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 // One-off migration: copies existing MongoDB data into MySQL (run `npm run db:migrate` first to
 // create the schema). Uses the native `mongodb` driver directly — no need for Mongoose or its
 // schemas, this script only ever reads raw documents.
@@ -214,6 +215,6 @@ async function migrate() {
 }
 
 migrate().catch((err) => {
-  console.error('[migrate-from-mongo] failed', err);
+  console.error('[migrate-from-mongo] failed', safeErrorMeta(err));
   process.exit(1);
 });

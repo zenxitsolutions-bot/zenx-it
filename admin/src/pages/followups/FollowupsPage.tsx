@@ -300,7 +300,7 @@ function Section({
               <Card key={f.id} interactive className="flex flex-wrap items-center gap-4 p-4">
                 <div className="min-w-[200px] flex-1">
                   <Link to={`/admin/enquiries/${enquiry.id}`} className="font-semibold text-offwhite hover:text-lime">
-                    {enquiry.company_name}
+                    {enquiry.company_name || enquiry.contact_name}
                   </Link>
                   <p className="text-xs text-muted">
                     {enquiry.contact_name} · {enquiry.phone}

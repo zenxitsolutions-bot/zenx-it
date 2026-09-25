@@ -13,13 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useUpdateUser } from '@/hooks/useUsers';
 import { ACCOUNT_STATUSES, ACCOUNT_STATUS_LABEL } from '@/lib/accountStatus';
 import { toE164OrEmpty } from '@/lib/phone';
+import { contactEditPatch } from '@/lib/permissions';
 
 const schema = z.object({
   name: z.string().min(1, 'Enter a name'),
-  email: z.string().email('Enter a valid email'),
+  email: z.string().email('Enter a valid email').optional(),
   // PhoneInput always produces E.164 (e.g. "+14155550123") — same isValidPhoneNumber check as the
   // server (server/src/schemas/user.schema.js).
-  phone: z.string().refine(isValidPhoneNumber, 'Enter a valid phone number'),
+  phone: z.string().refine(isValidPhoneNumber, 'Enter a valid phone number').optional(),
   address: z.string().min(1, 'Enter an address'),
   qualifications: z.string().optional(),
   joinedOn: z.string().optional(),
@@ -30,7 +31,7 @@ function toFormValues(dietitian) {
   return {
     name: dietitian.name,
     email: dietitian.email,
-    phone: toE164OrEmpty(dietitian.phone),
+    phone: Object.hasOwn(dietitian, 'phone') ? toE164OrEmpty(dietitian.phone) : undefined,
     address: dietitian.address ?? '',
     qualifications: dietitian.qualifications ?? '',
     joinedOn: dietitian.joinedOn ?? '',
@@ -52,8 +53,9 @@ export function DietitianDetailsForm({ dietitian, onSaved }) {
   }, [dietitian._id]);
 
   function onSubmit(values) {
+    const { email: _email, phone: _phone, ...nonContact } = values;
     updateUser.mutate(
-      { userId: dietitian._id, ...values, joinedOn: values.joinedOn || null },
+      { userId: dietitian._id, ...nonContact, ...contactEditPatch(values, dietitian), joinedOn: values.joinedOn || null },
       {
         onSuccess: () => {
           toast.success('Profile updated.');
@@ -90,7 +92,7 @@ export function DietitianDetailsForm({ dietitian, onSaved }) {
               </FormItem>
             )}
           />
-          <FormField
+          {typeof dietitian.email === 'string' && <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
@@ -102,8 +104,8 @@ export function DietitianDetailsForm({ dietitian, onSaved }) {
                 <FormMessage />
               </FormItem>
             )}
-          />
-          <FormField
+          />}
+          {Object.hasOwn(dietitian, 'phone') && <FormField
             control={form.control}
             name="phone"
             render={({ field }) => (
@@ -120,7 +122,7 @@ export function DietitianDetailsForm({ dietitian, onSaved }) {
                 <FormMessage />
               </FormItem>
             )}
-          />
+          />}
           <FormField
             control={form.control}
             name="address"

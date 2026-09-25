@@ -1,5 +1,6 @@
 import { pool, withTransaction } from '../db/pool.js';
 import { newId } from '../db/id.js';
+import { assertSafeQueueParams, safeEmailFailure } from '../emails/security.js';
 
 // Rows stuck in 'sending' longer than this are assumed to have died with the process mid-send
 // (e.g. server restart) and are reclaimed back to 'queued' by the worker's next tick.
@@ -49,6 +50,7 @@ export async function enqueueEmail({
   relatedEntity = null,
   maxAttempts,
 }) {
+  assertSafeQueueParams(params);
   const id = newId();
   try {
     await pool.query(
@@ -95,7 +97,10 @@ export async function listEmailLogs(filter = {}, { skip = 0, limit = 50 } = {}) 
     params.push(filter.status);
   }
   const [rows] = await pool.query(
-    `SELECT el.* FROM email_log el
+    `SELECT el.id, el.to_email, el.template_key, el.subject, el.related_entity_type, el.related_entity_id,
+      el.status, el.attempts, el.max_attempts, el.next_attempt_at, el.sent_at, el.created_at, el.updated_at,
+      CASE WHEN el.error IS NULL THEN NULL ELSE 'Email delivery failed' END AS error
+     FROM email_log el
      LEFT JOIN users cu ON el.related_entity_type = 'client' AND cu.id = el.related_entity_id
      LEFT JOIN calls c ON el.related_entity_type = 'appointment' AND c.id = el.related_entity_id
      LEFT JOIN users du ON du.id = c.dietitian_id
@@ -154,7 +159,7 @@ export async function markEmailRetryOrFailed(id, { error, nextAttemptAt, attempt
   const status = attempts >= maxAttempts ? 'failed' : 'queued';
   await pool.query(
     `UPDATE email_log SET status = ?, attempts = ?, error = ?, next_attempt_at = ? WHERE id = ?`,
-    [status, attempts, String(error).slice(0, 2000), nextAttemptAt, id]
+    [status, attempts, safeEmailFailure(), nextAttemptAt, id]
   );
   return findEmailLogById(id);
 }

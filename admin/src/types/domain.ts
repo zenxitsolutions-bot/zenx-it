@@ -133,13 +133,13 @@ export interface Profile {
 
 export interface Enquiry {
   id: string;
-  company_name: string;
+  company_name: string | null;
   contact_name: string;
   phone: string;
   email: string;
   website: string | null;
-  service: ServiceOption;
-  source: LeadSource;
+  service: ServiceOption | null;
+  source: LeadSource | null;
   status: EnquiryStatus;
   priority: LeadPriority;
   assigned_to: string | null;

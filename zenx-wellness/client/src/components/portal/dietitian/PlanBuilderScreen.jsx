@@ -32,6 +32,8 @@ import { DownloadPlanPdfButton } from '@/components/portal/shared/DownloadPlanPd
 import { PublishReuseDialog } from './PublishReuseDialog';
 import { PlanMealRecipeDialog } from './PlanMealRecipeDialog';
 import { mealDisplayTitle } from '@/lib/planMealRecipe';
+import { DeletePlanDialog } from '@/components/portal/shared/DeletePlanDialog';
+import { hasPermission } from '@/lib/permissions';
 
 const SAVE_LABEL = { idle: '', saving: 'Saving…', saved: 'Saved', error: "Couldn't save" };
 
@@ -58,7 +60,7 @@ export function PlanBuilderScreen() {
   const { companySlug } = useParams();
   const navigate = useNavigate();
   const clientsQuery = useClients();
-  const recipesQuery = useRecipes();
+  const recipesQuery = useRecipes(undefined, hasPermission(user, 'recipes.view'));
   const dietitiansQuery = useDietitians(isAdmin);
 
   const [clientId, setClientId] = useState(() => searchParams.get('client') ?? '');
@@ -78,7 +80,8 @@ export function PlanBuilderScreen() {
   const [draggingRecipe, setDraggingRecipe] = useState(null);
   const [selectedDay, setSelectedDay] = useState(() => searchParams.get('week') ?? '');
   const [notifyingId, setNotifyingId] = useState(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [planToDelete, setPlanToDelete] = useState(null);
+  const confirmingDelete = Boolean(planToDelete);
 
   const dirtyRef = useRef(false);
   const saveTimerRef = useRef(null);
@@ -91,11 +94,13 @@ export function PlanBuilderScreen() {
   // switched client/week" (must re-seed regardless of dirty state).
   const saveInFlightRef = useRef(false);
   const pendingSaveRef = useRef(null);
+  const deletingRef = useRef(false);
   const saveWaitersRef = useRef([]);
   const mealsRef = useRef(meals);
   const titleRef = useRef(title);
   const planIdRef = useRef(planId);
   const lastSavedRef = useRef({ title: '', meals: [], weekEnd: '' });
+  const expectedMealStateRef = useRef([]);
   const weekRef = useRef(week);
   const weekEndRef = useRef(weekEnd);
   const lastHydratedKeyRef = useRef(null);
@@ -108,16 +113,14 @@ export function PlanBuilderScreen() {
   const clientPlansQuery = useClientPlans(clientId || null);
   const linkedPlanId = searchParams.get('plan');
   const selectionReady = Boolean(clientId && week && weekEnd);
+  const linkedSelectionActive = Boolean(linkedPlanId && searchParams.get('client') === clientId
+    && searchParams.get('week') === week
+    && (!searchParams.get('weekEnd') || searchParams.get('weekEnd') === weekEnd));
   const visiblePlan = useMemo(() => {
     const plans = clientPlansQuery.data ?? [];
-    const linkedSelectionActive =
-      linkedPlanId &&
-      searchParams.get('client') === clientId &&
-      searchParams.get('week') === week &&
-      (!searchParams.get('weekEnd') || searchParams.get('weekEnd') === weekEnd);
     if (linkedSelectionActive) {
-      const linkedPlan = plans.find((plan) => String(plan._id) === linkedPlanId);
-      if (linkedPlan) return linkedPlan;
+      // A deleted/stale link must never silently select a different plan for the same dates.
+      return plans.find((plan) => String(plan._id) === linkedPlanId) ?? null;
     }
     if (!selectionReady) return null;
     const exactPublished = plans.find(
@@ -131,13 +134,22 @@ export function PlanBuilderScreen() {
         (plan) => plan.published && plan.week && plan.weekEnd && plan.week <= week && weekEnd <= plan.weekEnd
       ) ?? null
     );
-  }, [clientPlansQuery.data, clientId, linkedPlanId, searchParams, selectionReady, week, weekEnd]);
+  }, [clientPlansQuery.data, linkedPlanId, linkedSelectionActive, selectionReady, week, weekEnd]);
+  const missingLinkedPlan = linkedSelectionActive && !clientPlansQuery.isLoading && !visiblePlan;
   const isPublished = Boolean(visiblePlan?.published);
-  const canDeleteDraft = Boolean(selectionReady && !isPublished && (planId || meals.length > 0 || title.trim()));
+  const authorId = visiblePlan?.dietitian?._id ?? visiblePlan?.dietitian;
+  const ownsPlan = !missingLinkedPlan && (!visiblePlan || isAdmin || (user.role === 'dietitian' && authorId === user._id));
+  const canPublish = hasPermission(user, 'diet_plans.publish');
+  const canManagePlan = ownsPlan && hasPermission(user, 'diet_plans.edit') && (!isPublished || canPublish);
+  const isEditingPublished = Boolean(isPublished && canManagePlan && searchParams.get('edit') === '1'
+    && linkedPlanId === visiblePlan?._id && planId === visiblePlan?._id);
+  const publishedReadOnly = !canManagePlan || (isPublished && !isEditingPublished);
+  const canDeleteSelectedPlan = Boolean(ownsPlan && hasPermission(user, 'diet_plans.delete') && (!isPublished || canPublish) && selectionReady && (planId || meals.length > 0 || title.trim()));
   const hasOpenSwap = meals.some((meal) => meal.swapRequested);
   const createPlan = useCreatePlan();
   const updatePlan = useUpdatePlan();
   const deletePlan = useDeletePlan();
+  const editorBusy = deletePlan.isPending || (isEditingPublished && saveState === 'saving');
 
   const clients = clientsQuery.data ?? [];
   const recipes = recipesQuery.data ?? [];
@@ -150,6 +162,7 @@ export function PlanBuilderScreen() {
   // Review from the dashboard names a client/week in the URL. Apply once per URL change so
   // the dietitian can still switch client afterwards without being yanked back.
   useEffect(() => {
+    if (deletingRef.current) return;
     const fromUrl = searchParams.get('client');
     const weekFromUrl = searchParams.get('week');
     if (fromUrl) setClientId(fromUrl);
@@ -166,6 +179,7 @@ export function PlanBuilderScreen() {
   // invalidateQueries) must never clobber edits made since the last successful save — only a
   // genuine switch to a different client/week re-seeds while dirty/in-flight.
   useEffect(() => {
+    if (deletingRef.current) return;
     if (!selectionReady) {
       setPlanId(null);
       planIdRef.current = null;
@@ -188,6 +202,9 @@ export function PlanBuilderScreen() {
     let nextTitle;
     let nextMeals;
     if (visiblePlan) {
+      expectedMealStateRef.current = visiblePlan.meals.map(({ day, time, completed, swapRequested }) => ({
+        day, time, completed: !!completed, swapRequested: !!swapRequested,
+      }));
       setPlanId(visiblePlan._id);
       planIdRef.current = visiblePlan._id;
       nextTitle = visiblePlan.title;
@@ -236,7 +253,8 @@ export function PlanBuilderScreen() {
   // meals/title, read via refs — the moment the in-flight one finishes, instead of firing a second
   // overlapping request that could land at the DB out of order and silently overwrite the newer edit.
   async function save(extra = {}) {
-    if (!selectionReady || (isPublished && !extra.notifySwaps)) return false;
+    if ((extra.published || extra.notifySwaps) && !canPublish) return false;
+    if (deletingRef.current || !canManagePlan || !selectionReady || (publishedReadOnly && !extra.notifySwaps)) return false;
     if (!planIdRef.current && mealsRef.current.length === 0 && extra.published !== true) {
       lastSavedRef.current = { title: titleRef.current, meals: mealsRef.current, weekEnd: weekEndRef.current };
       dirtyRef.current = false;
@@ -286,6 +304,18 @@ export function PlanBuilderScreen() {
       succeeded = true;
       return true;
     } catch (error) {
+      if (isEditingPublished && error?.response?.status === 409) {
+        // Client progress may have changed while this editor was open. Reload for review
+        // instead of retrying a stale snapshot or overwriting their completion/swap state.
+        dirtyRef.current = false;
+        pendingSaveRef.current = null;
+        saveInFlightRef.current = false;
+        setSaveState('error');
+        finishPublishedEditing();
+        await clientPlansQuery.refetch();
+        toast.error(error.response.data?.error || 'This plan changed. Please review it and edit again.');
+        return false;
+      }
       setTitle(lastSavedRef.current.title);
       setMeals(lastSavedRef.current.meals);
       if (lastSavedRef.current.weekEnd) {
@@ -310,6 +340,7 @@ export function PlanBuilderScreen() {
   }
 
   function markDirty(nextMeals) {
+    if (deletingRef.current || editorBusy) return;
     dirtyRef.current = true;
     setMeals(nextMeals);
   }
@@ -317,18 +348,18 @@ export function PlanBuilderScreen() {
   // Autosave: debounce 800ms after the last edit. Skipped (silently, not an error toast) while
   // admin hasn't picked a dietitian yet for a brand-new plan — save() would 400 without one.
   useEffect(() => {
-    if (!dirtyRef.current || needsDietitianChoice || isPublished || titleFocused) return;
+    if (!dirtyRef.current || needsDietitianChoice || isPublished || titleFocused || confirmingDelete || deletingRef.current) return;
     saveTimerRef.current = setTimeout(() => save(), 800);
     return () => clearTimeout(saveTimerRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, meals, weekEnd, needsDietitianChoice, titleFocused]);
+  }, [title, meals, weekEnd, needsDietitianChoice, titleFocused, confirmingDelete, isPublished]);
 
   function updateMeal(localId, patch) {
     markDirty(
       meals.map((m) => {
         if (m.localId !== localId) return m;
         if (
-          isPublished &&
+          publishedReadOnly &&
           (!m.swapRequested || Object.keys(patch).some((key) => !['recipeId', 'customTitle', 'recipeOverride'].includes(key)))
         ) {
           return m;
@@ -362,6 +393,7 @@ export function PlanBuilderScreen() {
   }
 
   async function notifySwap(localId) {
+    if (isEditingPublished || deletingRef.current || editorBusy) return;
     const meal = mealsRef.current.find((m) => m.localId === localId);
     if (!meal?.swapRequested) return;
     if (!hasSwapReplacement(meal)) {
@@ -427,22 +459,69 @@ export function PlanBuilderScreen() {
     setDietitianId('');
     setSelectedDay('');
     setSaveState('idle');
-    setConfirmingDelete(false);
+    setPlanToDelete(null);
+    deletingRef.current = false;
     navigate(`/${companySlug}/app/plan`, { replace: true });
   }
 
-  async function deleteDraft() {
-    if (isPublished) return;
-    if (planIdRef.current) {
-      try {
-        await deletePlan.mutateAsync(planIdRef.current);
-      } catch {
-        toast.error("Couldn't delete that draft.");
-        return;
-      }
+  async function deleteSelectedPlan() {
+    if (!planToDelete || deletingRef.current || saveInFlightRef.current) return;
+    const targetId = planToDelete._id;
+    const wasDirty = dirtyRef.current;
+    deletingRef.current = true;
+    clearTimeout(saveTimerRef.current);
+    pendingSaveRef.current = null;
+    dirtyRef.current = false;
+    try {
+      if (targetId) await deletePlan.mutateAsync(targetId);
+      toast.success(planToDelete.published ? 'Published plan deleted.' : 'Draft deleted.');
+      resetBuilder();
+    } catch (error) {
+      deletingRef.current = false;
+      dirtyRef.current = wasDirty;
+      toast.error(error?.response?.data?.error || "Couldn't delete that plan. Nothing was removed.");
     }
-    toast.success('Draft deleted.');
-    resetBuilder();
+  }
+
+  function openPlan(plan, edit = false) {
+    const params = new URLSearchParams({ plan: plan._id, client: clientId, week: plan.week,
+      weekEnd: plan.weekEnd || plan.week });
+    if (edit) params.set('edit', '1');
+    navigate(`/${companySlug}/app/plan?${params}`);
+  }
+
+  function finishPublishedEditing() {
+    const params = new URLSearchParams(searchParams);
+    params.delete('edit');
+    navigate(`/${companySlug}/app/plan?${params}`, { replace: true });
+  }
+
+  function cancelPublishedEditing() {
+    if (editorBusy || !visiblePlan) return;
+    clearTimeout(saveTimerRef.current);
+    pendingSaveRef.current = null;
+    dirtyRef.current = false;
+    const restoredMeals = visiblePlan.meals.map(toLocalMeal);
+    setTitle(visiblePlan.title);
+    titleRef.current = visiblePlan.title;
+    setMeals(restoredMeals);
+    mealsRef.current = restoredMeals;
+    lastSavedRef.current = { title: visiblePlan.title, meals: restoredMeals, weekEnd: weekEndRef.current };
+    setEditingMealId(null);
+    setSaveState('idle');
+    finishPublishedEditing();
+  }
+
+  async function savePublishedChanges() {
+    if (!isEditingPublished || editorBusy) return;
+    if (!mealsRef.current.length) {
+      toast.error('Keep at least one meal in a published plan, or use Delete plan.');
+      return;
+    }
+    if (await save({ published: true, expectedMealState: expectedMealStateRef.current })) {
+      toast.success('Published plan updated. Your client can see the saved changes.');
+      finishPublishedEditing();
+    }
   }
 
   function clearLinkedSelection() {
@@ -461,11 +540,12 @@ export function PlanBuilderScreen() {
   );
 
   function addMeal() {
-    if (!activeDayValue) return;
+    if (!activeDayValue || publishedReadOnly || editorBusy) return;
     markDirty([...meals, createBlankMeal(activeDayValue)]);
   }
 
   function removeMeal(localId) {
+    if (publishedReadOnly || editorBusy) return;
     markDirty(meals.filter((m) => m.localId !== localId));
   }
 
@@ -475,13 +555,14 @@ export function PlanBuilderScreen() {
 
   function handleDragEnd(event) {
     setDraggingRecipe(null);
+    if (editorBusy || deletingRef.current) return;
     const { active, over } = event;
     if (!over) return;
     const recipeId = active.data.current?.recipeId;
     if (!recipeId) return;
     const localId = String(over.id).replace('row-', '');
-    if (isPublished && !mealsRef.current.find((meal) => meal.localId === localId)?.swapRequested) return;
-    updateMeal(localId, isPublished ? { recipeId, recipeOverride: null } : { recipeId, servings: 1, recipeOverride: null });
+    if (publishedReadOnly && !mealsRef.current.find((meal) => meal.localId === localId)?.swapRequested) return;
+    updateMeal(localId, publishedReadOnly ? { recipeId, recipeOverride: null } : { recipeId, servings: 1, recipeOverride: null });
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }), useSensor(KeyboardSensor));
@@ -510,7 +591,7 @@ export function PlanBuilderScreen() {
             Set the client, timing, and meals — then drag recipes from the library into the plan.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {saveState !== 'idle' && (
             <span className={saveState === 'error' ? 'text-sm text-destructive' : 'text-sm text-muted-foreground'}>
               {SAVE_LABEL[saveState]}
@@ -520,33 +601,34 @@ export function PlanBuilderScreen() {
             <Link to={`/${companySlug}/app/saved-plans`}>Saved weekly plans</Link>
           </Button>
           <DownloadPlanPdfButton planId={planId} />
-          {canDeleteDraft && (
-            confirmingDelete ? (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span className="text-forest">Delete this draft?</span>
-                <button
-                  type="button"
-                  onClick={deleteDraft}
-                  disabled={deletePlan.isPending}
-                  className="font-semibold text-destructive hover:underline disabled:opacity-60"
-                >
-                  {deletePlan.isPending ? 'Deleting…' : 'Yes, delete'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(false)}
-                  className="text-muted-foreground hover:underline"
-                >
-                  Never mind
-                </button>
-              </div>
-            ) : (
-              <Button type="button" variant="outline" size="sm" onClick={() => setConfirmingDelete(true)}>
-                Delete draft
-              </Button>
-            )
+          {!isPublished && ownsPlan && canPublish && !hasPermission(user, 'diet_plans.edit') && planId && <Button
+            disabled={updatePlan.isPending}
+            onClick={() => updatePlan.mutate({ planId, published: true }, {
+              onSuccess: () => toast.success('Weekly plan published.'),
+              onError: (error) => toast.error(error.response?.data?.error || 'Could not publish this plan.'),
+            })}
+          >Publish existing draft</Button>}
+          {canDeleteSelectedPlan && (
+            <Button type="button" variant="outline" size="sm" disabled={saveState === 'saving' || editorBusy}
+              onClick={() => setPlanToDelete(visiblePlan ?? { _id: planId, title: title || 'Untitled draft', week, weekEnd })}>
+              {isPublished ? 'Delete published plan' : 'Delete draft'}
+            </Button>
           )}
-          {!isPublished && (
+          {isPublished && canManagePlan && (isEditingPublished ? (
+            <>
+              <Button type="button" variant="outline" size="sm" disabled={editorBusy} onClick={cancelPublishedEditing}>
+                Cancel editing
+              </Button>
+              <Button type="button" size="sm" disabled={editorBusy} onClick={savePublishedChanges}>
+                {saveState === 'saving' ? 'Saving…' : 'Save changes'}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" size="sm" disabled={editorBusy || saveState === 'saving'} onClick={() => openPlan(visiblePlan, true)}>
+              Edit published plan
+            </Button>
+          ))}
+          {!isPublished && canPublish && canManagePlan && (
             <Button
               onClick={() => {
                 if (!clientId) {
@@ -571,7 +653,7 @@ export function PlanBuilderScreen() {
                 }
                 setPublishOpen(true);
               }}
-              disabled={!selectionReady || meals.length === 0 || needsDietitianChoice}
+              disabled={!canManagePlan || !selectionReady || meals.length === 0 || needsDietitianChoice || editorBusy}
               className="rounded-full bg-coral text-white hover:bg-coral/90"
             >
               Publish weekly plan →
@@ -595,13 +677,20 @@ export function PlanBuilderScreen() {
           onDragCancel={() => setDraggingRecipe(null)}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid gap-5 min-[1050px]:grid-cols-[minmax(0,1fr)_330px]">
+          <div className={cn('grid gap-5', (!publishedReadOnly || hasOpenSwap) && 'min-[1050px]:grid-cols-[minmax(0,1fr)_330px]')}>
             <section className="rounded-card bg-white p-6 shadow-soft">
+              {isEditingPublished && (
+                <p role="status" className="mb-4 rounded-lg bg-sage p-3 text-sm text-forest">
+                  Editing a published plan. Your client keeps seeing the existing version until you Save changes.
+                  Cancel editing discards these changes.
+                </p>
+              )}
               <div className={cn('grid grid-cols-1 gap-3 border-b border-line pb-5 min-[650px]:grid-cols-4', isAdmin && 'min-[900px]:grid-cols-5')}>
                 <label className="block text-xs font-bold text-muted-foreground">
                   Client
                   <Select
                     value={clientId || undefined}
+                    disabled={isEditingPublished || editorBusy}
                     onValueChange={(nextClientId) => {
                       clearLinkedSelection();
                       setClientId(nextClientId);
@@ -646,6 +735,7 @@ export function PlanBuilderScreen() {
                   <Input
                     type="date"
                     value={week}
+                    disabled={isEditingPublished || editorBusy}
                     onChange={(e) => {
                       const next = e.target.value;
                       clearLinkedSelection();
@@ -662,6 +752,7 @@ export function PlanBuilderScreen() {
                   <Input
                     type="date"
                     value={weekEnd}
+                    disabled={isEditingPublished || editorBusy}
                     min={week}
                     max={week ? addCalendarDays(week, MAX_PLAN_DAYS - 1) : undefined}
                     onChange={(e) => {
@@ -682,11 +773,11 @@ export function PlanBuilderScreen() {
                     onFocus={() => setTitleFocused(true)}
                     onBlur={() => setTitleFocused(false)}
                     onChange={(e) => {
-                      if (isPublished) return;
+                      if (publishedReadOnly || !canManagePlan || editorBusy) return;
                       dirtyRef.current = true;
                       setTitle(e.target.value);
                     }}
-                    readOnly={isPublished}
+                    readOnly={publishedReadOnly || !canManagePlan || editorBusy}
                     className="mt-1.5"
                     placeholder="e.g. High-protein week"
                   />
@@ -714,18 +805,20 @@ export function PlanBuilderScreen() {
                   <p className="text-xs text-muted-foreground">
                     {!selectionReady
                       ? 'Select a client, start date, and end date to load or create a meal plan.'
+                      : isEditingPublished
+                      ? 'Update meals, recipes, portions, and notes, then save your changes.'
                       : isPublished
                       ? hasOpenSwap
-                        ? 'This weekly diet is already published. Only meals with a client swap request can be changed and notified.'
-                        : 'This weekly diet is already published and cannot be edited.'
+                        ? 'Resolve requested swaps here, or choose Edit published plan to update the full plan.'
+                        : 'This weekly diet is published. Choose Edit published plan to make changes.'
                       : 'Pick a day, then drag a recipe onto a meal slot or choose one from the dropdown.'}
                   </p>
                 </div>
-                {!isPublished && (
+                {!publishedReadOnly && canManagePlan && (
                   <button
                     type="button"
                     onClick={addMeal}
-                    disabled={!selectionReady || !activeDay}
+                    disabled={!selectionReady || !activeDay || editorBusy}
                     className="text-sm font-semibold text-forest hover:underline disabled:text-dim disabled:no-underline"
                   >
                     + Add meal
@@ -739,6 +832,10 @@ export function PlanBuilderScreen() {
                 </p>
               ) : clientPlansQuery.isLoading ? (
                 <Skeleton className="h-40 w-full" />
+              ) : missingLinkedPlan ? (
+                <p role="alert" className="py-10 text-center text-sm text-destructive">
+                  This plan is no longer available. Choose another plan from the client's meal plans.
+                </p>
               ) : dayMeals.length === 0 ? (
                 <p className="py-10 text-center text-sm text-dim">
                   {meals.length === 0
@@ -765,14 +862,14 @@ export function PlanBuilderScreen() {
                         highlighted={highlighted}
                         onChange={(patch) => updateMeal(meal.localId, patch)}
                         onRemove={() => removeMeal(meal.localId)}
-                        onNotifySwap={() => notifySwap(meal.localId)}
+                        onNotifySwap={isEditingPublished ? undefined : () => notifySwap(meal.localId)}
                         onEditRecipe={() => {
-                          if (isPublished && !meal.swapRequested) return;
+                          if (editorBusy || !canManagePlan || (publishedReadOnly && !meal.swapRequested)) return;
                           setEditingMealId(meal.localId);
                         }}
                         notifyPending={notifyingId === meal.localId}
-                        readOnly={isPublished}
-                        allowRecipeSwap={isPublished && meal.swapRequested}
+                        readOnly={publishedReadOnly || !canManagePlan || editorBusy}
+                        allowRecipeSwap={publishedReadOnly && canManagePlan && !editorBusy && meal.swapRequested}
                         dayLocked
                       />
                     );
@@ -781,7 +878,7 @@ export function PlanBuilderScreen() {
               )}
             </section>
 
-            {(!isPublished || hasOpenSwap) && <RecipeRail recipes={recipes} client={selectedClient} />}
+            {canManagePlan && hasPermission(user, 'recipes.view') && (!publishedReadOnly || hasOpenSwap) && <RecipeRail recipes={recipes} client={selectedClient} />}
           </div>
           <DragOverlay modifiers={[snapCenterToCursor]} dropAnimation={null} zIndex={80}>
             {draggingRecipe ? <RecipeDragPreview recipe={draggingRecipe} className="cursor-grabbing" /> : null}
@@ -802,8 +899,17 @@ export function PlanBuilderScreen() {
               ? 'Weekly plan published and saved for reuse.'
               : 'Weekly plan published — your client can now see it.'
           );
-          resetBuilder();
+          openPlan({ _id: planIdRef.current, week: weekRef.current, weekEnd: weekEndRef.current });
         }}
+      />
+
+      <DeletePlanDialog
+        open={confirmingDelete}
+        onOpenChange={(open) => { if (!open) setPlanToDelete(null); }}
+        plan={planToDelete}
+        clientName={selectedClient?.name}
+        pending={deletePlan.isPending || saveState === 'saving'}
+        onConfirm={deleteSelectedPlan}
       />
 
       <PlanMealRecipeDialog

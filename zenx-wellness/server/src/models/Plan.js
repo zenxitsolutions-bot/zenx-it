@@ -5,6 +5,7 @@ import { mapRecipeRow, tagsByRecipeIds } from './Recipe.js';
 import { toClientShape } from '../utils/serialize.js';
 import { dateForWeekdaySlot, todayCalendarDate } from '../utils/calendarDate.js';
 import { mergeRecipeWithOverride, parseRecipeOverride } from '../lib/planMealRecipe.js';
+import { ApiError } from '../utils/ApiError.js';
 
 const PLAN_COLUMNS = {
   title: 'title',
@@ -207,11 +208,35 @@ export async function createPlan({ client, dietitian, title, week, weekEnd, meal
   return findPlanById(id);
 }
 
-export async function updatePlanById(id, patch) {
+export async function updatePlanById(id, patch, { allowPublished = true } = {}) {
   const existing = await findPlanById(id);
   if (!existing) return null;
 
   await withTransaction(async (conn) => {
+    if (!allowPublished) {
+      // Serialize with publishing: a draft read before the request is not permission to
+      // overwrite a plan another staff member has just made visible to the client.
+      const [rows] = await conn.query('SELECT published FROM plans WHERE id = ? FOR UPDATE', [id]);
+      if (!rows.length) throw ApiError.notFound('Plan not found');
+      if (rows[0].published || patch.published === true) throw ApiError.forbidden('Publishing permission is required to change a published plan');
+    }
+    if (patch.expectedMealState !== undefined) {
+      // Lock the existing meal rows before checking the edit-entry snapshot. A client action
+      // committed while this editor was open must not be silently replaced by stale flags.
+      const [rows] = await conn.query(
+        'SELECT day, time, completed, swap_requested FROM plan_meals WHERE plan_id = ? ORDER BY idx FOR UPDATE',
+        [id]
+      );
+      const expected = patch.expectedMealState;
+      const matches = rows.length === expected.length && rows.every((meal, index) => {
+        const prior = expected[index];
+        return meal.day === prior.day && meal.time === prior.time
+          && !!meal.completed === prior.completed && !!meal.swap_requested === prior.swapRequested;
+      });
+      if (!matches) {
+        throw ApiError.conflict('This plan changed while you were editing. Reload the latest plan and review it before saving.');
+      }
+    }
     const { sets, params } = buildSetClause(PLAN_COLUMNS, patch);
     if (sets.length) {
       await conn.query(`UPDATE plans SET ${sets.join(', ')} WHERE id = ?`, [...params, id]);
@@ -256,10 +281,16 @@ export async function countPublishedPlansCreatedBetween(dietitianId, from, to) {
   return Number(rows[0].count);
 }
 
-export async function deletePlanById(id) {
+export async function deletePlanById(id, { allowPublished = true } = {}) {
   const existing = await findPlanById(id);
   if (!existing) return null;
-  await pool.query('DELETE FROM plans WHERE id = ?', [id]);
+  if (allowPublished) await pool.query('DELETE FROM plans WHERE id = ?', [id]);
+  else {
+    // The condition is evaluated atomically with deletion; no stale draft lookup can
+    // authorize deleting a plan published between the lookup and this statement.
+    const [result] = await pool.query('DELETE FROM plans WHERE id = ? AND published = 0', [id]);
+    if (!result.affectedRows) throw ApiError.conflict('This plan changed. Reload it before trying again.');
+  }
   return existing;
 }
 
@@ -273,7 +304,16 @@ export async function updatePlanMealByIndex(planId, index, patch) {
 
   const { sets, params } = buildSetClause({ completed: 'completed', swapRequested: 'swap_requested' }, patch);
   if (sets.length) {
-    await pool.query(`UPDATE plan_meals SET ${sets.join(', ')} WHERE id = ?`, [...params, target.id]);
+    const [result] = await pool.query(`UPDATE plan_meals SET ${sets.join(', ')} WHERE id = ?`, [...params, target.id]);
+    if (result.affectedRows === 0) {
+      // A concurrent full-plan edit can replace this row after the index lookup. Do not report
+      // success for an action that never applied. Some MySQL configurations report zero for an
+      // unchanged value, so only conflict when the original row really no longer exists.
+      const [remaining] = await pool.query('SELECT id FROM plan_meals WHERE id = ? LIMIT 1', [target.id]);
+      if (!remaining.length) {
+        throw ApiError.conflict('This meal changed while you were updating it. Refresh the plan and try again.');
+      }
+    }
   }
   return findPlanById(planId);
 }

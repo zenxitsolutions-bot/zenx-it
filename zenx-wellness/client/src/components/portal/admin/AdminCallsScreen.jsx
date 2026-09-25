@@ -13,6 +13,7 @@ import { useUsers } from '@/hooks/useUsers';
 import { filterCalls, groupCallsByTab } from '@/lib/clientPortal';
 import { cn } from '@/lib/utils';
 import { AdminCallRescheduleDialog } from './AdminCallRescheduleDialog';
+import { hasPermission } from '@/lib/permissions';
 
 const FILTERS = [
   { id: 'enquiry', label: 'Enquiry leads' },
@@ -47,7 +48,7 @@ export function AdminCallsScreen() {
   const { user } = useAuth();
   const { data, isLoading, isError, refetch } = useCalls();
   const { data: dietitians } = useDietitians();
-  const { data: admins } = useUsers({ role: 'admin' });
+  const { data: admins } = useUsers({ role: 'admin' }, hasPermission(user, 'staff.view'));
   const [tab, setTab] = useState('upcoming');
   const [kind, setKind] = useState('enquiry');
   const [dietitianId, setDietitianId] = useState('');
@@ -71,9 +72,9 @@ export function AdminCallsScreen() {
         <h1 className="mt-1.5 text-3xl font-semibold text-forest">Calls</h1>
         <p className="mt-1.5 text-muted-foreground">
           Scheduled follow-ups for enquiries, plus client check-ins across your team.{' '}
-          <Link to={`/${user.companySlug}/app/enquiries`} className="font-semibold text-forest hover:underline">
+          {hasPermission(user, 'enquiries.manage') && hasPermission(user, 'calls.manage') && <Link to={`/${user.companySlug}/app/enquiries`} className="font-semibold text-forest hover:underline">
             Book a new enquiry call from the pipeline
-          </Link>
+          </Link>}
           .
         </p>
       </div>

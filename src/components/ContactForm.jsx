@@ -1,7 +1,8 @@
 import { useState } from "react";
-import RPNInput, { isValidPhoneNumber } from "react-phone-number-input";
+import RPNInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { submitEnquiry, isAdminApiConfigured } from "../lib/adminApi";
+import { enquiryPayload, validateEnquiry } from "../lib/enquiryForm.js";
 
 const LOOKING_FOR_OPTIONS = [
   "Website",
@@ -29,23 +30,9 @@ const EMPTY_FORM = {
   phone: "",
   website: "",
   lookingFor: "",
-  source: "Website",
+  source: "",
   message: "",
 };
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validate(form) {
-  const errors = {};
-  if (!form.companyName.trim()) errors.companyName = "Please enter your company or business name.";
-  if (!form.name.trim()) errors.name = "Please enter your name.";
-  if (!form.email.trim()) errors.email = "Please enter your email.";
-  else if (!EMAIL_RE.test(form.email)) errors.email = "Enter a valid email address.";
-  if (form.phone.trim() && !isValidPhoneNumber(form.phone.trim())) errors.phone = "Enter a valid phone number.";
-  if (!form.lookingFor) errors.lookingFor = "Let us know what you're looking for.";
-  if (!form.message.trim()) errors.message = "Tell us a bit about your enquiry.";
-  return errors;
-}
 
 export default function ContactForm({ defaultService = "" }) {
   const [form, setForm] = useState({
@@ -69,7 +56,7 @@ export default function ContactForm({ defaultService = "" }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const nextErrors = validate(form);
+    const nextErrors = validateEnquiry(form);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
@@ -83,16 +70,7 @@ export default function ContactForm({ defaultService = "" }) {
     setSubmitError("");
     setSubmitting(true);
     try {
-      await submitEnquiry({
-        companyName: form.companyName,
-        contactName: form.name,
-        phone: form.phone || "",
-        email: form.email,
-        website: form.website || null,
-        service: form.lookingFor,
-        source: form.source,
-        notes: form.message,
-      });
+      await submitEnquiry(enquiryPayload(form));
       window.location.assign("/thank-you");
     } catch (err) {
       setSubmitError(
@@ -109,7 +87,7 @@ export default function ContactForm({ defaultService = "" }) {
     <form className="contact-form-card" noValidate onSubmit={handleSubmit}>
       <div className="form-row">
         <div className="form-field">
-          <label htmlFor="companyName">Company / business name</label>
+          <label htmlFor="companyName">Company / business name (optional)</label>
           <input
             id="companyName"
             name="companyName"
@@ -117,52 +95,57 @@ export default function ContactForm({ defaultService = "" }) {
             placeholder="Acme Inc."
             value={form.companyName}
             onChange={handleChange}
-            aria-invalid={Boolean(errors.companyName)}
           />
-          {errors.companyName && <span className="form-error">{errors.companyName}</span>}
         </div>
         <div className="form-field">
-          <label htmlFor="name">Full name</label>
+          <label htmlFor="name">Full name (required)</label>
           <input
             id="name"
             name="name"
             type="text"
+            required
             placeholder="Jane Doe"
             value={form.name}
             onChange={handleChange}
             aria-invalid={Boolean(errors.name)}
+            aria-describedby={errors.name ? "name-error" : undefined}
           />
-          {errors.name && <span className="form-error">{errors.name}</span>}
+          {errors.name && <span id="name-error" className="form-error" role="alert">{errors.name}</span>}
         </div>
       </div>
 
       <div className="form-row">
         <div className="form-field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">Email (required)</label>
           <input
             id="email"
             name="email"
             type="email"
+            required
             placeholder="jane@business.com"
             value={form.email}
             onChange={handleChange}
             aria-invalid={Boolean(errors.email)}
+            aria-describedby={errors.email ? "email-error" : undefined}
           />
-          {errors.email && <span className="form-error">{errors.email}</span>}
+          {errors.email && <span id="email-error" className="form-error" role="alert">{errors.email}</span>}
         </div>
         <div className="form-field">
-          <label htmlFor="phone">Phone (optional)</label>
+          <label htmlFor="phone">Phone (required)</label>
           <RPNInput
             international
             defaultCountry="US"
             id="phone"
             name="phone"
+            required
+            aria-invalid={Boolean(errors.phone)}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
             className="phone-field-wrap"
             placeholder="555 000 0000"
             value={form.phone}
             onChange={handlePhoneChange}
           />
-          {errors.phone && <span className="form-error">{errors.phone}</span>}
+          {errors.phone && <span id="phone-error" className="form-error" role="alert">{errors.phone}</span>}
         </div>
       </div>
 
@@ -179,16 +162,15 @@ export default function ContactForm({ defaultService = "" }) {
           />
         </div>
         <div className="form-field">
-          <label htmlFor="lookingFor">What are you looking for?</label>
+          <label htmlFor="lookingFor">What are you looking for? (optional)</label>
           <div className="select-wrap">
             <select
               id="lookingFor"
               name="lookingFor"
               value={form.lookingFor}
               onChange={handleChange}
-              aria-invalid={Boolean(errors.lookingFor)}
             >
-              <option value="" disabled>
+              <option value="">
                 Select an option
               </option>
               {LOOKING_FOR_OPTIONS.map((opt) => (
@@ -198,16 +180,14 @@ export default function ContactForm({ defaultService = "" }) {
               ))}
             </select>
           </div>
-          {errors.lookingFor && (
-            <span className="form-error">{errors.lookingFor}</span>
-          )}
         </div>
       </div>
 
       <div className="form-field">
-        <label htmlFor="source">How did you hear about us?</label>
+        <label htmlFor="source">How did you hear about us? (optional)</label>
         <div className="select-wrap">
           <select id="source" name="source" value={form.source} onChange={handleChange}>
+            <option value="">Select an option</option>
             {SOURCE_OPTIONS.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}
@@ -218,16 +198,14 @@ export default function ContactForm({ defaultService = "" }) {
       </div>
 
       <div className="form-field">
-        <label htmlFor="message">Tell us about your enquiry</label>
+        <label htmlFor="message">Tell us about your enquiry (optional)</label>
         <textarea
           id="message"
           name="message"
           placeholder="What are you building, and what would you like help with?"
           value={form.message}
           onChange={handleChange}
-          aria-invalid={Boolean(errors.message)}
         />
-        {errors.message && <span className="form-error">{errors.message}</span>}
       </div>
 
       {submitError && <span className="form-error">{submitError}</span>}

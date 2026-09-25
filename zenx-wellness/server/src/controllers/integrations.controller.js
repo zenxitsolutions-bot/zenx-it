@@ -1,7 +1,11 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/asyncHandler.js';
 import { ApiError } from '../utils/ApiError.js';
 import { findUserById } from '../models/User.js';
+import { findCompanyById } from '../models/Company.js';
+import { hydrateUserPermissions } from '../models/AccessControl.js';
+import { hasPermission } from '../../../shared/permissions.js';
 import { env } from '../config/env.js';
 import { buildAuthUrl, exchangeCodeAndStore, getConnectionStatus, disconnect, isGoogleConfigured } from '../services/googleMeet.js';
 
@@ -53,7 +57,8 @@ export const googleCallback = asyncHandler(async (req, res) => {
     userId = null;
   }
 
-  const slug = userId ? (await findUserById(userId))?.companySlug : null;
+  const user = userId ? await findUserById(userId) : null;
+  const slug = user?.companySlug;
   const basePath = slug ? `/${slug}/app/calls` : '/app/calls';
   const back = (params) => res.redirect(`${env.clientOrigin}${basePath}?${new URLSearchParams(params).toString()}`);
 
@@ -62,11 +67,21 @@ export const googleCallback = asyncHandler(async (req, res) => {
   // state was present but didn't verify — expired, tampered with, or signed for another purpose.
   if (!userId) return back({ google: 'expired' });
 
+  // A still-valid OAuth state must not restore a capability revoked during consent.
+  const company = user?.companyId ? await findCompanyById(user.companyId) : null;
+  const permitted = user && ['admin', 'dietitian'].includes(user.role)
+    && (!user.accountStatus || user.accountStatus === 'active') && !user.mustChangePassword
+    && company?.status === 'ACTIVE';
+  const currentUser = permitted ? await hydrateUserPermissions(user) : null;
+  if (!currentUser || !hasPermission(currentUser, 'calls.view') || !hasPermission(currentUser, 'calls.manage')) {
+    return back({ google: 'denied' });
+  }
+
   try {
     await exchangeCodeAndStore(userId, code);
     return back({ google: 'connected' });
   } catch (err) {
-    console.error('[integrations] google callback failed', err.message);
+    console.error('[integrations] google callback failed', safeErrorMeta(err));
     return back({ google: 'error' });
   }
 });

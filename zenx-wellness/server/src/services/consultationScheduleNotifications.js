@@ -1,3 +1,4 @@
+import { safeErrorMeta } from '../utils/safeError.js';
 import { sendEmail } from '../emails/sendEmail.js';
 import { canNotifyUser } from './notifyGuard.js';
 import { portalPathUrl } from '../utils/urls.js';
@@ -49,7 +50,7 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
       { idempotencyKey: `consultation-schedule-generated:${batchKey}:client`, relatedEntity: { type: 'client', id: client.id } }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue consultation-schedule-generated email for client ${client.id}:`, err);
+    console.error(`[notifications] failed to queue consultation-schedule-generated email for client ${client.id}:`, safeErrorMeta(err));
   }
 
   const gapNotice = newGaps.length > 0 ? `Note: ${newGaps.length} occurrence(s) couldn't be scheduled and need your attention.` : '';
@@ -68,9 +69,9 @@ export async function notifyScheduleGenerated({ schedule, client, dietitian, cre
         gap_notice: gapNotice,
         company_name: companyName,
       },
-      { idempotencyKey: `consultation-schedule-generated:${batchKey}:dietitian`, relatedEntity: { type: 'client', id: client.id } }
+      { idempotencyKey: `consultation-schedule-generated:${batchKey}:dietitian`, relatedEntity: { type: 'client', id: client.id }, staffRecipient: dietitian }
     );
   } catch (err) {
-    console.error(`[notifications] failed to queue consultation-schedule-generated-dietitian email for dietitian ${dietitian.id}:`, err);
+    console.error(`[notifications] failed to queue consultation-schedule-generated-dietitian email for dietitian ${dietitian.id}:`, safeErrorMeta(err));
   }
 }

@@ -1,4 +1,14 @@
 let passwordChangeRequiredHandler = null;
+let sessionEndedHandler = null;
+
+export function onSessionEnded(handler) {
+  sessionEndedHandler = handler;
+  return () => { if (sessionEndedHandler === handler) sessionEndedHandler = null; };
+}
+
+export function notifySessionEnded() {
+  sessionEndedHandler?.();
+}
 
 export function onPasswordChangeRequired(handler) {
   passwordChangeRequiredHandler = handler;

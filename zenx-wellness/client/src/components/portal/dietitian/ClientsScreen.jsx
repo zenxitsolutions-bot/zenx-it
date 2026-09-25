@@ -9,12 +9,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { useClients } from '@/hooks/useClients';
 import { usePagination } from '@/hooks/usePagination';
 import { PaginationControls } from '@/components/portal/shared/PaginationControls';
+import { Button } from '@/components/ui/button';
+import { hasPermission } from '@/lib/permissions';
+import { UserFormDialog } from '@/components/portal/admin/UserFormDialog';
 
 export function ClientsScreen() {
   const { user } = useAuth();
   const isAdmin = user.role === 'admin';
   const { data, isLoading, isError, refetch } = useClients();
   const [search, setSearch] = useState('');
+  const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
 
   const visible = (data ?? []).filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
@@ -32,6 +36,7 @@ export function ClientsScreen() {
             {isAdmin ? 'Every client on the platform, across every dietitian.' : "Stay close to the progress that matters."}
           </p>
         </div>
+        {hasPermission(user, 'clients.create') && <Button onClick={() => setCreateOpen(true)}>Add client</Button>}
       </div>
 
       <Input placeholder="Search clients…" value={search} onChange={(e) => setSearch(e.target.value)} className="mb-4 max-w-sm" />
@@ -84,6 +89,7 @@ export function ClientsScreen() {
       )}
 
       <PaginationControls {...pagination} onPageChange={pagination.setPage} itemLabel="clients" />
+      {createOpen && hasPermission(user, 'clients.create') && <UserFormDialog open onOpenChange={setCreateOpen} initialRole="client" />}
     </div>
   );
 }

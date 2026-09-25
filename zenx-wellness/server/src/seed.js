@@ -1,3 +1,4 @@
+import { safeErrorMeta } from './utils/safeError.js';
 import { pool } from './db/pool.js';
 import { findUserByEmail, createUser, updateUser } from './models/User.js';
 import { findRecipesByTitles, createRecipe, markRecipesSharedByTitles, syncCatalogRecipes } from './models/Recipe.js';
@@ -11,6 +12,9 @@ import { createMessage, markConversationRead } from './models/Message.js';
 import { createReport, addReportFeedback } from './models/Report.js';
 import { hashPassword } from './utils/password.js';
 import { env } from './config/env.js';
+import { assertDemoSeedAllowed } from './config/security.js';
+
+assertDemoSeedAllowed();
 
 // One known-credential user per role, for local dev and manual portal testing.
 // Documented in docs/worklog — re-run any time with `npm run seed` (idempotent: existing
@@ -274,7 +278,7 @@ async function seed() {
 
   console.log(`[seed] created: ${created.length ? created.join(', ') : '(none)'}`);
   console.log(`[seed] already existed, skipped: ${skipped.length ? skipped.join(', ') : '(none)'}`);
-  console.log('[seed] credentials — see docs/worklog for the dated entry, or SEED_USERS above (password for all: Password123!)');
+  console.log('[seed] development fixture accounts created; credentials are never logged.');
 
   await seedDemoData(dietitian, client);
 
@@ -282,6 +286,6 @@ async function seed() {
 }
 
 seed().catch((err) => {
-  console.error('[seed] failed', err);
+  console.error('[seed] failed', safeErrorMeta(err));
   process.exit(1);
 });
