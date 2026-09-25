@@ -854,3 +854,6 @@ One line per work session, newest first. Links to `docs/worklog/YYYY-MM-DD.md`.
 - 2026-09-12: Updated dietitian dashboard layout and added enquiry list view. See [work log](worklog/2026-09-12.md#session-16--dashboard-layout-and-enquiry-list).
 
 - 2026-09-12: Added rounded outer portal border. See [work log](worklog/2026-09-12.md#session-17--portal-outer-border).
+
+- 2026-09-24: Preserved all recipe photos while reducing catalog storage 82.15%, with legacy links and deployment compatibility. See [work log](worklog/2026-09-24.md).
+- 2026-09-24: Prepared the full pending release for Git main with 452 passing tests, three successful frontend builds and secret/artifact checks. See [release work log](worklog/2026-09-24.md#session-2--git-release-preparation).
