@@ -6,13 +6,15 @@ role and assigned-client restrictions still apply; a capability never grants cro
 
 ## Access model
 
-- Each company can explicitly designate one existing active admin as its main admin. This account
-  always has all supported capabilities and cannot be restricted, demoted or reset by a subordinate.
+- The main admin created through ZenX company provisioning is recorded as that company's owner.
+  This account always has all 29 supported capabilities and cannot be restricted, demoted or reset
+  by a subordinate. An operator can explicitly select an existing active admin when setup is ambiguous.
 - The main admin can grant **Manage other users' permissions** to selected admin users.
   Delegates cannot change themselves, the main admin, or another permission manager, and cannot
   grant new access they lack. Only the main admin can appoint or remove permission managers.
-- Existing accounts without saved overrides retain their prior role capabilities. No account is
-  automatically promoted. New staff receive role defaults capped by their creator's own access;
+- Existing accounts without saved overrides retain their prior role capabilities. Only the trusted
+  ZenX company owner is automatically recognized (see below), never an arbitrary local admin.
+  New staff receive role defaults capped by their creator's own access;
   they never automatically become permission managers.
 - Separate controls cover email/phone visibility; client and staff creation/editing; temporary
   password generation/reset; viewing, editing, publishing and deleting diets; recipes; reports;
@@ -28,24 +30,56 @@ role and assigned-client restrictions still apply; a capability never grants cro
   messaging rechecks access. Already completed requests or information already delivered cannot
   be recalled.
 
-## Operator activation (not performed by the code change)
+## ZenX main-admin recognition
+
+New ZenX companies persist their original customer identity in the admin database's
+`companies.main_admin_user_id`. This is a **ZenX user ID**, not a Wellness user ID. Trusted eager
+provisioning initializes the corresponding Wellness `company_access_control` record. If the optional
+direct database connection is unavailable, the signed Wellness SSO handoff initializes it instead.
+Both paths require an active company, active local admin, exact company identity and matching
+linked ZenX user. Existing saved denied overrides cannot restrict a recognized main admin.
+
+For older companies with no source owner recorded, authenticated ZenX login/handoff recognizes
+exactly one distinct `wellness_admin` identity for that company's `zenx-dietitian` grant. The winning
+user and grant must be active. Disabled competing admins/grants still count toward ambiguity;
+disabling one cannot silently elect another. Multiple candidates require operator selection.
+Existing source owners and existing Wellness owners are never replaced automatically.
+
+Wellness accepts ownership only from verified signed claims with issuer `zenx-admin`, audience
+`zenx-dietitian`, `main_admin_user_id` equal to `sub`, and role `wellness_admin`. An email match,
+ordinary admin role, request-body flag or reused company slug is not owner proof. Legacy handoffs
+without the new claims retain ordinary login behavior, but cannot initialize ownership. Owner,
+audit and one-use SSO session are committed together; replay or audit failure rolls them back.
+
+Password synchronization never establishes a new identity by email. Provisioning or verified SSO
+must first link a same-company, same-role account. An older unlinked account can complete SSO with
+its existing Wellness password unchanged; a subsequent ZenX login/password change synchronizes an
+already-linked account when the optional direct database connection is configured.
+
+## Deployment and activation (not performed by this code change)
 
 1. Back up the database and test the matching API/client release in staging. Retain the sibling
    `shared/` directory in API artifacts and frontend build checkouts. Docker's build context is now
    `zenx-wellness/`, with `server/Dockerfile` (not `server/` as context).
-2. Review and run the existing `npm run db:migrate` from `zenx-wellness/server` against the intended
-   environment. This release adds `company_access_control`, `user_permissions`, and
-   `permission_audit`. The general migration also contains earlier migrations; review these before
-   running it against an older database. Deploying the new API without these tables will fail.
-3. Obtain explicit confirmation of the company slug and existing main-admin email. Then, in that
-   same server/environment, a trusted operator runs:
+2. Review and run `npm run db:migrate` from **both** `admin-server` and `zenx-wellness/server`
+   against the intended environment **before restarting the updated APIs**. The new admin migration
+   adds nullable `companies.main_admin_user_id`; there is no blanket owner backfill. Wellness needs
+   the existing `company_access_control`, `user_permissions`, and `permission_audit` tables. General
+   migrations also contain earlier changes; review them in staging first. Missing schema breaks
+   provisioning/handoff. Deploy both APIs together for the new signed-owner flow.
+3. Sign in through ZenX as the company's main admin and open the dietitian application. An eligible
+   new/sole legacy ZenX admin is recognized automatically. Ordinary Wellness-only password login
+   does not guess ownership. If multiple candidates exist, or company IDs differ after slug reuse,
+   stop and have an operator verify the intended account and tenant; do not select by email alone.
+   For an explicitly confirmed existing company admin, the manual fallback remains:
 
    ```text
    node src/scripts/setMainAdmin.js --company-slug <company> --email <existing-admin-email> --confirm
    ```
 
    This deliberately requires an active admin already in that company, is idempotent for the same
-   owner, and refuses to transfer ownership. It is never invoked by startup, migration or login.
+   owner, and refuses to transfer ownership. This manual script is never invoked by startup,
+   migration or login; the separate trusted ZenX flow described above performs automatic recognition.
 4. Sign in again as the main admin and open **Team permissions** in the sidebar
    (`/:companySlug/app/permissions`). Select an admin/dietitian, choose access and save.
    Grant permission management only to the explicitly selected admins. Until initialization, the
@@ -54,9 +88,10 @@ role and assigned-client restrictions still apply; a capability never grants cro
    edits, diet draft/publish actions, downloads, selectors, and session revocation. Verify company
    isolation and assigned-client boundaries in an isolated MySQL staging environment.
 
-The initial code implementation did not migrate a database or initialize an owner. A subsequent
+The initial permission implementation did not migrate a database or initialize an owner. A subsequent
 explicitly authorized local setup initialized the selected test-company owner and added the local
-prerequisite tables only. Production ownership, Git push and deployment remain separate actions.
+prerequisite tables only. This automatic-recognition change has not run migrations or altered real
+owners locally or in production. Git publication and production deployment remain separate actions.
 Platform operators and database/infrastructure operators
 remain trusted administrators outside this company-level permission model.
 
@@ -99,3 +134,9 @@ Screenshots were unavailable, so this was an interaction/DOM check, not pixel-le
 The temporary preview and fixtures were removed afterward. Docker image and live MySQL staging
 integration were not exercised in that verification pass; production rollout and production owner
 activation remain outstanding. The later local setup verified the selected owner against local MySQL.
+
+Automatic-recognition verification (2026-09-24): 125 admin API, 316 Wellness API and 80 Wellness
+client tests passed (521 total, synthetic/mocked data). The client build passed; lint still reports
+the same 15 pre-existing warnings and the build retains its existing bundle-size advisory. Fresh
+isolated starts of both APIs returned health 200 and protected-route 401. No migrations, live
+account changes, background jobs, emails or deployment were run for this automatic-recognition work.

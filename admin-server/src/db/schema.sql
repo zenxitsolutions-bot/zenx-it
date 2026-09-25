@@ -111,6 +111,9 @@ CREATE TABLE IF NOT EXISTS followups (
 
 CREATE TABLE IF NOT EXISTS companies (
   id VARCHAR(36) PRIMARY KEY,
+  -- Authoritative ZenX customer identity for the Wellness company owner. Existing ambiguous
+  -- companies stay NULL; trusted provisioning/authentication resolves only a unique owner.
+  main_admin_user_id VARCHAR(36) NULL,
   enquiry_id VARCHAR(36) NULL,
   company_name VARCHAR(255) NOT NULL,
   company_slug VARCHAR(255) NOT NULL,

@@ -1,6 +1,7 @@
 import { pool } from '../db/pool.js';
 import { newId } from '../db/id.js';
 import { toCalendarDate } from '../utils/calendarDate.js';
+import { ApiError } from '../utils/ApiError.js';
 
 // program_plan_name is only present when the caller asked for it via the LEFT JOIN below (mirrors
 // Call.js's dietitian_name/client_name populate pattern).
@@ -115,9 +116,18 @@ export async function createUser(
 // Kept separate from updateUser (client-facing allowlist) — only auth.controller.js#handoff calls
 // this, to link an existing email-matched account to its ZenX identity on first SSO login.
 // Deliberately never touches company_id/company_slug — see the call site's comment.
-export async function linkZenxUser(id, zenxUserId) {
-  await pool.query('UPDATE users SET zenx_user_id = ? WHERE id = ?', [zenxUserId, id]);
-  return findUserById(id);
+export async function linkZenxUser(id, zenxUserId, companyId, role) {
+  if (!companyId || !['admin', 'dietitian'].includes(role)) throw ApiError.forbidden('This ZenX identity cannot be linked to that account');
+  // Compare-and-swap prevents a concurrent same-email handoff from replacing
+  // somebody else's linked identity or crossing company/role boundaries.
+  await pool.query(
+    'UPDATE users SET zenx_user_id = ? WHERE id = ? AND company_id = ? AND role = ? AND (zenx_user_id IS NULL OR zenx_user_id = ?)',
+    [zenxUserId, id, companyId, role, zenxUserId]);
+  const user = await findUserById(id);
+  if (!user || user.companyId !== companyId || user.role !== role || user.zenxUserId !== zenxUserId) {
+    throw ApiError.forbidden('This ZenX identity cannot be linked to that account');
+  }
+  return user;
 }
 
 // filter: { companyId, role?, assignedDietitian? } — companyId is required so every call site has

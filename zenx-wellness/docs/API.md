@@ -7,6 +7,21 @@ means the controller filters to resources owned by / assigned to the caller.
 
 ## Auth — `server/src/routes/auth.routes.js`
 
+**ZenX main-admin handoff (2026-09-24):** `POST /auth/handoff` accepts `{token, companySlug?}`
+and returns `{accessToken, user}` plus a refresh cookie. The token must be a valid, short-lived,
+single-use ZenX-signed JWT. Ownership additionally requires `iss: 'zenx-admin'`,
+`aud: 'zenx-dietitian'`, `role: 'wellness_admin'`, and `main_admin_user_id === sub`, with the
+exact source company ID and an active, linked local admin. Successful initialization returns
+`user.isMainAdmin: true` and all 29 effective permissions. It never replaces an existing owner.
+Ownership, its audit and the one-use session are atomic; failed/replayed redemption emits no cookie.
+Legacy tokens without ownership proof still permit ordinary SSO; explicit wrong issuer/audience
+is rejected. Body-supplied owner flags, local admin role and email alone never establish ownership;
+email linking cannot replace a different ZenX identity or use a reused slug to take over an old account.
+The ZenX issuer records new owners at provisioning and recognizes a sole unambiguous active legacy
+Wellness admin on trusted login/handoff. Multiple candidate admins require operator selection.
+Deploy both APIs and migrate the admin `companies.main_admin_user_id` column before activation;
+see `../PERMISSIONS.md` for rollout and manual fallback.
+
 Self-registration does not exist — there is no public account-creation endpoint. Every account is
 created by an admin (`POST /users`, below).
 

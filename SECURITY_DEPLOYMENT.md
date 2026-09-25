@@ -88,7 +88,9 @@ compliance certification, or a measured capacity guarantee.
    ```
 
    These create the new `auth_sessions` tables without deleting existing accounts. The pending
-   admin migration also allows blank optional enquiry fields. Review all existing migrations in
+   admin migration also allows blank optional enquiry fields and adds `companies.main_admin_user_id`
+   for trusted ZenX company-owner recognition. That column is required before the new provisioning
+   and handoff code runs; it does not backfill arbitrary admins. Review all existing migrations in
    staging, not just the new table. Do **not** run demo seeds on production.
 8. Deploy both APIs and their matching frontends in a coordinated release. `/api/messages` now
    returns `{ messages, pageInfo, conversation }`, not a bare array. Old frontend bundles must be refreshed.
@@ -144,10 +146,17 @@ autoscaling and production monitoring have **not** been changed or certified by 
 
 Company-level staff permission controls have a separate activation checklist in
 [`zenx-wellness/PERMISSIONS.md`](./zenx-wellness/PERMISSIONS.md). They add three database tables,
-require an explicitly selected company main admin, and require the sibling `shared/` directory
+recognize the trusted ZenX-created main admin (or an operator-selected existing admin), and require the sibling `shared/` directory
 in deployment artifacts. Docker's wellness build context is now `zenx-wellness/`, not `server/`.
 The verification counts below describe the earlier general-hardening pass; the permissions
 checklist records its later feature-specific checks.
+
+Automatic recognition requires both updated APIs plus the new admin owner column. New ZenX
+provisioning records the original owner; older unconfigured companies qualify only when their
+ZenX Wellness admin is unambiguous. Existing owners are preserved. After deployment, sign in through
+ZenX and open the dietitian app; verify full access and **Team permissions** there. Companies with
+multiple candidate admins need explicit operator selection; no real owners or databases were
+changed while implementing this flow.
 
 Local verification completed on 2026-09-24:
 

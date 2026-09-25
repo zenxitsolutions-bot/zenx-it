@@ -857,3 +857,5 @@ One line per work session, newest first. Links to `docs/worklog/YYYY-MM-DD.md`.
 
 - 2026-09-24: Preserved all recipe photos while reducing catalog storage 82.15%, with legacy links and deployment compatibility. See [work log](worklog/2026-09-24.md).
 - 2026-09-24: Prepared the full pending release for Git main with 452 passing tests, three successful frontend builds and secret/artifact checks. See [release work log](worklog/2026-09-24.md#session-2--git-release-preparation).
+- 2026-09-24: Added trusted ZenX company main-admin recognition, approved sole-legacy-admin reconciliation, protected ownership and identity linking, with 521 passing relevant tests. See [ownership work log](worklog/2026-09-24.md#session-3--zenx-created-company-main-admin-access).
+- 2026-09-24: Prepared main-admin recognition for the user-requested Git main push after checking remote alignment. See [publication log](worklog/2026-09-24.md#session-4--publish-main-admin-recognition).

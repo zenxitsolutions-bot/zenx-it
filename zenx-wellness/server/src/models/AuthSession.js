@@ -6,9 +6,9 @@ const scope = ({ id, kind, accountId, companyId = null }) => [id, kind, accountI
 
 // Store only one-way hashes. The credential fingerprint invalidates every old session whenever
 // ANY password-writing path changes the account hash, including admin resets / cross-app sync.
-export async function createSession({ id, kind, accountId, companyId = null, refreshToken, expiresAt, passwordHash }) {
+export async function createSession({ id, kind, accountId, companyId = null, refreshToken, expiresAt, passwordHash }, conn = pool) {
   if (!id || !passwordHash) throw new Error('A session requires an id and account credentials');
-  await pool.query(
+  await conn.query(
     'INSERT INTO auth_sessions (id, account_kind, account_id, company_id, refresh_token_hash, credential_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [id, kind, accountId, companyId, digest(refreshToken), digest(passwordHash), expiresAt]
   );

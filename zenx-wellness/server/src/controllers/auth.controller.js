@@ -25,6 +25,8 @@ import { env } from '../config/env.js';
 import crypto from 'node:crypto';
 import { createSession, rotateSession, revokeRequestSessions, revokeAccountSessions } from '../models/AuthSession.js';
 import { hydrateUserPermissions } from '../models/AccessControl.js';
+import { initializeZenxMainAdmin } from '../models/ZenxMainAdmin.js';
+import { withTransaction } from '../db/pool.js';
 
 const REFRESH_COOKIE = 'nourishly_refresh';
 const cookieOptions = {
@@ -43,7 +45,7 @@ const cookieOptions = {
 // company) so the response cannot be used to tell those cases apart.
 const TENANT_MISMATCH_MESSAGE = 'This login page belongs to a different company — check the URL your admin gave you.';
 
-async function issueTokens(res, user, previous = null, handoffId = null) {
+async function issueTokens(res, user, previous = null, handoffId = null, conn) {
   const sid = previous?.sid || handoffId || crypto.randomUUID();
   const accessToken = signAccessToken(user, sid);
   const refreshToken = signRefreshToken(user, sid);
@@ -51,7 +53,7 @@ async function issueTokens(res, user, previous = null, handoffId = null) {
   const session = { id: sid, kind: 'wellness', accountId: user.id, companyId: user.companyId, passwordHash: user.passwordHash, refreshToken, expiresAt };
   if (previous) {
     if (!(await rotateSession({ ...session, previousToken: previous.token }))) throw ApiError.unauthorized('Session expired. Sign in again.');
-  } else await createSession(session);
+  } else await createSession(session, conn);
   res.cookie(REFRESH_COOKIE, refreshToken, { ...cookieOptions, maxAge: expiresAt.getTime() - Date.now() });
   return accessToken;
 }
@@ -133,6 +135,10 @@ export const handoff = asyncHandler(async (req, res) => {
     || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.jti)) {
     throw ApiError.unauthorized('This login link is invalid or has expired.');
   }
+  if ((payload.iss !== undefined && payload.iss !== 'zenx-admin')
+    || (payload.aud !== undefined && payload.aud !== 'zenx-dietitian')) {
+    throw ApiError.unauthorized('This login link is not intended for this application.');
+  }
 
   if (
     companySlug &&
@@ -160,11 +166,18 @@ export const handoff = asyncHandler(async (req, res) => {
     user = await findUserByEmail(payload.email);
     if (user) {
       if (user.companyId !== localCompanyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
+      // Reusing a public company slug does not prove ownership of a historical account,
+      // which may already be the old company's main admin.
+      if (!user.zenxUserId && payload.company_id !== localCompanyId) throw ApiError.forbidden(TENANT_MISMATCH_MESSAGE);
+      if ((user.zenxUserId && user.zenxUserId !== payload.sub)
+        || user.role !== (payload.role === 'wellness_admin' ? 'admin' : 'dietitian')) {
+        throw ApiError.forbidden('This ZenX identity cannot be linked to that account');
+      }
       // A pre-existing account (e.g. a legacy-company user created before this identity ever SSO'd
       // in) gets linked to its ZenX identity — company_id is deliberately NOT overwritten here: it
       // already has one (every user row does, post-multi-tenancy), and a ZenX-side company change
       // must not silently move an existing local account into a different org.
-      user = await linkZenxUser(user.id, payload.sub);
+      user = await linkZenxUser(user.id, payload.sub, localCompanyId, payload.role === 'wellness_admin' ? 'admin' : 'dietitian');
     } else {
       // First time this ZenX identity has reached wellness-app. ZenX's per-application `role`
       // claim (provisioning.controller.js#defaultRoleFor) maps to this app's local role enum:
@@ -200,14 +213,21 @@ export const handoff = asyncHandler(async (req, res) => {
 
   await touchLastLogin(user.id);
   let accessToken;
+  const pendingCookies = [];
   try {
     // The issuer's random jti becomes a UNIQUE session ID: a handoff link can only be redeemed
     // once, even concurrently, and replay cannot mint a new session after logout.
-    accessToken = await issueTokens(res, user, null, payload.jti);
+    accessToken = await withTransaction(async (conn) => {
+      // A deadlock retry must not publish cookies from a rolled-back attempt.
+      pendingCookies.length = 0;
+      await initializeZenxMainAdmin({ user, payload }, conn);
+      return issueTokens({ cookie: (...args) => pendingCookies.push(args) }, user, null, payload.jti, conn);
+    });
   } catch (error) {
     if (error.code === 'ER_DUP_ENTRY') throw ApiError.unauthorized('This login link has already been used. Sign in again.');
     throw error;
   }
+  for (const args of pendingCookies) res.cookie(...args);
   res.json({ user: toClientShape(await hydrateUserPermissions(user), ['passwordHash']), accessToken });
 });
 

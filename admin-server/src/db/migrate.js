@@ -13,6 +13,8 @@ const schemaPath = join(dirname(fileURLToPath(import.meta.url)), 'schema.sql');
 // wellness-app's own server/src/db/migrate.js convention (each wrapped in the same try/catch below
 // so reruns stay idempotent).
 const ALTERS = [
+  // Add the source-of-truth identity without guessing owners in a blanket role backfill.
+  'ALTER TABLE companies ADD COLUMN main_admin_user_id VARCHAR(36) NULL AFTER id',
   // Only contact name, phone and email are mandatory on enquiries. MODIFY is safe to rerun and
   // preserves every existing value while allowing genuinely unprovided business details.
   'ALTER TABLE enquiries MODIFY COLUMN company_name VARCHAR(255) NULL',

@@ -59,7 +59,7 @@ export function PermissionsPage() {
       ) : directory.data?.configured === false ? (
         <div role="status" className="mt-6 rounded-card border border-amber-300 bg-amber-50 p-6">
           <h2 className="text-xl">Main admin setup required</h2>
-          <p className="mt-2">An operator must explicitly select this company's main admin before permission changes are enabled. No existing admin is automatically promoted. Your current access stays unchanged until setup is complete.</p>
+          <p className="mt-2">Sign in through ZenX with your company's main admin account to finish setup. If more than one ZenX admin could be the owner, an operator must select the main admin. Your current access stays unchanged until setup is complete.</p>
         </div>
       ) : (
         <>

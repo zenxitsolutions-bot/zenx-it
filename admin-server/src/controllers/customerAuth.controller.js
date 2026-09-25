@@ -8,7 +8,8 @@ import { signCustomerAccessToken, signCustomerRefreshToken, verifyCustomerRefres
 import { findUserByEmail, findUserById, updateUserPassword, touchUserLastLogin } from '../models/ZenxUser.js';
 import { findCompanyById, findCompanyBySlug } from '../models/Company.js';
 import { findApplicationAccess, listActiveGrantsForUser } from '../models/ApplicationAccess.js';
-import { updateWellnessPassword } from '../models/WellnessDb.js';
+import { reconcileCompanyMainAdmin } from '../models/CompanyOwnership.js';
+import { updateWellnessPassword, syncWellnessMainAdmin } from '../models/WellnessDb.js';
 import { findApplicationBySlug, listApplications } from '../models/Application.js';
 import { createSession, rotateSession, revokeRequestSessions, revokeAccountSessions } from '../models/AuthSession.js';
 import { safeErrorMeta } from '../utils/safeError.js';
@@ -65,6 +66,16 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   const signedIn = await touchUserLastLogin(user.id);
+  const wellnessGrant = grants.find((entry) => entry.company_id === company.id && entry.application === 'zenx-dietitian');
+  if (wellnessGrant) {
+    try {
+      const mainAdminUserId = await reconcileCompanyMainAdmin({ companyId: company.id });
+      await syncWellnessMainAdmin({ zenxUserId: user.id, mainAdminUserId, zenxRole: wellnessGrant.role,
+        companyId: company.id, companySlug: company.company_slug, companyStatus: company.status });
+    } catch (err) {
+      console.error('[customerLogin] wellness-app ownership sync failed', safeErrorMeta(err));
+    }
+  }
   const accessToken = await issueTokens(res, signedIn, company.id);
   // Keep wellness-app's hash in lockstep. SSO handoff used to create that row with a random
   // unusable password, so the same email/password that works here then failed on
@@ -75,6 +86,8 @@ export const login = asyncHandler(async (req, res) => {
       email: user.email,
       passwordHash: user.password_hash,
       mustChangePassword: Boolean(user.must_change_password),
+      companyId: company.id,
+      companySlug: company.company_slug,
     });
   } catch (err) {
     console.error('[customerLogin] wellness-app password sync failed', safeErrorMeta(err));
@@ -126,11 +139,14 @@ export const setNewPassword = asyncHandler(async (req, res) => {
   const updated = await updateUserPassword(req.customer.id, passwordHash, false);
   await revokeAccountSessions('customer', updated.id);
   try {
+    const company = req.customerCompanyId ? await findCompanyById(req.customerCompanyId) : null;
     await updateWellnessPassword({
       zenxUserId: updated.id,
       email: updated.email,
       passwordHash,
       mustChangePassword: false,
+      companyId: company?.id,
+      companySlug: company?.company_slug,
     });
   } catch (err) {
     console.error('[setNewPassword] wellness-app password sync failed', safeErrorMeta(err));
@@ -184,8 +200,12 @@ export const getActiveGrants = asyncHandler(async (req, res) => {
 // `website` was added after the fact and is read defensively there (a token minted before this
 // claim existed simply leaves the mirrored value untouched), so the two sides can deploy in
 // either order.
+// Ownership additionally carries an explicit issuer/audience and the persisted ZenX owner ID.
+// Wellness requires that ID to equal sub and the role to remain wellness_admin before assigning
+// a local owner; ordinary staff grants and unconfigured/ambiguous companies convey no elevation.
 export const issueHandoffToken = asyncHandler(async (req, res) => {
   const { applicationSlug } = req.body;
+  if (req.customer.status !== 'ACTIVE') throw ApiError.forbidden('This account has been disabled.');
   const companyId = req.customerCompanyId;
   if (!companyId) {
     throw ApiError.forbidden('Sign in from your company\'s login page.');
@@ -202,12 +222,18 @@ export const issueHandoffToken = asyncHandler(async (req, res) => {
     throw ApiError.conflict('This application is not deployed yet.');
   }
 
+  const mainAdminUserId = applicationSlug === 'zenx-dietitian'
+    ? await reconcileCompanyMainAdmin({ companyId: company.id }) : null;
+
   const token = jwt.sign(
     {
       sub: req.customer.id,
       email: req.customer.email,
       contact_name: `${req.customer.first_name} ${req.customer.last_name}`.trim(),
       role: grant.role,
+      iss: 'zenx-admin',
+      aud: applicationSlug,
+      main_admin_user_id: mainAdminUserId,
       company_id: company.id,
       company_slug: company.company_slug,
       company_name: company.company_name,
@@ -221,11 +247,19 @@ export const issueHandoffToken = asyncHandler(async (req, res) => {
 
   if (applicationSlug === 'zenx-dietitian') {
     try {
+      await syncWellnessMainAdmin({ zenxUserId: req.customer.id, mainAdminUserId, zenxRole: grant.role,
+        companyId: company.id, companySlug: company.company_slug, companyStatus: company.status });
+    } catch (err) {
+      console.error('[issueHandoffToken] wellness-app ownership sync failed', safeErrorMeta(err));
+    }
+    try {
       await updateWellnessPassword({
         zenxUserId: req.customer.id,
         email: req.customer.email,
         passwordHash: req.customer.password_hash,
         mustChangePassword: Boolean(req.customer.must_change_password),
+        companyId: company.id,
+        companySlug: company.company_slug,
       });
     } catch (err) {
       console.error('[issueHandoffToken] wellness-app password sync failed', safeErrorMeta(err));

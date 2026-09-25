@@ -1,5 +1,11 @@
 # Local permissions setup
 
+Normal setup now recognizes the main admin created by ZenX automatically after trusted provisioning
+or ZenX sign-in/handoff. Legacy companies qualify only with one unambiguous active ZenX Wellness
+admin; existing owners are preserved. Both APIs and their schema prerequisites must be current.
+See [the activation checklist](../PERMISSIONS.md). The manual local helper below remains available
+for an explicitly selected company admin; it is not a substitute for the new admin schema migration.
+
 Run from this server directory only after confirming the local database and the intended existing company administrator:
 
 ```powershell
@@ -27,8 +33,9 @@ node scripts/serve-local-api.mjs admin
 These launch the real API code on loopback ports 4000 and 4001 without starting background email,
 reminder, plan-expiry or appointment-generation jobs. They refuse production configuration. Stop
 an existing API on the same port first; the launcher never kills another process automatically.
-The ZenX admin database also needs its additive `auth_sessions` table from `admin-server/src/db/schema.sql`
-for the current sign-in implementation. Do not run a broad migration solely for this prerequisite.
+The ZenX admin database also needs its additive `auth_sessions` table and the nullable
+`companies.main_admin_user_id` column from `admin-server/src/db/schema.sql`. Review all pending
+changes before running its migration; the local permissions helper does not alter the admin database.
 
 The company sign-in page is `http://localhost:5174/<company>/login`. Open the dietitian application
 after signing in, then visit `http://localhost:5173/<company>/app/permissions`. Keep the existing

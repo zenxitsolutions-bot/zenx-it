@@ -5,6 +5,7 @@ import { withTransaction } from '../db/pool.js';
 import { createCompany, findCompanyBySlug } from '../models/Company.js';
 import { createUser, findUserByEmail } from '../models/ZenxUser.js';
 import { createApplicationAccess } from '../models/ApplicationAccess.js';
+import { initializeCompanyMainAdmin } from '../models/CompanyOwnership.js';
 import { createAuditLog } from '../models/AuditLog.js';
 import { updateEnquiryStatus } from '../models/Enquiry.js';
 import { hashPassword } from '../utils/password.js';
@@ -89,6 +90,11 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
     for (const slug of applicationSlugs) {
       grants.push(await createApplicationAccess({ userId: user.id, companyId: company.id, application: slug, role: defaultRoleFor(slug) }, conn));
     }
+    if (applicationSlugs.includes('zenx-dietitian')) {
+      // Record the original identity even for an inactive company; consumers separately require
+      // ACTIVE status before this identity can receive Wellness ownership or sign in.
+      company.main_admin_user_id = await initializeCompanyMainAdmin({ companyId: company.id, userId: user.id, allowInactiveCompany: true }, conn);
+    }
     await createAuditLog(
       { adminId: req.staff.id, action: 'CREATE_COMPANY', entityType: 'company', entityId: company.id, description: `Provisioned ${companyName} for ${email}` },
       conn
@@ -115,6 +121,8 @@ export const provisionCustomerAccount = asyncHandler(async (req, res) => {
         email,
         zenxRole: defaultRoleFor('zenx-dietitian'),
         companyId: company.id,
+        mainAdminUserId: company.main_admin_user_id,
+        companyStatus: company.status,
         companyName,
         companySlug,
         website: company.website,
